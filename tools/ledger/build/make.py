@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Assemble public/ledger/index.html: a full document with the CSS inlined and the scripts in load order.
+"""Assemble public/ledger/index.html: a full document with Ledger's CSS inlined (after the shared
+public/common/luna.css) and the scripts in load order.
 
     python3 tools/ledger/build/make.py
 """
@@ -14,7 +15,7 @@ SCRIPTS = ['common/core', 'xml', 'common/zip', 'common/sha', 'common/crypto', 'c
            'fninfo', 'grid', 'editor', 'common/spell', 'spell', 'filter', 'drawing', 'commands', 'dialogs',
            'dialogs2', 'dialogs3', 'print', 'panes', 'app']
 tpl = open(os.path.join(D, 'template.html')).read()
-css = open(os.path.join(D, 'base.css')).read() + '\n' + open(os.path.join(D, 'ledger.css')).read()
+css = open(os.path.join(D, 'ledger.css')).read()   # after public/common/luna.css, linked by the template
 def src(s):
     rel = '../' + s + '.js' if s.startswith('common/') else 'js/' + s + '.js'
     if not os.path.exists(os.path.join(APP, rel)):
