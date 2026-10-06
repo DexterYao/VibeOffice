@@ -11,7 +11,7 @@ SCRIPTS = ['core', 'xml', 'zip', 'sha', 'crypto', 'icons', 'geometry', 'metafile
            'dml', 'charts', 'xchart', 'xlsx-read', 'xlsx-write', 'csv', 'xmlss', 'styles', 'cf', 'layout', 'render', 'ops', 'clipboard',
            'fninfo', 'grid', 'editor', 'spell', 'filter', 'drawing', 'commands', 'dialogs', 'dialogs2', 'dialogs3', 'print', 'panes', 'app']
 # shared by the suite: public/common/<name>.js
-COMMON = {'zip', 'sha', 'crypto', 'numfmt', 'metafile', 'geometry'}
+COMMON = {'core', 'ui', 'icons', 'zip', 'sha', 'crypto', 'numfmt', 'metafile', 'geometry'}
 COMMON_DIR = os.path.join(APP, '..', 'common')
 tpl = open(os.path.join(D, 'template.html')).read()
 css = open(os.path.join(D, 'base.css')).read() + '\n' + open(os.path.join(D, 'ledger.css')).read()
