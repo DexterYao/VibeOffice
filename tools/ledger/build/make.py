@@ -6,20 +6,20 @@
 import os
 D = os.path.dirname(os.path.abspath(__file__))
 APP = os.path.join(D, '..', '..', '..', 'public', 'ledger')
-SCRIPTS = ['core', 'xml', 'zip', 'sha', 'crypto', 'icons', 'geometry', 'metafile', 'ui',
-           'numfmt', 'formula', 'model', 'calc', 'fn-core', 'fn-lookup', 'fn-stat', 'fn-fin', 'fn-eng',
-           'dml', 'charts', 'xchart', 'xlsx-read', 'xlsx-write', 'csv', 'xmlss', 'styles', 'cf', 'layout', 'render', 'ops', 'clipboard',
-           'fninfo', 'grid', 'editor', 'spell', 'filter', 'drawing', 'commands', 'dialogs', 'dialogs2', 'dialogs3', 'print', 'panes', 'app']
-# shared by the suite: public/common/<name>.js
-COMMON = {'core', 'ui', 'icons', 'zip', 'sha', 'crypto', 'numfmt', 'metafile', 'geometry'}
-COMMON_DIR = os.path.join(APP, '..', 'common')
+# load order; 'common/x' is public/common/x.js, shared by the suite, anything else public/ledger/js/x.js
+SCRIPTS = ['common/core', 'xml', 'common/zip', 'common/sha', 'common/crypto', 'common/icons',
+           'common/geometry', 'common/metafile', 'common/ui', 'common/numfmt', 'formula', 'model', 'calc',
+           'fn-core', 'fn-lookup', 'fn-stat', 'fn-fin', 'fn-eng', 'common/dml', 'common/charts', 'xchart',
+           'xlsx-read', 'xlsx-write', 'csv', 'xmlss', 'styles', 'cf', 'layout', 'render', 'ops', 'clipboard',
+           'fninfo', 'grid', 'editor', 'common/spell', 'spell', 'filter', 'drawing', 'commands', 'dialogs',
+           'dialogs2', 'dialogs3', 'print', 'panes', 'app']
 tpl = open(os.path.join(D, 'template.html')).read()
 css = open(os.path.join(D, 'base.css')).read() + '\n' + open(os.path.join(D, 'ledger.css')).read()
 def src(s):
-    path = os.path.join(COMMON_DIR, s + '.js') if s in COMMON else os.path.join(APP, 'js', s + '.js')
-    if not os.path.exists(path):
-        raise SystemExit(f'missing script: {os.path.relpath(path)}')
-    return ('../common/' if s in COMMON else 'js/') + s + '.js'
+    rel = '../' + s + '.js' if s.startswith('common/') else 'js/' + s + '.js'
+    if not os.path.exists(os.path.join(APP, rel)):
+        raise SystemExit(f'missing script: {os.path.relpath(os.path.join(APP, rel))}')
+    return rel
 tags = '\n'.join(f'<script src="{src(s)}"></script>' for s in SCRIPTS)
 body = tpl.replace('/*CSS*/', css).replace('<!--SCRIPTS-->', tags)
 out = ('<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'
