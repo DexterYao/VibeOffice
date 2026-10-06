@@ -29,7 +29,7 @@ Keep them current: a change to an app's features, formats or source layout updat
 - Nothing from third-party servers: no CDNs, web fonts or analytics; vendored files go in `public/common/`. (Open gap: the three apps still load the metric-compatible fonts from Google Fonts.)
 - Compatibility is measured against files other people wrote (public test corpora), compared with outside references (the page or cell values the authoring application stored, LibreOffice, openpyxl, python-pptx), and the result is written down in the app's doc with numbers.
 - Saved files must open in the authoring application's newer versions and in LibreOffice; what an app cannot edit it keeps and writes back unchanged.
-- Shared modules (`core`, `zip`, `geometry`, `metafile`, `charts`, `ui`, `icons`, `dml`, `crypto`, `spell`, …) exist as one copy per app and have drifted slightly. A fix to one copy is checked against the others; the direction is to merge them into `public/common/`.
+- Shared modules (`core`, `zip`, `geometry`, `metafile`, `charts`, `ui`, `icons`, `dml`, `crypto`, `sha`, `numfmt`, `spell`, …) exist as one copy per app and have drifted slightly. A fix to one copy is checked against the others; the direction is to merge them into `public/common/`.
 
 ## Tools (details in docs/testing.md)
 
@@ -37,6 +37,7 @@ Keep them current: a change to an app's features, formats or source layout updat
 - Chromium with CDP at 127.0.0.1:9222. `tools/shot.mjs <page> [steps]` drives a page over CDP, takes screenshots and reports console errors and any request that leaves 127.0.0.1. **Never close the browser's other tabs** (Chromium quits with its last tab).
 - `tools/templates.mjs`: regenerates the Start Center's template gallery (`public/common/templates.json` and previews) from the apps; run it after changing a template.
 - `tools/ledger/test/`: Ledger's Node harnesses (unit tests, `.xlsx` round trip, recalculation, CSV) and Playwright UI checks.
+- `tools/lectern/test/`: Lectern's real-deck harness (open, render, save, reopen in Chromium), UI checks for passwords and charts, encrypted-save check (see docs/lectern.md).
 
 ## Testing
 

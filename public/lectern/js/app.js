@@ -352,7 +352,19 @@
     ui.busy(true, `Opening ${file.name}...`);
     try {
       const buf = await L.readAsArrayBuffer(file);
-      const pres = await L.pptx.read(buf, { progress: (i, n) => ui.busy(true, `Opening ${file.name}... (slide ${i} of ${n})`) });
+      const progress = (i, n) => ui.busy(true, `Opening ${file.name}... (slide ${i} of ${n})`);
+      let pres = null, password, wrong = false;
+      for (;;) {
+        try { pres = await L.pptx.read(buf, { progress, password }); break; } catch (e) {
+          if (!(e && (e.code === 'password' || e.code === 'badpassword'))) throw e;
+          /* a password to open: ask for it, as PowerPoint does */
+          ui.busy(false);
+          wrong = e.code === 'badpassword';
+          password = await ui.password(file.name, wrong);
+          if (password == null) return;
+          ui.busy(true, `Opening ${file.name}...`);
+        }
+      }
       if (!pres.slides.length) pres.slides.push(M.newSlide(pres, 'title', Object.keys(pres.designs)[0]));
       A.loadPres(pres, file.name.replace(/\.(pptx|ppsx|potx|pptm|ppsm|potm)$/i, ''), { saved: true });
       A.fileType = /\.ppsx$/i.test(file.name) ? 'ppsx' : /\.potx$/i.test(file.name) ? 'potx' : 'pptx';
@@ -1244,11 +1256,11 @@ addEventListener('resize',fit);fit();show(0);<\/script></body></html>`], { type:
       let data;
       try { data = g.getImageData(0, 0, c.width, c.height); } catch (er) { ui.msg('This picture cannot be edited.'); return; }
       const px = (Math.floor(ny * c.height) * c.width + Math.floor(nx * c.width)) * 4;
-      const [tr, tg, tb] = [data.data[px], data.data[px + 1], data.data[px + 2]];
-      for (let i = 0; i < data.data.length; i += 4) if (Math.abs(data.data[i] - tr) < 12 && Math.abs(data.data[i + 1] - tg) < 12 && Math.abs(data.data[i + 2] - tb) < 12) data.data[i + 3] = 0;
-      g.putImageData(data, 0, 0);
-      const blob = await new Promise((res) => c.toBlob(res, 'image/png'));
-      E.commit('Set Transparent Color', () => { s.media = L.media.add(blob, 'picture.png'); });
+      const hex = L.color.rgbToHex(data.data[px], data.data[px + 1], data.data[px + 2]);
+      /* as in PowerPoint the picture itself is kept; the colour is recorded and shows through */
+      const view = await L.media.withTransparent(s.media, hex, 8);
+      if (!view) return;
+      E.commit('Set Transparent Color', () => { s.img = Object.assign({}, s.img, { clear: hex, view }); });
     };
     E.scroller.addEventListener('pointerdown', once, true);
   };
