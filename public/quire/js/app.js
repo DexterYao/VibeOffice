@@ -707,6 +707,7 @@
       if (d.isTemplate) A.status('Opened a template: saving creates a new document.');
       if (d.wasEncrypted) A.status('This document is protected with a password to open; saving keeps the protection (Tools ▸ Options ▸ Security).');
       if (warnings.length) ui.msg(warnings.join('\n'), { icon: 'warn' });
+      if (type === 'md') { const n = L.mdio.missingPictures(d); if (n) A.status(`${n === 1 ? 'A picture is' : n + ' pictures are'} not in the .md file and show${n === 1 ? 's' : ''} as a box. Open a .zip holding the file and its pictures to see them.`); }
       if (d.settings.protect && d.settings.protect.on) A.status('This document is protected: ' + ({ readOnly: 'no changes (read only)', comments: 'comments only', tracked: 'tracked changes', forms: 'filling in forms' }[d.settings.protect.kind] || 'restricted'));
     } catch (e) {
       ui.busy(false);
@@ -761,7 +762,7 @@
     if (!A.saved) return A.saveAs();
     return A.exportAs(A.fileType || 'docx', A.fileName);
   };
-  A.saveAs = function () { return new Promise((res) => (L.dlg && L.dlg.saveAs ? L.dlg.saveAs(async (name, type) => { if (type === 'docx' || type === 'dotx') { A.fileName = name; A.fileType = type; A.saved = true; A.updateTitle(); } await A.exportAs(type, name); res(); }) : A.exportAs('docx', A.fileName).then(res))); };
+  A.saveAs = function () { return new Promise((res) => (L.dlg && L.dlg.saveAs ? L.dlg.saveAs(async (name, type) => { if (['docx', 'dotx', 'md', 'mdzip'].includes(type)) { A.fileName = name; A.fileType = type; A.saved = true; A.updateTitle(); } await A.exportAs(type, name); res(); }) : A.exportAs('docx', A.fileName).then(res))); };
   A.docStats = function () {
     const d = doc();
     const st = D.stats(D.allParas(d));
@@ -782,6 +783,18 @@
         /* a password to open: encrypt the package (Agile encryption, readable by Word 2010+ and LibreOffice) */
         if (d.openPassword && L.officeCrypto) blob = new Blob([await L.officeCrypto.encrypt(new Uint8Array(await blob.arrayBuffer()), d.openPassword)], { type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
       }
+      else if (type === 'md') {
+        /* pictures need the .zip form: a .md file only refers to them */
+        if (L.mdio.newPictures(d)) {
+          ui.busy(false);
+          const r = await ui.msg('This document has pictures that a .md file cannot hold. Save it as Markdown with pictures (.zip), which holds the .md file and its pictures?', { icon: 'warn', buttons: ['Save as .&zip', 'Save .md &without them', 'Cancel'] });
+          if (r !== 0 && r !== 1) return;
+          if (r === 0) { type = ext = 'mdzip'; if (A.fileType === 'md') A.fileType = 'mdzip'; }
+          ui.busy(true, 'Saving...');
+        }
+        if (type === 'md') blob = new Blob([L.mdio.write(d).text], { type: 'text/markdown;charset=utf-8' });
+      }
+      if (type === 'mdzip') { blob = await L.mdio.writeZip(d, name); ext = 'zip'; }
       else if (type === 'html') blob = await L.htmlio.webPage(d, name);
       else if (type === 'txt') blob = new Blob([L.htmlio ? L.htmlio.plainText(d) : ''], { type: 'text/plain;charset=utf-8' });
       else if (type === 'pdf') blob = await A.buildPDF();
@@ -789,7 +802,7 @@
       ui.busy(false);
       if (!blob) return;
       const r = await L.saveFile(`${name}.${ext}`, blob);
-      if (r === 'saved' && (type === 'docx' || type === 'dotx')) { d.dirty = false; A.status(`Saved ${name}.${ext}`); ui.refresh(); if (window.VO) VO.saved(`${name}.${ext}`, blob); }
+      if (r === 'saved' && ['docx', 'dotx', 'md', 'mdzip'].includes(type)) { d.dirty = false; A.status(`Saved ${name}.${ext}`); ui.refresh(); if (window.VO) VO.saved(`${name}.${ext}`, blob, d); }
       return r;
     } catch (e) {
       ui.busy(false);
@@ -931,6 +944,11 @@
         let o = 0;
         for (const it of p.runs) { if (it.t === 'bs' && it.name === name) { A.gotoPos(D.pos(p, o)); return true; } o += D.ilen(it); }
       }
+    }
+    /* a Markdown link to a heading uses GitHub's anchor for it ("#getting-started") */
+    if (L.md) {
+      const used = new Set();
+      for (const p of D.allParas(d)) if (D.headingLevel(d, p) && L.md.slug(D.plainText(p), used) === name.toLowerCase()) { A.gotoPos(D.pos(p, 0)); return true; }
     }
     A.status(`Bookmark "${name}" not found.`);
     return false;
@@ -1156,7 +1174,7 @@
     bl.push(P('A word processor in the spirit of Word 2003 — it opens and saves real .docx files.', { style: 'Subtitle' }, { i: true }));
     bl.push(P('Getting around', { style: 'Heading1' }));
     bl.push(D.para([D.text('Type anywhere on this page. Everything works the way you remember: '), D.text('bold', { b: true }), D.text(', '), D.text('italic', { i: true }), D.text(', '), D.text('underline', { u: 'single' }), D.text(', '), D.text('highlighting', { hl: 'yellow' }), D.text(', '), D.text('colors', { color: 'C00000' }), D.text(', styles, bullets, numbering, tables, headers and footers, footnotes, comments, tracked changes, fields and more.')], { jc: 'both' }));
-    bl.push(P('Open a document with File ▸ Open, or drop a .docx onto the window. Save with File ▸ Save (Ctrl+S); File ▸ Save As offers Word Document, Word Template, Web Page, Plain Text and PDF.', { num: { id: '1', lvl: 0 } }));
+    bl.push(P('Open a document with File ▸ Open, or drop a .docx onto the window. Save with File ▸ Save (Ctrl+S); File ▸ Save As offers Word Document, Word Template, Web Page, Plain Text, Markdown and PDF.', { num: { id: '1', lvl: 0 } }));
     bl.push(P('Switch views with the buttons in the lower-left corner: Normal, Web Layout, Print Layout, Outline and Reading Layout.', { num: { id: '1', lvl: 0 } }));
     bl.push(P('Right-click for the shortcut menu; the task pane (Ctrl+F1) holds Styles and Formatting, Reveal Formatting, Clip Art and the Mail Merge wizard.', { num: { id: '1', lvl: 0 } }));
     bl.push(P('A small table', { style: 'Heading2' }));

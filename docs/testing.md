@@ -32,6 +32,15 @@ Check after a change to `suite.js` or to an app's start, open or save code: `<ap
 
 Templates: `node tools/templates.mjs` opens every template (`<app>/?template=<id>`) and fails on a script error or a missing preview; look at the new previews in the Create File view.
 
+## Quire: tools/quire/test/
+
+| | |
+|---|---|
+| `node tools/quire/test/mdspec.js DIR` | The Markdown reader against the CommonMark spec examples and the GFM extension examples (in Node). DIR holds `spec.json` (https://spec.commonmark.org/0.31.2/spec.json), cmark-gfm's `test/spec.txt` saved as `gfm-spec.txt`, and the WHATWG `entities.json` |
+| `node tools/quire/test/mdroundtrip.mjs DIR` | Markdown round trips in Quire (through `shot.mjs`): every `.md` in DIR saved unchanged (must be byte for byte the same), with one paragraph edited (only that block may change), and fully rewritten (same HTML). `--spec spec.json` runs the rewrite check on the spec examples |
+
+Run both after a change to `markdown.js` or `mdio.js`; the numbers are in docs/quire.md.
+
 ## Ledger: tools/ledger/test/
 
 The engine and the file readers and writers load in Node through `load.js` (the shared ones from `public/common/`; a missing file is an error), so most checks run without a browser.

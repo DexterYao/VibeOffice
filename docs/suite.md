@@ -101,7 +101,7 @@ Thumbnails are JPEG, at most 320 px, made 0.6 s after an open, a save or an auto
 
 ## PWA
 
-The manifest's `id`, `start_url` and `scope` are `./`, so the suite installs from any folder it is served from. Shortcuts create a new document, spreadsheet or presentation (`<app>/?new`). File handlers (`.docx .dotx .docm .rtf`, `.xlsx .xltx .xlsm .csv`, `.pptx .ppsx .potx`) all go to the Start Center, which hands the file on; `launch_handler` `focus-existing` reuses an open Start Center window. App pages link the same manifest, so installing from inside an app installs the suite.
+The manifest's `id`, `start_url` and `scope` are `./`, so the suite installs from any folder it is served from. Shortcuts create a new document, spreadsheet or presentation (`<app>/?new`). File handlers (`.docx .dotx .docm .rtf .md .markdown`, `.xlsx .xltx .xlsm .csv`, `.pptx .ppsx .potx`) all go to the Start Center, which hands the file on; `launch_handler` `focus-existing` reuses an open Start Center window. App pages link the same manifest, so installing from inside an app installs the suite.
 
 Icons: edit the SVGs, then render the PNGs in Chromium:
 

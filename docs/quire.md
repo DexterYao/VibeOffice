@@ -62,11 +62,55 @@ Licences for the word lists are in `public/common/dict/LICENSES.txt`.
 | Web Page `.htm` / `.html` | yes | yes (single file, images inlined) |
 | Rich Text Format `.rtf` | yes | yes |
 | Plain Text `.txt` | yes | yes |
+| Markdown `.md` / `.markdown` (GitHub flavour) | yes | yes |
+| Markdown with pictures `.zip` (a `.md` and its picture files) | yes | yes |
 | PDF | — | yes (File ▸ Print, or Save As ▸ PDF) |
 | Password-protected `.docx` | yes (Word 2007 "standard" and Word 2010+ "agile" encryption) | yes: Tools ▸ Options ▸ Security ▸ Password to open (AES-256, as Word 2013+) |
 
 Encryption and decryption happen in the browser (WebCrypto for hashing, so the page must be served over
 https or from localhost). A document opened with its password keeps that password when saved.
+
+## Markdown
+
+Quire reads and writes the Markdown GitHub uses: CommonMark plus tables, task lists, strikethrough,
+extended autolinks, footnotes and alerts (`> [!NOTE]`).
+
+| In the file | In Quire | Written back as |
+| --- | --- | --- |
+| `#` … `######` headings | Heading 1–6 | `#` headings (Title as `#`, Subtitle as `##`) |
+| `**bold**`, `*italic*`, `~~strike~~`, `` `code` `` | Bold, italic, strikethrough, the HTML Code character style | The same; where a delimiter could not open or close, `<strong>`, `<em>`, `<del>` |
+| Links, autolinks, `[text](#heading)` | Hyperlinks (titles as tips); `#heading` follows GitHub's heading anchors | The same |
+| `-` / `1.` lists, nested, tight or loose | Bullets and numbering per list level (List Paragraph) | `-` and `1.`; tight unless the items have space between them |
+| `- [ ]` / `- [x]` task lists | Check boxes that tick on click | `[ ]` / `[x]` |
+| `>` quotes, nested; `> [!NOTE]` and the other four alerts | Quote style with a bar per level; alerts with their title and colour | `>` and `[!KIND]` |
+| Fenced and indented code | HTML Preformatted paragraphs, the language kept | Fenced code with the language |
+| Pipe tables with alignment | Tables (Markdown Table style: header row, banded rows) | Pipe tables; merged cells or several paragraphs in a cell as an HTML `<table>` |
+| `---` | A paragraph with a bottom border | `---` |
+| `[^label]` footnotes | Footnotes | `[^label]` and its definition |
+| Pictures | Pictures from `data:` URLs, or from the `.zip`; others as a box with the alt text, the address kept | `![alt](path)`; a resized picture as `<img width>`; new pictures go into the `.zip` as `images/…` |
+| `$…$` math, emoji `:shortcodes:`, Mermaid and other diagram code | Kept as written (math in the Markdown Source character style, diagrams as code) | Unchanged |
+| Inline HTML GitHub allows (`<sub>`, `<sup>`, `<ins>`, `<kbd>`, `<br>`, `<img>`, `<a href>`, `<a name>`) | Subscript, superscript, underline, HTML Keyboard style, line break, picture, link, bookmark | The same tags |
+| HTML blocks, YAML front matter, link reference definitions, comments | Blocks through the HTML reader; front matter, definitions and comments are kept but not shown | Unchanged unless edited |
+
+Saving keeps the file as it was where it was not edited: each block of the file remembers its lines,
+and a block whose content is unchanged is written back byte for byte (line endings, a byte-order mark,
+`*` or `_`, setext headings, reference links and line wrapping included). Edited and new blocks are
+written in one style. What Markdown cannot express (fonts, colours, alignment, page setup, headers and
+footers) is not saved; a `.md` file cannot hold pictures, so saving one that has new pictures offers
+the `.zip` form instead. A `.zip` is saved with every other file it held, unchanged. Unsaved versions
+of a Markdown document (autosave, Document Recovery) are kept as Markdown.
+
+Checks (tools in docs/testing.md):
+
+| Check | Result |
+| --- | --- |
+| Reader against the CommonMark 0.31.2 spec examples (rendered as the reference implementation renders) | 652 of 652 |
+| Reader against the GFM spec's extension examples (tables, task lists, strikethrough, autolinks, disallowed raw HTML) | 22 of 22 |
+| Spec examples opened, every block rewritten, saved and read again, same HTML | 559 of 652; 507 of the 544 without raw HTML (the rest: nested emphasis of the same kind, `*a *b**`, which a document cannot hold; empty links; a quote that starts inside a list item's first line) |
+| 24 real files (READMEs of React, Node.js, VS Code, Rust, Kubernetes, TensorFlow, Vue, Deno, Astro, Express, Go, TypeScript, cmark-gfm, markdown-it, awesome, public-apis, free-programming-books, the Airbnb style guide, GitHub's own formatting docs) saved unchanged | 24 of 24 byte for byte |
+| The same files with one paragraph edited | Only the edited block's lines change in all 24 |
+| The same files with every block rewritten, same HTML | 7 of 24; all 5 without raw HTML (the others turn logos, `<picture>` and centred `<p align>` blocks into formatting) |
+| Opening time | 300 kB (public-apis): 80 ms; the spec examples twenty times over (300 kB): 70 ms to parse and render |
 
 ## Compatibility testing
 
@@ -125,6 +169,7 @@ rich text, and RC4-encrypted files from Office 97–2003.
 | `js/editor.js` | contentEditable bridge: selection mapping, typing, IME, clipboard, keyboard |
 | `js/docx-read.js`, `js/docx-write.js`, `../common/dml.js` | `.docx` import/export, DrawingML/VML shapes, charts, themes |
 | `js/rtf.js`, `js/htmlio.js` | RTF and HTML import/export |
+| `js/markdown.js`, `js/mdio.js` | Markdown reader (CommonMark + GitHub extensions, with source lines; also loads in Node) and Markdown/`.zip` import and export |
 | `js/fields.js` | Field engine (PAGE, DATE, REF, SEQ, TOC, INDEX, IF, formulas, …), footnotes and endnotes |
 | `js/review.js` | Track changes, comments, balloons, Reviewing pane, compare documents |
 | `js/tables.js` | Tables and Borders toolbar, table styles, draw/erase, merge/split, sort, formulas |

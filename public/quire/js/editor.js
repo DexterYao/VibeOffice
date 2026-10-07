@@ -870,6 +870,12 @@
     }
     const nr = t.closest && t.closest('.nref');
     if (nr && L.app && L.app.gotoNote && e.detail === 2) L.app.gotoNote(nr.dataset.note);
+    /* a check box (task lists, form fields) ticks on click */
+    const cb = t.closest && t.closest('.ffcb');
+    if (cb && !E.readOnly) {
+      const f = D.fields(D.doc).find((x) => x.it.fid === cb.dataset.fid && x.it.ff);
+      if (f) E.edit('Check Box', () => { D.touch(f.p); f.it.ff = Object.assign({}, f.it.ff, { checked: !f.it.ff.checked }); return E.sel; });
+    }
   }
   function onDblClick(e) {
     const t = e.target;
