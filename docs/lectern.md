@@ -141,6 +141,15 @@ The seven-slide sample associated with the slide-6 repair report passes the pack
 and SDK validation and converts to seven pages in LibreOffice before and after saving. The
 PowerPoint result for the six diagnostic copies remains **pending**; these automated results do
 not establish a repair fix.
+
+`tools/lectern/test/timing-repair.mjs` now regenerates that diagnostic set and can use the exact
+reported sample as its source. The original and four isolated slide-6 variants pass both package
+checks and SDK validation. LibreOffice's resaved control passes the SDK but introduces a duplicate
+shape ID in `ppt/slideLayouts/slideLayout1.xml`, which the package checker reports. The latest copies
+and validation manifest are in `~/Downloads/lossless-check/lectern/slide6-diagnostics/`.
+All six copies convert to seven pages in LibreOffice.
+The slide-6 fix and the following shared preservation stage remain pending the PowerPoint results;
+no speculative timing change has been made to the writer.
 The text-edit/save/undo/redo scenario completed in 551 files, excluded 290 without editable
 slide text, and failed in 3.
 

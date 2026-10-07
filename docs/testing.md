@@ -144,3 +144,12 @@ selects small independently authored files for each carried-feature test, copies
 variants where available, and writes a manifest. It refuses to replace differing handoff files.
 Use a new destination for each implementation stage. Record actual Word/Excel/PowerPoint repair
 results; an unperformed Office check remains pending.
+
+`node tools/lectern/test/timing-repair.mjs OUTDIR --sdk PATH_TO_DLL` reproduces the six slide-6
+diagnostic copies from the current sample. `--source SAVED_SAMPLE.pptx` instead uses the exact bytes
+of a reported failure; `--dotnet PATH` selects the runtime. The output directory must be empty.
+The variants isolate removal of slide-6 timing, its build list, its teeter effect, and ordering of
+timing IDs; the LibreOffice resave is a separate control. The script asserts build-pair identity and
+text targets, validates each package, and writes hashes and a pending PowerPoint result per copy.
+Only slide6.xml changes in the four isolated variants. PowerPoint results are a manual gate:
+schema validity and LibreOffice opening do not prove that the repair problem has been fixed.
