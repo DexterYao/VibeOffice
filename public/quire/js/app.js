@@ -50,9 +50,9 @@
 
   /* ================= menus ================= */
   function buildMenus() {
-    const recentItems = () => (A.opts.recent || []).slice(0, 4).map((r, i) => ({ label: `&${i + 1} ${r.replace(/&/g, '&&')}`, run: () => ui.msg(`To reopen ${r}, choose File ▸ Open and pick it again. Browsers don't let pages reopen files by themselves.`, { icon: 'info' }) }));
+    const recentItems = () => (window.VO ? VO.recentMenuItems(4) : []);
     const menus = [
-      { label: '&File', items: () => ['new', 'open', 'close', '-', 'save', 'saveAs', 'saveWeb', 'fileSearch', '-', 'webPreview', '-', 'pageSetup', 'printPreview', 'print', '-', { label: 'Sen&d To', sub: ['sendMail', 'exportPDF'] }, 'properties', ...(A.opts.recent && A.opts.recent.length ? ['-', ...recentItems()] : []), '-', 'exitApp'] },
+      { label: '&File', items: () => ['new', 'open', 'close', '-', 'save', 'saveAs', 'saveWeb', 'fileSearch', '-', 'webPreview', '-', 'pageSetup', 'printPreview', 'print', '-', { label: 'Sen&d To', sub: ['sendMail', 'exportPDF'] }, 'properties', ...((recentItemsList) => (recentItemsList.length ? ['-', ...recentItemsList] : []))(recentItems()), '-', 'exitApp'] },
       {
         label: '&Edit', items: () => ['undo', 'redo', '-', 'cut', 'copy', 'officeClipboard', 'paste', 'pasteSpecial', 'pasteHyperlink', '-',
           { label: 'Cle&ar', sub: ['clearFormats', 'clearContents'] }, 'selectAll', '-', 'find', 'replace', 'goTo', '-', 'links', 'editObject'],
@@ -661,6 +661,7 @@
     if (!doc() || !doc().dirty) return true;
     const r = await ui.msg(`Do you want to save the changes to ${A.fileName}?`, { icon: 'warn', buttons: ['&Yes', '&No', 'Cancel'] });
     if (r === 0) { await A.save(); return true; }
+    if (r === 1 && window.VO) VO.discard(doc());   // its unsaved version goes too
     return r === 1;
   }
   A.confirmDiscard = confirmDiscard;
@@ -680,17 +681,19 @@
     A.switchTo(Math.max(0, i - 1));
   };
   A.openDialog = async function () {
-    const files = await L.pickFiles('.docx,.docm,.dotx,.dotm,.doc,.txt,.htm,.html,.rtf,.xml,application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+    const files = await L.pickFiles('.docx,.docm,.dotx,.dotm,.doc,.txt,.htm,.html,.rtf,.xml,.md,.markdown,.zip,application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     if (files[0]) A.openFile(files[0]);
   };
-  A.openFiles = (files) => { const f = files.find((x) => /\.(docx|docm|dotx|dotm|doc|txt|html?|rtf)$/i.test(x.name)); if (f) A.openFile(f); };
+  A.openFiles = (files) => { const f = files.find((x) => /\.(docx|docm|dotx|dotm|doc|txt|html?|rtf|md|markdown|zip)$/i.test(x.name)); if (f) A.openFile(f); };
   A.openFile = async function (file) {
     const reuse = pristine();
-    const name = file.name.replace(/\.(docx|docm|dotx|dotm|doc|txt|html?|rtf|xml)$/i, '');
+    const name = file.name.replace(/\.(docx|docm|dotx|dotm|doc|txt|html?|rtf|xml|md|markdown|mdown|mkd|zip)$/i, '');
     ui.busy(true, `Opening ${file.name}...`);
     try {
-      let d, warnings = [];
+      let d, warnings = [], type = 'docx';
       if (/\.txt$/i.test(file.name)) d = A.docFromText(await L.readAsText(file));
+      else if (L.mdio && L.mdio.isMarkdown(file.name)) { d = await L.mdio.read(await L.readAsText(file)); type = 'md'; }
+      else if (L.mdio && L.mdio.isPackage(file.name)) { d = await L.mdio.readZip(await L.readAsArrayBuffer(file)); type = 'mdzip'; }
       else if (/\.html?$/i.test(file.name) && L.htmlio) d = await L.htmlio.docFromHTML(await L.readAsText(file));
       else if (/\.rtf$/i.test(file.name) && L.rtf) d = L.rtf.read(await L.readAsArrayBuffer(file));
       else {
@@ -698,10 +701,8 @@
         const res = await A.readDocx(buf, file.name);
         d = res.doc; warnings = res.warnings || [];
       }
-      A.loadDoc(d, name, { saved: /\.docx$/i.test(file.name), type: 'docx', newWindow: !reuse });
-      A.opts.recent = [file.name].concat((A.opts.recent || []).filter((x) => x !== file.name)).slice(0, 4);
-      A.saveOpts();
-      if (window.VO) VO.opened(file);
+      A.loadDoc(d, name, { saved: /\.docx$/i.test(file.name) || type !== 'docx', type, newWindow: !reuse });
+      if (window.VO) VO.opened(file, doc());
       ui.busy(false);
       if (d.isTemplate) A.status('Opened a template: saving creates a new document.');
       if (d.wasEncrypted) A.status('This document is protected with a password to open; saving keeps the protection (Tools ▸ Options ▸ Security).');
@@ -1104,36 +1105,11 @@
     });
   }
 
-  /* ================= recovery (per-browser convenience) ================= */
-  const autosave = L.debounce(async () => {
-    const d = doc();
-    if (!d || !d.dirty) return;
-    try {
-      const blob = await L.docx.write(d, { stats: A.docStats() });
-      if (blob.size > 4e6) { L.store.del('recover'); return; }
-      const data = await L.blobToDataURL(blob);
-      L.store.set('recover', { at: Date.now(), name: A.fileName, data });
-    } catch (e) { /* storage is optional */ }
-  }, 15000);
-  async function offerRecovery() {
-    const snap = L.store.get('recover', null);
-    if (!snap || !snap.data) return false;
-    const r = await ui.msg(`Quire found an unsaved version of "${snap.name}" from ${new Date(snap.at).toLocaleString()}.\nDo you want to restore it?`, { title: 'Document Recovery', icon: 'question', buttons: ['&Restore', '&Discard'] });
-    if (r !== 0) { L.store.del('recover'); return false; }
-    try {
-      const bytes = await (await fetch(snap.data)).arrayBuffer();
-      const res = await L.docx.read(bytes);
-      A.loadDoc(res.doc, snap.name + ' (Recovered)');
-      doc().dirty = true;
-      return true;
-    } catch (e) { L.store.del('recover'); return false; }
-  }
-
   /* ================= wiring ================= */
   function wire() {
     L.bus.on('sel', () => { A.updateStatus(); ui.refresh(); if (L.rulers) L.rulers.drawSoon(); if (A.highlighter && !E.collapsed() && !A.hlBusy) { A.hlBusy = true; setTimeout(() => { if (!E.collapsed()) E.formatRun({ hl: A.highlighter === 'none' ? undefined : A.highlighter }, 'Highlight'); A.hlBusy = false; }, 0); } if (A.painter && !E.collapsed()) A.applyPainter(); });
     L.bus.on('objsel', () => { A.updateToolbars(); ui.refresh(); });
-    L.bus.on('doc-changed', () => { autosave(); A.updateStatus(); ui.refresh(); if (doc().settings.track || Object.keys(doc().comments).length) A.updateToolbars(); });
+    L.bus.on('doc-changed', () => { if (window.VO) VO.changed(doc()); A.updateStatus(); ui.refresh(); if (doc().settings.track || Object.keys(doc().comments).length) A.updateToolbars(); });
     L.bus.on('layout-done', () => { A.updateStatus(); if (L.rulers) L.rulers.drawSoon(); if (L.drawing) L.drawing.placeHandles(); E.placeHandles(); });
     L.bus.on('zoom', () => { ui.refresh(); if (L.rulers) L.rulers.draw(); if (L.drawing) L.drawing.placeHandles(); E.placeHandles(); });
     LY.scroller.addEventListener('scroll', () => { if (L.rulers) L.rulers.drawSoon(); });
@@ -1235,10 +1211,31 @@
     if (L.panes && A.opts.taskOpen) L.panes.task.show('getting-started');
     A.applyOpts();
     if (A.opts.docMap) A.toggleDocMap(true);
-    setTimeout(() => offerRecovery(), 700);
     ui.refresh();
-    if (window.VO) VO.attach('quire', { open: (f) => A.openFile(f), thumb: pageThumb, message: (t) => ui.msg(t, { icon: 'warn' }), templates: () => (L.templates ? L.templates.list().map(({ id, name }) => ({ id, name })) : []) });
+    if (window.VO) VO.attach('quire', {
+      async open(f, o) {
+        await A.openFile(f);
+        /* an unsaved version: the changes are not saved yet, and a never-saved document still needs Save As */
+        if (o && o.draft && doc()) { doc().dirty = true; A.saved = !!o.saved; A.fileName = o.name.replace(/\.(docx|docm|dotx|dotm|md|markdown|zip)$/i, ''); A.updateTitle(); A.status('Recovered the unsaved changes. Save the document to keep them.'); ui.refresh(); }
+      },
+      /* a Markdown document's unsaved version is Markdown too, so recovering it loses nothing */
+      snapshot(d) {
+        const t = winOf(d).fileType;
+        if (t === 'md' && L.mdio) return new Blob([L.mdio.write(d).text], { type: 'text/markdown' });
+        if (t === 'mdzip' && L.mdio) return L.mdio.writeZip(d, winOf(d).fileName);
+        return L.docx.write(d, { stats: A.docStats() });
+      },
+      docInfo(d) { const w = winOf(d); const ext = { md: '.md', mdzip: '.zip' }[w.fileType] || '.docx'; return { name: (w.fileName || 'Document') + ext }; },
+      isDirty: (d) => !!(d && d.dirty),
+      current: () => doc(),
+      autosave: () => A.opts.autoRecover !== false,
+      showRecovery() { if (!L.panes) return; A.opts.taskOpen = true; L.$('#taskpane').hidden = false; L.panes.task.show('recovery'); },
+      thumb: pageThumb,
+      message: (t) => ui.msg(t, { icon: 'warn' }),
+      templates: () => (L.templates ? L.templates.list().map(({ id, name }) => ({ id, name })) : []),
+    });
   };
+  const winOf = (d) => (d === doc() ? A : A.docs.find((x) => x && x.doc === d) || A);
   /** Recent Files picture: the first page, drawn as for PDF (print layout only) */
   async function pageThumb() {
     const p = LY.view === 'print' && LY.pages && LY.pages[0];

@@ -62,16 +62,17 @@
   P.sec = sec; P.link = link;
 
   /* ---------- Getting Started ---------- */
+  /* ---------- Document Recovery: unsaved versions kept by common/suite.js ---------- */
+  TP.register({ id: 'recovery', title: 'Document Recovery', render(b) { if (window.VO) VO.recoveryPane(b); } });
   TP.register({
     id: 'getting-started', title: 'Getting Started',
     render(b) {
       const q = h('input', { type: 'text', id: 'gs-search', placeholder: 'Search help', style: 'flex:1;min-width:0' });
       q.addEventListener('keydown', (e) => { if (e.key === 'Enter') { P.helpQuery = q.value; TP.show('help'); } e.stopPropagation(); });
-      const recent = (A().opts.recent || []).slice(0, 4);
       b.append(
         h('div', { class: 'tp-row' }, h('span', { html: L.icons.app ? L.icons.app(32) : '' }), h('b', { text: 'Quire 2003 Web Edition', style: 'color:var(--pane-ink)' })),
         sec('Search for:', h('div', { class: 'tp-row' }, q, ui.button('Go', () => { P.helpQuery = q.value; TP.show('help'); }, { class: 'btn small' }))),
-        sec('Open', ...recent.map((r) => h('div', { class: 'tp-note', text: r, 'data-tip': 'Recently opened — use Open to pick it again' })), link('open', 'More...', () => ui.exec('open')), link('new', 'Create a new document...', () => TP.show('new')), link('sample', 'Open the welcome document', () => A().newDocument({ build: (d) => Object.assign(d, A().buildSample()) }))),
+        sec('Open', window.VO ? VO.recentLinks(4) : null, link('open', 'More...', () => ui.exec('open')), link('new', 'Create a new document...', () => TP.show('new')), link('sample', 'Open the welcome document', () => A().newDocument({ build: (d) => Object.assign(d, A().buildSample()) }))),
         sec('Learn', link('help', 'Keyboard shortcuts and help', () => { P.helpTopic = 'keys'; TP.show('help'); }), link('stylesPane', 'Styles and Formatting', () => TP.show('styles')), link('mailMerge', 'Mail Merge wizard', () => TP.show('mailmerge'))));
     },
   });
