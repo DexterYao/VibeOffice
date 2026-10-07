@@ -19,7 +19,7 @@ The metric-compatible fonts (see *Rendering notes*) currently come from Google F
 
 | Feature | How it works |
 | --- | --- |
-| Spelling (as you type and Tools ▸ Spelling and Grammar) | Word lists for English (U.S.) and English (U.K.) in `common/dict/en_US.words` and `common/dict/en_GB.words`, expanded from the Hunspell/SCOWL dictionaries and ranked by word frequency so suggestions come out in a sensible order. Unknown words get red wavy underlines (CSS Custom Highlight API); right-click for suggestions, Ignore All and Add to Dictionary. |
+| Spelling (as you type and Tools ▸ Spelling and Grammar) | Word lists for English (U.S.) and English (U.K.) in `common/dict/en_US.words` and `common/dict/en_GB.words`, expanded from the Hunspell/SCOWL dictionaries and ranked by word frequency so suggestions come out in a sensible order. Unknown words get red wavy underlines (CSS Custom Highlight API); right-click for suggestions, Ignore All and Add to Dictionary. Underlines are off when a document opens (and the dictionary is not loaded): click the spelling icon in the status bar to check that document as you type, click again to stop. |
 | Grammar | A rule checker for the mistakes Word 2003 flagged most often: repeated words, a/an, capitalisation at sentence start, spacing around punctuation, commonly confused words, simple subject–verb agreement. Green wavy underlines. |
 | Thesaurus and Research pane | `common/dict/en.thes`, built from the WordNet 3.1 thesaurus (MyThes format), with meanings grouped by part of speech, related words, antonyms and a Back history. "Search This Document" finds the word in the open document. |
 | Custom dictionary | Tools ▸ Options ▸ Spelling & Grammar; words you add are stored in the browser. |

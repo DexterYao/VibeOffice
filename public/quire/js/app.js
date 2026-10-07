@@ -431,7 +431,21 @@
     A.sb.ovr.addEventListener('dblclick', () => { E.overtype = !E.overtype; A.updateStatus(); });
     A.sb.ext.addEventListener('dblclick', () => { E.extend = !E.extend; A.updateStatus(); });
     A.sb.lang.addEventListener('dblclick', () => ui.exec('setLanguage'));
-    A.sb.spell.addEventListener('dblclick', () => ui.exec('spelling'));
+    /* click: check this document's spelling and grammar as you type, or stop (off when a document opens) */
+    A.sb.spell.addEventListener('click', () => {
+      if (!L.spell) return;
+      if (!A.opts.spell) { A.opts.spell = true; A.saveOpts && A.saveOpts(); }
+      L.spell.hidden = !L.spell.hidden;
+      A.status(L.spell.hidden ? 'Spelling and grammar are no longer marked in this document.' : 'Checking spelling and grammar as you type in this document.');
+    });
+    const spellIcon = () => {
+      const on = L.spell && !L.spell.hidden && A.opts.spell !== false;
+      A.sb.spell.classList.toggle('off', !on);
+      A.sb.spell.dataset.tip = on ? 'Spelling and grammar are checked as you type. Click to stop.' : 'Spelling and grammar are not checked as you type. Click to check this document.';
+    };
+    L.bus.on('proof-state', spellIcon);
+    L.bus.on('doc-loaded', spellIcon);
+    spellIcon();
     A.sb.page.addEventListener('dblclick', () => ui.exec('goTo'));
     sb.append(A.sb.page, A.sb.sec, A.sb.pages, A.sb.at, A.sb.ln, A.sb.col, A.sb.rec, A.sb.trk, A.sb.ext, A.sb.ovr, A.sb.lang, A.sb.spell, A.sb.msg);
   }
