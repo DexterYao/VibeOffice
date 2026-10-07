@@ -9,6 +9,7 @@
   const parse = (s) => {
     const d = new DOMParser().parseFromString(s, 'application/xml');
     if (d.getElementsByTagName('parsererror').length) throw new Error('XML parse error');
+    if (L.opc) L.opc.captureAC(d, s);
     resolveAlternateContent(d);
     if (s.indexOf('%"') >= 0) percentsToThousandths(d);
     return d.documentElement;

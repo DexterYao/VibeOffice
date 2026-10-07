@@ -71,6 +71,7 @@ One copy of everything the three apps share; a change here is a change in every 
 | `ui.js` | commands, menus, toolbars, combo boxes, dialogs, colour menus, password and prompt boxes | all |
 | `icons.js` | the 16×16 icon sets (common, document, spreadsheet), `L.icons.add`, `L.icons.kit` | all |
 | `zip.js`, `sha.js`, `crypto.js` | ZIP read/write; SHA; ECMA-376 encryption (password-protected files) | all |
+| `xml.js`, `opc.js`, `opc-order.js` | Portable XML tree, immutable OOXML packages, dependency and identity maps, fragment capture and geometry adapters; generated schema order tables. Writer integration is in progress. | all |
 | `geometry.js`, `metafile.js` | AutoShape presets; WMF/EMF player | all |
 | `charts.js` | chart model, SVG renderer, chart data dialog (Lectern's `chart-draw.js` adds the v2 renderer) | all |
 | `numfmt.js` | Excel number formats | Ledger, Lectern |

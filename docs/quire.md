@@ -190,6 +190,16 @@ has not yet been rendered in LibreOffice. The baseline reports are retained outs
 `~/corpora/results/lossless-baseline-2026-10-07/`; Office samples are in
 `~/Downloads/lossless-check/baseline/`.
 
+### Shared preservation core (2026-10-08)
+
+The shared XML/OPC core now captures original AlternateContent before Quire normalises it. The writer
+does not yet emit these records, so the feature-loss numbers above still apply. The same 2,902 inputs
+again produced 2,880 successful open/save/reopen attempts and 22 failures. Compared with the earlier
+saved outputs, 2,875 package/SDK comparisons completed with no new diagnostics; 5 earlier outputs
+could not be SDK-validated and 22 had no saved output. Ten LibreOffice samples kept their page counts
+relative to the earlier saves. Markdown remained byte-identical for all 24 unchanged files, with edits
+confined to the edited block in all 24. Reports: `~/corpora/results/opc-core-2026-10-08/`.
+
 ## Compatibility testing
 
 Quire was checked against 2,808 `.docx` files that other people wrote, not files made for it:
@@ -241,6 +251,7 @@ rich text, and RC4-encrypted files from Office 97–2003.
 | --- | --- |
 | `index.html` | Window chrome, CSS (Office 2003 Luna Blue), script order |
 | `../common/core.js`, `../common/zip.js` | Utilities, colour maths, storage, ZIP reader/writer, PDF writer, downloads |
+| `../common/xml.js`, `../common/opc.js`, `../common/opc-order.js` | Shared OOXML preservation core and original AlternateContent capture; writer integration is in progress |
 | `../common/sha.js`, `../common/crypto.js` | Password-protected documents: compound-file reader/writer, AES, ECMA-376 agile and standard encryption |
 | `js/dmodel.js`, `js/ops.js` | Document model (paragraphs, runs, tables, sections, styles, numbering), undo history, editing operations |
 | `js/render.js`, `js/layout.js` | Paragraph/run rendering, pagination, headers/footers, footnotes, columns, floats |

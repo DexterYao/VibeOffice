@@ -12,6 +12,7 @@ The app is `public/lectern/` (`python3 tools/serve.py`, then http://127.0.0.1:87
 | `../common/core.js` | Utilities, colors, fonts, file I/O, media store, PDF writer (shared, see docs/suite.md) |
 | `../common/sha.js`, `../common/crypto.js` | Password-protected presentations: ECMA-376 Agile and Standard encryption (AES, SHA-1/SHA-2), read and write |
 | `../common/zip.js` | ZIP reader/writer (CompressionStream with a pure-JS inflate fallback) |
+| `../common/xml.js`, `../common/opc.js`, `../common/opc-order.js` | Shared OOXML preservation core and original AlternateContent capture; writer integration is in progress |
 | `../common/geometry.js` | 92 AutoShape presets, adjust handles, text rectangles, connectors |
 | `js/model.js` | Presentation model, 14 design templates, 21 slide layouts, undo history |
 | `js/render.js` | DOM/SVG renderer for slides, fills, patterns, gradients, WordArt |
@@ -148,8 +149,8 @@ checks and SDK validation. LibreOffice's resaved control passes the SDK but intr
 shape ID in `ppt/slideLayouts/slideLayout1.xml`, which the package checker reports. The latest copies
 and validation manifest are in `~/Downloads/lossless-check/lectern/slide6-diagnostics/`.
 All six copies convert to seven pages in LibreOffice.
-The slide-6 fix and the following shared preservation stage remain pending the PowerPoint results;
-no speculative timing change has been made to the writer.
+The slide-6 fix remains pending the PowerPoint results; no speculative timing change has been made
+to the writer. Independent work on the shared preservation core proceeds while acceptance is pending.
 The text-edit/save/undo/redo scenario completed in 551 files, excluded 290 without editable
 slide text, and failed in 3.
 
@@ -158,6 +159,16 @@ failed to open the original `tdf173266.pptx`; that pair remains a failed attempt
 has not yet been rendered in LibreOffice. The baseline reports are retained outside git in
 `~/corpora/results/lossless-baseline-2026-10-07/`; Office samples are in
 `~/Downloads/lossless-check/baseline/`.
+
+### Shared preservation core (2026-10-08)
+
+The reader captures original AlternateContent before selecting a branch and normalising percentages.
+The writer does not yet emit those records, so the feature-loss numbers above still apply. The same
+844 inputs again produced 840 successful open/save/reopen attempts, 3 failures and 1 exclusion.
+All 840 saved outputs completed package/SDK comparisons against the earlier saves with no new
+diagnostics. Twelve LibreOffice samples kept their slide counts relative to the earlier saves;
+the original `tdf173266.pptx` remains outside that comparison because LibreOffice cannot open it.
+Reports: `~/corpora/results/opc-core-2026-10-08/`. PowerPoint acceptance remains pending.
 
 ## Known limits
 

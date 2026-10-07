@@ -107,6 +107,45 @@ checked without falsely counting mutually exclusive IDs as duplicates. Output is
 nonzero. `node --test tools/ooxml/*.test.mjs` exercises malformed packages, cycles, shared dependencies,
 alternate branches, target swaps and ordered text.
 
+### Shared preservation core
+
+`node --test tools/ooxml/opc.test.mjs` tests the Node-safe `L.opc` API: immutable bytes, full relationship
+types, cyclic/shared graphs, reserved names and IDs, duplicate reference remapping, namespace/QName
+scope, original nested AlternateContent emitted once, cross-document dependency transport, loss
+acknowledgement, property merging, and DrawingML/Word/spreadsheet/VML geometry adapters. Together with
+the independent checker tests, all 24 tests pass at the shared-core stage. These tests do not replace
+real-file comparisons or Office acceptance.
+
+Load `common/xml.js`, `common/opc.js`, then `common/opc-order.js`. `L.xmlTree` supplies a portable tree;
+Ledger's small `js/xml.js` bridge exposes it as `L.xml`. `L.opc.open(zip)` keeps a separate immutable
+baseline; `attach(model, pkg)` makes `model.pkg` non-enumerable. `fragment(element, {pkg, part})` produces
+JSON-safe XML and dependency/identity references. Use an original baseline element when exact lexical
+XML is needed: `raw` reads its source range, not later mutations. `captureAC(dom, rawText)` makes its
+own original parse before the reader normalises the working DOM.
+
+Each app supplies part ownership to `L.opc.Writer`: opaque bytes are carried, merged parts replace
+owned properties in schema order, and regenerated content parts emit model-attached fragments.
+`emit(fragment, owner, {box})` remaps relationships and IDs and optionally changes geometry. `duplicate`
+remaps copied definitions and references together; `export`/`import` transport dependency bytes for a
+cross-document clipboard. `finish()` checks relationship targets and returns `{files, dropped}`.
+Loss acknowledgement is per entry; autosave must neither show a dialog nor acknowledge entries.
+The core is implemented; app reader/writer, clipboard and save-dialog integration is still in progress.
+
+`opc-order.js` contains ordering and ID-bound facts for 26 types, generated from the official
+[ECMA-376 Part 4 schemas](https://ecma-international.org/publications-and-standards/standards/ecma-376/).
+The archive stays outside git; its SHA-256 is recorded in the generated file. Regenerate with:
+
+```sh
+python3 tools/ooxml/schema-order.py ~/corpora/ecma-376/part4.zip public/common/opc-order.js
+```
+
+The shared-core run is retained in `~/corpora/results/opc-core-2026-10-08/`. All 4,697 open/save/reopen
+statuses match the earlier baseline. Against the **earlier saved files**, 4,626 package/SDK comparisons
+completed without new diagnostics; 29 earlier outputs could not be validated, 36 inputs had no saved
+output and 6 were excluded. All 30 LibreOffice sample comparisons retained page/slide counts. All three
+apps loaded and were screenshotted without console errors (the existing Google Fonts requests remain).
+Full-corpus LibreOffice rendering and Office acceptance are still pending.
+
 `tools/ooxml/compare.mjs ORIGINAL SAVED [--policy policy.json]` defaults to exact part-byte preservation.
 A policy can designate individual parts as `merged` or `regenerated`, map their target names, allow
 specific ElementTree paths/attributes to change, and specify removed parts and expected slide count.
