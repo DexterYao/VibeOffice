@@ -65,3 +65,78 @@ The engine and the file readers and writers load in Node through `load.js` (the 
 ## Corpora
 
 The compatibility numbers in each app's doc come from public test corpora (LibreOffice, Apache POI, Open XML SDK, XlsxWriter, ClosedXML and others; see the app docs for the list). They are not checked in; download them outside the repo and point the per-file scripts at the folder.
+
+## Lossless same-format save: reproducible baseline
+
+`sh tools/corpora.sh ~/corpora` fetches the pinned LibreOffice, Apache POI and Open XML SDK revisions
+listed in `tools/ooxml/corpora.py`. It resumes interrupted fetches, refuses dirty or unrelated checkouts,
+and never deletes an existing corpus. `manifest.json` records source, commit, original path, size and
+SHA-256. `word/`, `excel/` and `powerpoint/` contain collision-resistant symlinks. Fixtures stay outside
+the repository. A source name after the directory selects just that source.
+
+The corpus drivers record every file and scenario as `ok`, `failed` or `excluded`, with the input hash
+and an error/reason. Here, `ok` means the requested operation and reread completed; it does **not** mean
+the file was lossless. Independent comparisons and Office acceptance are separate checks.
+
+```sh
+node tools/quire/test/corpus.mjs ~/corpora/word /tmp/quire.jsonl --save /tmp/lossless/quire
+node tools/ledger/test/corpus.js ~/corpora/excel /tmp/ledger.jsonl --save /tmp/lossless/ledger
+node tools/lectern/test/corpus.js ~/corpora/powerpoint /tmp/lectern.jsonl --lossless --save /tmp/lossless/lectern
+```
+
+Default scenarios are `save` and `repeat` (save, reopen, save again). `--edit` selects separate text,
+formatting, geometry, duplicate and delete-object scenarios, plus row/column/sheet operations in Ledger
+or slide insertion/deletion in Lectern. Each successful mutation also saves its undo and redo states.
+`--scenarios text` runs just text editing; `--scenarios draft` in the browser drivers exercises the app's
+actual snapshot and recovery hooks. For Ledger drafts, use `node tools/ledger/test/browser-corpus.mjs`
+with the same arguments; the Node engine driver rejects that scenario. `--limit N` limits files; `--resume` skips recorded input hashes and
+scenarios. A single Office file or a file list can replace the directory. Saved artifacts go into
+`save/`, `repeat/`, `repeat-second/`, `text/`, `text-undo/`, etc. Files retain their source extensions so
+variant errors remain observable. The browser drivers use the existing CDP browser and close only their
+own tabs. Ledger uses isolated Node workers with a per-file timeout. The older Lectern rendering driver
+without these switches remains available and still requires Playwright.
+
+`tools/ooxml/check.mjs FILE...` uses an independent strict Python XML/ZIP reader to check content types,
+relationship targets and relationship attributes, scoped drawing/slide/timing IDs, connector and timing
+references, bookmark/permission endpoints, and pivot cache references. AlternateContent branches are
+checked without falsely counting mutually exclusive IDs as duplicates. Output is JSONL; a failure exits
+nonzero. `node --test tools/ooxml/*.test.mjs` exercises malformed packages, cycles, shared dependencies,
+alternate branches, target swaps and ordered text.
+
+`tools/ooxml/compare.mjs ORIGINAL SAVED [--policy policy.json]` defaults to exact part-byte preservation.
+A policy can designate individual parts as `merged` or `regenerated`, map their target names, allow
+specific ElementTree paths/attributes to change, and specify removed parts and expected slide count.
+Merged XML compares expanded namespace names and QName-valued compatibility attributes. Regenerated
+content compares ordered text, run/paragraph properties, cells, drawing properties and feature counts;
+adjacent runs with identical properties may be split. Relationships compare their resolved targets,
+including the case where unchanged XML's rIds were redirected. This is a deliberately conservative
+comparison, not a complete Word layout or Excel calculation oracle. The separate loss audits retain
+their historical feature inventories; their new `accounting` field exposes missing saved files and
+failed comparisons rather than silently excluding them.
+
+Build the SDK validator and install the independent workbook reader in a test environment:
+
+```sh
+dotnet build tools/ooxml/oxval -c Release
+python3 -m venv /tmp/vo-ooxml-venv
+/tmp/vo-ooxml-venv/bin/python -m pip install -r tools/ooxml/requirements.txt
+dotnet tools/ooxml/oxval/bin/Release/net8.0/oxval.dll --baseline original.docm saved.docm
+```
+
+The validator is pinned to SDK 3.1.1, targets Office 2019, handles all document/macro/template/slideshow
+extensions and reports uncapped diagnostics by part, XPath and diagnostic ID. `--baseline` reports new
+diagnostic identities, not merely a change in count. `--stdin-pairs` accepts JSON lines containing
+`original` and `saved` paths for a warm batch process.
+
+`python3 tools/ooxml/validate.py RESULTS.jsonl ORIGINALS SAVED_ROOT OUT.jsonl --sdk PATH_TO_DLL`
+combines package checks and SDK comparison, accounting for unsuccessful driver attempts as well.
+`--dotnet PATH` selects the SDK runtime. `--lo PDF_DIRECTORY` additionally converts original and saved
+files using LibreOffice with its own temporary profile, checks conversion success and extracts page
+counts with `pdfinfo`. Unedited saves must keep the page count; edit scenarios can record
+`expectedPages`. LibreOffice and the validator cannot certify acceptance by Office itself.
+
+`python3 tools/ooxml/samples.py ~/corpora /tmp/lossless ~/Downloads/lossless-check/baseline`
+selects small independently authored files for each carried-feature test, copies original/saved/edited
+variants where available, and writes a manifest. It refuses to replace differing handoff files.
+Use a new destination for each implementation stage. Record actual Word/Excel/PowerPoint repair
+results; an unperformed Office check remains pending.

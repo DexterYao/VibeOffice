@@ -172,6 +172,38 @@ back.
 | Embedded OLE objects | 5 |
 | Slicers and timelines | 1 |
 
+### Pinned lossless-save baseline (2026-10-07)
+
+The reproducible three-source corpus in `tools/corpora.sh` was measured against application revision
+`5abafdc`, before preservation changes. Of 951 inputs, 935 completed open → save → reopen,
+11 failed and 5 were explicitly excluded. Completion is not a fidelity result. The independent
+feature inventory compared 923 readable pairs; malformed/encrypted originals and missing
+outputs remain in its accounting. This corpus differs from the earlier compatibility corpus above.
+
+| Feature | Files containing it | Original inventory items | Saved inventory items | Text edit: kept / original |
+|---|---:|---:|---:|---:|
+| pivot tables | 101 | 156 | 0 | 0 / 156 |
+| form controls / ActiveX | 22 | 371 | 0 | 0 / 371 |
+| threaded comments | 4 | 6 | 0 | 0 / 6 |
+| custom XML data parts | 32 | 99 | 0 | 0 / 99 |
+
+The text-edit inventory covers 921 readable saved pairs; files without editable text and failed
+operations stay in the driver report, so its denominator differs from the unedited inventory.
+
+Package checks plus the Office 2019 SDK comparison reported 808 attempts without new
+automated diagnostics and 138 failures (including originals that could not be validated);
+5 driver exclusions remain separate. These checks do not certify Office acceptance. Commands,
+comparison policies and failure accounting are in [testing.md](testing.md#lossless-same-format-save-reproducible-baseline).
+
+The cell-edit/save/undo/redo baseline completed in 933 files, excluded 7 and failed in 11.
+The independent openpyxl check compared 1,649,147 cells in 895 workbooks; 7 workbooks differed
+in values or formulas and 6 in formatting. Full failure accounting is retained.
+Of 8 feature samples, 7 converted in LibreOffice with unchanged page counts. The pivot sample
+`bug66675.xlsx` changed from 36 to 42 pages after saving. The full corpus
+has not yet been rendered in LibreOffice. The baseline reports are retained outside git in
+`~/corpora/results/lossless-baseline-2026-10-07/`; Office samples are in
+`~/Downloads/lossless-check/baseline/`.
+
 ## Compatibility testing
 
 Ledger was tested against workbooks other people wrote — the test suites of sixteen spreadsheet

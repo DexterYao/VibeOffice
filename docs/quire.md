@@ -149,6 +149,37 @@ also ends any binding to document data; smart tags and custom XML markup become 
 | Permission ranges for restricted editing | 3 |
 | VBA macros (a `.docm` is saved without its project) | — |
 
+### Pinned lossless-save baseline (2026-10-07)
+
+The reproducible three-source corpus in `tools/corpora.sh` was measured against application revision
+`5abafdc`, before preservation changes. Of 2,902 inputs, 2,880 completed open → save → reopen,
+22 failed and 0 were explicitly excluded. Completion is not a fidelity result. The independent
+feature inventory compared 2,868 readable pairs; malformed/encrypted originals and missing
+outputs remain in its accounting. This corpus differs from the earlier compatibility corpus above.
+
+| Feature | Files containing it | Original inventory items | Saved inventory items | Text edit: kept / original |
+|---|---:|---:|---:|---:|
+| content controls | 379 | 2,696 | 0 | 0 / 2,594 |
+| custom XML data parts | 646 | 966 | 0 | 0 / 814 |
+| embedded OLE objects | 82 | 544 | 0 | 0 / 434 |
+| VBA macros | 17 | 17 | 0 | 0 / 15 |
+
+The text-edit inventory covers 2,236 readable saved pairs; files without editable text and failed
+operations stay in the driver report, so its denominator differs from the unedited inventory.
+
+Package checks plus the Office 2019 SDK comparison reported 2,768 attempts without new
+automated diagnostics and 134 failures (including originals that could not be validated);
+0 driver exclusions remain separate. These checks do not certify Office acceptance. Commands,
+comparison policies and failure accounting are in [testing.md](testing.md#lossless-same-format-save-reproducible-baseline).
+
+The text-edit/save/undo/redo baseline completed in 2,248 files, excluded 592 without a suitable
+editable paragraph and failed in 62. Forty failures expose circular textbox-owner references in
+JSON history snapshots; 22 are read failures. This is a prerequisite regression for preservation.
+All 10 feature samples converted in LibreOffice with unchanged page counts. The full corpus
+has not yet been rendered in LibreOffice. The baseline reports are retained outside git in
+`~/corpora/results/lossless-baseline-2026-10-07/`; Office samples are in
+`~/Downloads/lossless-check/baseline/`.
+
 ## Compatibility testing
 
 Quire was checked against 2,808 `.docx` files that other people wrote, not files made for it:

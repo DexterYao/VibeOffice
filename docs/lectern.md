@@ -114,6 +114,42 @@ Lectern reads a file into its own model and writes a new file from that model. W
 | Sensitivity labels, in both forms (`MSIP_Label` custom properties and `docMetadata/LabelInfo.xml`) | 10 and 16 |
 | Auto-advance set to 0 seconds | 14 of 47 timings |
 
+### Pinned lossless-save baseline (2026-10-07)
+
+The reproducible three-source corpus in `tools/corpora.sh` was measured against application revision
+`5abafdc`, before preservation changes. Of 844 inputs, 840 completed open → save → reopen,
+3 failed and 1 were explicitly excluded. Completion is not a fidelity result. The independent
+feature inventory compared 830 readable pairs; malformed/encrypted originals and missing
+outputs remain in its accounting. This corpus differs from the earlier compatibility corpus above.
+
+| Feature | Files containing it | Original inventory items | Saved inventory items | Text edit: kept / original |
+|---|---:|---:|---:|---:|
+| video / audio on a slide | 17 | 29 | 0 | 0 / 5 |
+| SmartArt (editable diagram data) | 106 | 184 | 0 | 0 / 180 |
+| comments | 6 | 20 | 0 | 0 / 7 |
+| VBA macros | 7 | 7 | 0 | 0 / 7 |
+
+The text-edit inventory covers 545 readable saved pairs; files without editable text and failed
+operations stay in the driver report, so its denominator differs from the unedited inventory.
+
+Package checks plus the Office 2019 SDK comparison reported 822 attempts without new
+automated diagnostics and 21 failures (including originals that could not be validated);
+1 driver exclusions remain separate. These checks do not certify Office acceptance. Commands,
+comparison policies and failure accounting are in [testing.md](testing.md#lossless-same-format-save-reproducible-baseline).
+
+The seven-slide sample associated with the slide-6 repair report passes the package checker
+and SDK validation and converts to seven pages in LibreOffice before and after saving. The
+PowerPoint result for the six diagnostic copies remains **pending**; these automated results do
+not establish a repair fix.
+The text-edit/save/undo/redo scenario completed in 551 files, excluded 290 without editable
+slide text, and failed in 3.
+
+Of 12 feature samples, 11 converted in LibreOffice with unchanged slide counts. LibreOffice
+failed to open the original `tdf173266.pptx`; that pair remains a failed attempt. The full corpus
+has not yet been rendered in LibreOffice. The baseline reports are retained outside git in
+`~/corpora/results/lossless-baseline-2026-10-07/`; Office samples are in
+`~/Downloads/lossless-check/baseline/`.
+
 ## Known limits
 
 * Legacy binary `.ppt` files must be re-saved as `.pptx` first. Macros in `.pptm` files are not kept; the file is saved as `.pptx`. See *What a save keeps, converts and drops* for everything else a save leaves out.
