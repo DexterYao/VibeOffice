@@ -96,6 +96,10 @@ variant errors remain observable. The browser drivers use the existing CDP brows
 own tabs. Ledger uses isolated Node workers with a per-file timeout. The older Lectern rendering driver
 without these switches remains available and still requires Playwright.
 
+Quire history regressions run with `node --test tools/quire/test/history.test.js`. The real-file check
+`node tools/quire/test/history.mjs ~/corpora/word/libreoffice__9b899b6707be__chart-size.docx`
+checks original chart bytes after editing, undo, redo, copying and whole-document snapshot restore.
+
 `tools/ooxml/check.mjs FILE...` uses an independent strict Python XML/ZIP reader to check content types,
 relationship targets and relationship attributes, scoped drawing/slide/timing IDs, connector and timing
 references, bookmark/permission endpoints, and pivot cache references. AlternateContent branches are

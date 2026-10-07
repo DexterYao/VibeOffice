@@ -174,7 +174,17 @@ comparison policies and failure accounting are in [testing.md](testing.md#lossle
 
 The text-edit/save/undo/redo baseline completed in 2,248 files, excluded 592 without a suitable
 editable paragraph and failed in 62. Forty failures expose circular textbox-owner references in
-JSON history snapshots; 22 are read failures. This is a prerequisite regression for preservation.
+JSON history snapshots; 22 are read failures.
+
+The history prerequisite is now fixed: textbox owners are runtime-only back-references, and
+original chart bytes live in the shared chart cache instead of JSON snapshots. All 40 previously
+failing files complete text edit → save → undo → save → redo → save. Their undo packages match
+the pre-edit baseline part for part, except generated core-property timestamps in one file.
+The 40 edited outputs have no new package/SDK diagnostics compared with the pre-edit saves and
+all open in LibreOffice. A chart regression also checks all four original chart parts byte for
+byte across six states (open, edit, undo, redo, copy and snapshot restore). Samples are in
+`~/Downloads/lossless-check/quire/chart-history/` and `textbox-history/`.
+
 All 10 feature samples converted in LibreOffice with unchanged page counts. The full corpus
 has not yet been rendered in LibreOffice. The baseline reports are retained outside git in
 `~/corpora/results/lossless-baseline-2026-10-07/`; Office samples are in

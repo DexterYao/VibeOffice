@@ -513,7 +513,9 @@
         const cr = await rels(p);
         for (const k in cr) if (!cr[k].external) await add(cr[k].target);
       }
-      const out = { model, files, path: p };
+      // History and clipboard snapshots use JSON. Keep only a cache key in runs;
+      // the original typed-array bytes must stay outside those snapshots.
+      const out = { model, src: L.chart.keep({ files, path: p }) };
       chartCache.set(p, out);
       return out;
     }
@@ -1120,7 +1122,7 @@
             const r = rid(content);
             const rel = r && ctx.rels[r];
             const c = rel && chartCache.get(rel.target);
-            it = { t: 'chart', w, h, chart: c && c.model, src: c ? { files: c.files, path: c.path } : null };
+            it = { t: 'chart', w, h, chart: c && c.model, src: c ? c.src : null };
             if (!c || !c.model) { it.t = 'img'; it.media = null; it.alt = 'Chart'; }
             break;
           }

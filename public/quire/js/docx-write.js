@@ -987,7 +987,7 @@
     if (pendingMedia.length) { /* media referenced after the loop (notes/comments) were added above too */ }
     /* --- charts --- */
     for (const ch of charts) {
-      const src = ch.it.src;
+      const src = typeof ch.it.src === 'string' ? L.chart.src.get(ch.it.src) : ch.it.src;
       if (src && src.files && src.files.length && !ch.it.dirtyChart) {
         /* copy the original chart part and everything it references */
         const base = src.path;
