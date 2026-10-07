@@ -112,6 +112,43 @@ Checks (tools in docs/testing.md):
 | The same files with every block rewritten, same HTML | 7 of 24; all 5 without raw HTML (the others turn logos, `<picture>` and centred `<p align>` blocks into formatting) |
 | Opening time | 300 kB (public-apis): 80 ms; the spec examples twenty times over (300 kB): 70 ms to parse and render |
 
+## What a save keeps, converts and drops
+
+Quire reads a document into its own model and writes a new file from it, so anything the model has no
+place for is left out of the saved file, and today there is no warning when that happens (the one
+exception: embedded HTML/RTF documents are reported when the file opens). `tools/quire/test/loss-audit.py` measures
+it by comparing each of 2,778 test documents with Quire's saved copy, feature by feature and word by word
+(`python3 tools/quire/test/loss-audit.py originals/ saved/ out.json`, standard library only).
+
+**Kept.** The text: 2,724 documents keep every word, and over the whole set 666,082 of 666,941 words
+survive (the 859 missing sit in 54 documents, most of them deliberately malformed test files, comments
+or footnotes that nothing in the text refers to, and text inside data-bound content controls). Styles,
+lists, tables, sections and columns, headers and footers, footnotes and endnotes, comments with their
+replies, tracked changes, fields, bookmarks, hyperlinks, pictures, text boxes, drawing shapes, equations,
+charts, page borders, line numbers, legacy form fields, ruby text, custom document properties and
+editing restrictions are all written back.
+
+**Converted.** Embedded objects (Excel, Visio, PDF and other OLE packages, 81 documents) are saved as
+their preview pictures, so they can no longer be opened for editing; SmartArt becomes grouped shapes
+with its text (22); content controls are removed and their contents kept as ordinary text (296), which
+also ends any binding to document data; smart tags and custom XML markup become plain text (48);
+`HYPERLINK` fields become ordinary hyperlinks.
+
+**Dropped.**
+
+| What | Documents in the test set |
+| --- | --- |
+| Custom XML data parts (document-management metadata, content-control bindings) | 573 |
+| Sensitivity labels in the newer `docMetadata/LabelInfo.xml` form (labels kept as `MSIP_Label` custom properties survive: 11 of 11) | 3 |
+| Building blocks and AutoText stored in the document (glossary) | 129 |
+| Link to the attached template | 77 |
+| Page background with a picture or fill effect (coloured backgrounds are kept; 45 white ones are left out, which changes nothing) | 3 of 68 |
+| Word 2010 text effects (glow, outline, shadow, ligatures) | 35 |
+| Embedded fonts | 10 |
+| Embedded HTML/RTF documents (`altChunk`) — their content is not shown, so it is lost on save | 4 |
+| Permission ranges for restricted editing | 3 |
+| VBA macros (a `.docm` is saved without its project) | — |
+
 ## Compatibility testing
 
 Quire was checked against 2,808 `.docx` files that other people wrote, not files made for it:
