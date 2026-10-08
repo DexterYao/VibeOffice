@@ -134,6 +134,8 @@ Corrections cover paragraph order, document-wide binding relationships, revision
 point-comment ranges and redundant VML type definitions. Diagnostic comparison follows style IDs
 and unchanged property content when positions move, while retaining occurrence counts. The full
 Quire rerun and Office batch 2 are pending; these focused results do not replace the full totals.
+Newly generated drawings reserve both document drawing IDs and part-local shape IDs, so converting
+one object cannot collide with the identity of an unrelated retained group.
 
 The feature inventory compares **2,858 readable pairs**, with **44 failed attempts**. It retains
 **776,195 of 776,857 counted words**; **2,805 documents** keep every counted word. Data-bound values,

@@ -869,7 +869,15 @@
       rels, main, doc, ranges, objects, writer: pack.writer, part: rels.owner, mainPart: pack.part('word/document.xml'),
       drawingXML,
       rev: () => pack.writer.ids.fresh('document', 'revision'),
-      docPrId: () => pack.writer.ids.fresh('document', 'docPr'),
+      docPrId: () => {
+        // Generated frames use one value for docPr and cNvPr. Original shapes
+        // have an independent, part-local ID space, which must also be reserved.
+        const ids = pack.writer.ids, shapes = ids.space(rels.owner, 'shape');
+        let id;
+        do { id = ids.fresh('document', 'docPr'); } while (shapes.used.has(ids.canonical(id)));
+        ids.reserve(rels.owner, 'shape', id);
+        return id;
+      },
       bmSeen: new Set(),
       bmId: (id) => { const k = rels.owner + ':' + id; if (!bmIds.has(k)) bmIds.set(k, pack.writer.ids.fresh(rels.owner, 'bookmark')); return bmIds.get(k); },
       cmtOk: (id) => !!doc.comments[id],
