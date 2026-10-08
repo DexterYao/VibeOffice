@@ -245,6 +245,16 @@ page/slide counts. Full-corpus LibreOffice rendering and the remaining object-le
 unfinished. Further testing is focused on changed behavior and observed failures, rather than
 repeating the complete matrix after unrelated changes.
 
+Quire's content-control increment uses `node --test tools/quire/test/controls.test.js` for boundary,
+lock and history rules, and `node tools/quire/test/controls.mjs ~/corpora/word OUTDIR` for authored
+bound-text, date and checkbox fixtures. The browser driver writes before/edited/undo/copy/draft/recovered
+files and reports 25 assertions. Its output directories are named for the state; to validate all of
+them, supply `validate.py` with one JSONL row per file/state (`file`, `scenario`, `status: "ok"`).
+The separate eight-file save check preserves 16/16 controls, with no new package/SDK diagnostics;
+the edit driver's 15 states pass too. These focused reports and a LibreOffice binding sample are
+retained under `~/corpora/results/quire-controls-2026-10-08/`. The date-value dialog was inspected and
+Quire loaded without console errors. Other full-corpus gates remain pending.
+
 `python3 tools/ooxml/samples.py ~/corpora /tmp/lossless ~/Downloads/lossless-check/baseline`
 selects small independently authored files for each carried-feature test, copies original/saved/edited
 variants where available, and writes a manifest. It refuses to replace differing handoff files.

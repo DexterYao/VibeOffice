@@ -1,7 +1,7 @@
 /* Quire — package ownership and model-attached OOXML preservation. */
 (function () {
   'use strict';
-  const L = window.L, K = L.opc, N = K.NS, P = (L.preserve = {});
+  const L = window.L, D = L.D, K = L.opc, N = K.NS, P = (L.preserve = {});
   const RT = name => N.rel + '/' + name;
   const canonical = K.relationshipType;
   const kids = el => Array.from(el?.children || []);
@@ -59,5 +59,431 @@
       xml = K.properties(xml, generated, doc.props, previous.props, owned);
     }
     return writer.emit(K.slice(fragment, xml), source);
+  };
+
+  /* Content controls are boundaries, not text. The shell owns its properties and
+     dependencies; the editor continues to own the paragraphs/runs inside it. */
+  const SLOT = '\u0002content\u0002';
+  const child = (el, name) => kids(el).find(e => e.localName === name);
+  const location = el => L.xmlTree.source.get(el);
+  const inner = (xml, el, value) => {
+    const p = location(el);
+    return /\/>$/.test(xml.slice(p.start, p.openEnd))
+      ? K.patch(xml, [{ start: p.openEnd - 2, end: p.end, value: '>' + value + '</' + el.nodeName + '>' }])
+      : K.patch(xml, [{ start: p.openEnd, end: xml.lastIndexOf('</', p.end - 1), value }]);
+  };
+  const setAttrs = (xml, el, values) => {
+    const p = location(el);
+    // This property is being edited. Serialise its attributes with double quotes
+    // before assigning values, which may themselves contain apostrophes.
+    return K.patch(xml, [{ start: p.start, end: p.end, value: K.attributes(K.serialize(el), values) }]);
+  };
+  P.control = function (el, ctx, doc) {
+    let xml = K.raw(el), tree = K.parse(xml), content = child(tree, 'sdtContent');
+    if (!content) return null;
+    xml = inner(xml, content, SLOT);
+    const pr = child(el, 'sdtPr'), binding = child(pr, 'dataBinding');
+    const type = ['text', 'date', 'dropDownList', 'comboBox', 'checkbox', 'picture'].find(t => child(pr, t)) || 'richText';
+    const control = { key: D.nid(), shell: K.fragment(K.parse(xml), { pkg: doc.pkg, part: ctx.part }), type,
+      lock: attr(child(pr, 'lock'), 'val'), name: attr(child(pr, 'alias'), 'val') || attr(child(pr, 'tag'), 'val') || 'Content control' };
+    if (child(pr, 'placeholder')) control.related = (doc.pkg?.rels(doc.pkg.main) || []).filter(r => canonical(r.type) === RT('glossaryDocument')).map(r => ({ source: doc.pkg.id, owner: doc.pkg.main, ...r }));
+    if (binding) {
+      const storeID = (attr(binding, 'storeItemID') || '').toUpperCase();
+      control.binding = { source: doc.pkg?.id, part: doc.keep.stores?.[storeID], storeID,
+        xpath: attr(binding, 'xpath'), mappings: attr(binding, 'prefixMappings') || '' };
+      const store = ctx.stores?.get(storeID), ns = {};
+      try {
+        for (const m of control.binding.mappings.matchAll(/xmlns:([\w.-]+)\s*=\s*['"]([^'"]*)['"]/g)) ns[m[1]] = m[2];
+        const sd = store?.ownerDocument || store;
+        const node = sd?.evaluate(control.binding.xpath, sd, p => ns[p] || null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        control.binding.complex = !node || (node.nodeType === 1 && node.children.length > 0) || (node.nodeType === 3 && node.parentNode.childNodes.length !== 1) || /^\s*<(\?xml|pkg:package|html|w:)/.test(node.textContent || '');
+      } catch (error) { control.binding.complex = true; }
+    }
+    const tp = child(pr, type);
+    if (type === 'dropDownList' || type === 'comboBox') control.choices = kids(tp).filter(e => e.localName === 'listItem').map(e => ({ value: attr(e, 'value') || '', text: attr(e, 'displayText') || attr(e, 'value') || '' }));
+    if (type === 'date') control.dateFormat = attr(child(tp, 'dateFormat'), 'val');
+    if (type === 'checkbox') control.checked = /^(1|true|on)$/.test(attr(child(tp, 'checked'), 'val') || '0');
+    doc.keep.controls = true;
+    return control;
+  };
+  P.markControl = function (objects, property, control) {
+    if (!control || !objects.length) return;
+    const first = objects[0][property], last = objects[objects.length - 1][property];
+    (first.sdts || (first.sdts = [])).unshift(control);
+    (last.sdte || (last.sdte = [])).push(control.key);
+  };
+  const properties = b => b.t === 'p' ? b.pPr : b.tblPr;
+  const propertyStores = new Set(['{6C3C8BC8-F283-45AE-878A-BAB7291924A1}', '{6668398D-A668-4E3E-A5EB-62B293D839F1}']);
+  const plainPr = pr => { const o = { ...pr }; delete o.sdts; delete o.sdte; return o; };
+  const typed = c => ['date', 'dropDownList', 'comboBox', 'checkbox'].includes(c.type);
+  const controlLoss = (doc, c, why, writer) => {
+    const entry = { id: 'control:' + c.key, what: c.name + ': ' + why, where: c.shell.part, action: 'conversion' };
+    if (writer) writer.loss(entry);
+    else { D.touchKey(doc, 'losses'); K.loss(doc, entry); }
+  };
+  // A scan contains model references only for this operation. Nothing here is
+  // stored in history, and there are no back-links from a fragment to its owner.
+  P.controls = function (doc, track = true) {
+    const records = new Map(), markers = [], stack = [];
+    const feed = (value, text = '') => { if (!stack.length) return; const v = JSON.stringify(L.clone(value)); for (const r of stack) { r.parts.push(v); r.text += text; } };
+    const start = (control, ref) => {
+      feed(['control', control.key]);
+      const r = { control, state: L.clone(control), start: ref, text: '', parts: [], complete: false };
+      records.set(control.key, r); stack.push(r); markers.push({ ...ref, key: control.key });
+    };
+    const end = (key, ref) => {
+      markers.push({ ...ref, key });
+      const r = records.get(key), i = stack.findIndex(r => r.control.key === key);
+      if (r && i >= 0) { r.end = ref; r.complete = i === stack.length - 1 && r.start.scope === ref.scope; stack.splice(i, 1); }
+    };
+    const marks = (pr, owner, touch, scope, side, pos) => {
+      const list = pr[side] || [];
+      for (const v of list) {
+        const ref = { owner, pr, scope, pos, touch, remove() { touch(); pr[side] = pr[side].filter(x => x !== v); if (!pr[side].length) delete pr[side]; } };
+        if (side === 'sdts') start(v, ref); else end(v, ref);
+      }
+    };
+    function sequence(objects, prop, touch, scope) {
+      if (!track) touch = () => {};
+      for (const o of objects) {
+        const ps = o.t === 'p' ? [o] : o.cells ? o.cells.flatMap(c => [D.firstPara(c.blocks), D.lastPara(c.blocks)]) : o.blocks ? [D.firstPara(o.blocks), D.lastPara(o.blocks)] : [D.firstPara([o]), D.lastPara([o])];
+        const first = ps.find(Boolean), last = ps.filter(Boolean).at(-1), pr = prop(o);
+        marks(pr, o, () => touch(o), scope, 'sdts', first && D.pos(first, 0));
+        if (o.t === 'p') {
+          feed(['p', plainPr(pr), o.rPr]);
+          let offset = 0;
+          for (const it of o.runs) {
+            const ref = { owner: o, scope: o, pos: D.pos(o, offset), touch: () => { if (track) D.touch(o); }, remove() { if (track) D.touch(o); o.runs = o.runs.filter(x => x !== it); } };
+            if (it.t === 'sdts') start(it.control, ref);
+            else if (it.t === 'sdte') end(it.key, ref);
+            else {
+              feed(it, it.rPr?.del ? '' : it.t === 'text' ? it.text : it.t === 'sym' ? it.char || '' : it.t === 'tab' ? '\t' : it.t === 'br' ? '\n' : D.ilen(it) ? '\ufffc' : '');
+            }
+            offset += D.ilen(it);
+          }
+          feed(['/p'], '\n');
+        } else if (o.t === 'tbl') {
+          feed(['tbl', plainPr(pr), o.grid]); sequence(o.rows, r => r.trPr, () => D.touchTbl(o), o.rows); feed(['/tbl']);
+        } else if (o.cells) {
+          feed(['row', plainPr(pr)]); sequence(o.cells, c => c.tcPr, () => touch(o), o.cells); feed(['/row']);
+        } else {
+          feed(['cell', plainPr(pr)]); sequence(o.blocks, properties, b => b.t === 'p' ? D.touch(b) : D.touchTbl(b), o.blocks); feed(['/cell']);
+        }
+        marks(pr, o, () => touch(o), scope, 'sdte', last && D.pos(last, D.plen(last)));
+      }
+    }
+    for (const story of D.stories(doc)) {
+      sequence(story.blocks || [], properties, b => b.t === 'p' ? D.touch(b) : D.touchTbl(b), story.blocks);
+      // Text boxes form their own control scopes, even inside a body control.
+      const boxes = [];
+      D.walk(story, b => { if (b.t === 'p') for (const it of b.runs) if (it.t === 'group') boxes.push(...D.groupTextboxes(it)); else if (it.tb) boxes.push(it.tb); });
+      stack.length = 0;
+      for (const box of new Set(boxes)) { sequence(box.blocks, properties, b => b.t === 'p' ? D.touch(b) : D.touchTbl(b), box.blocks); stack.length = 0; }
+    }
+    for (const r of records.values()) { r.signature = r.parts.join(''); delete r.parts; if (r.start.scope !== r.start.owner) r.text = r.text.replace(/\n$/, ''); }
+    return { records, markers };
+  };
+  P.removeControl = function (scan, key) { for (const m of scan.markers) if (m.key === key) m.remove(); };
+  P.beforeEdit = doc => doc?.keep?.controls ? P.controls(doc) : null;
+  P.afterEdit = function (doc, before) {
+    if (!before && !doc.keep?.controls) return;
+    const after = P.controls(doc);
+    for (const [key, old] of before?.records || []) {
+      const next = after.records.get(key), c = old.state;
+      const deleted = !next?.complete;
+      if ((deleted && (c.lock === 'sdtLocked' || c.lock === 'sdtContentLocked')) || ((!next || old.signature !== next.signature || !same(c.value, next.control.value)) && (c.lock === 'contentLocked' || c.lock === 'sdtContentLocked'))) {
+        const error = new Error('This modification is not allowed because the content control is locked.'); error.code = 'locked-control'; throw error;
+      }
+      if (deleted) { P.removeControl(after, key); controlLoss(doc, c, 'the control was removed with its boundary.'); continue; }
+      if (old.text === next.text && same(c.value, next.control.value)) continue;
+      next.start.touch();
+      next.control.edited = true;
+      if (typed(c) && same(c.value, next.control.value)) {
+        next.control.converted = true; delete next.control.binding;
+        controlLoss(doc, c, 'typing converted the typed control to unbound text.');
+      } else if (next.control.binding) {
+        const binding = next.control.binding;
+        if (binding.part && binding.xpath && !binding.complex) {
+          D.touchKey(doc, 'keep');
+          binding.value = typed(c) ? next.control.value : next.text;
+          (doc.keep.boundUpdates || (doc.keep.boundUpdates = {}))[binding.storeID + ':' + binding.xpath] = { ...binding };
+        } else {
+          delete next.control.binding; next.control.unbound = true;
+          controlLoss(doc, c, 'the edited value could not be written to its XML binding; the control was unbound.');
+        }
+      }
+    }
+    for (const [key, r] of after.records) if (!r.complete) { P.removeControl(after, key); controlLoss(doc, r.control, 'an incomplete control boundary was removed.'); }
+  };
+  P.deleteControls = function (doc, a, b) {
+    if (!doc.keep?.controls) return;
+    const scan = P.controls(doc);
+    for (const [key, r] of scan.records) {
+      if (!r.complete || !r.start.pos || !r.end.pos || D.storyOf(doc, r.start.pos.p) !== D.storyOf(doc, a.p)) continue;
+      const startInside = D.cmp(doc, a, r.start.pos) <= 0 && D.cmp(doc, r.start.pos, b) < 0;
+      const endInside = D.cmp(doc, a, r.end.pos) < 0 && D.cmp(doc, r.end.pos, b) <= 0;
+      if (startInside || endInside) P.removeControl(scan, key);
+    }
+  };
+  P.duplicateControls = function (blocks) {
+    const copy = K.duplicate(blocks), scan = P.controls({ main: { blocks: copy }, hf: {}, fn: {}, en: {}, comments: {} }, false), ids = new Map(), stores = new Map();
+    for (const [key, r] of scan.records) {
+      if (!r.complete) { P.removeControl(scan, key); continue; }
+      ids.set(key, D.nid()); r.control.key = ids.get(key);
+      const b = r.control.binding;
+      if (b && b.source !== D.doc?.pkg?.id) {
+        if (!b.part || propertyStores.has(b.storeID)) {
+          delete r.control.binding; r.control.unbound = true;
+          if (D.doc) controlLoss(D.doc, r.control, !b.part ? 'the copied XML binding had no available store.' : 'copying to another document removed its document-property binding.');
+        } else {
+          const storeKey = b.source + ':' + b.part;
+          if (!stores.has(storeKey)) {
+            let id = D.doc?.keep?.storeCopies?.[storeKey];
+            if (!id) {
+              id = '{' + crypto.randomUUID().toUpperCase() + '}';
+              if (D.doc) { D.touchKey(D.doc, 'keep'); D.doc.keep = D.doc.keep || {}; (D.doc.keep.storeCopies || (D.doc.keep.storeCopies = {}))[storeKey] = id; }
+            }
+            stores.set(storeKey, id);
+          }
+          b.originalStoreID = b.storeID; b.storeID = stores.get(storeKey);
+        }
+      }
+    }
+    for (const m of scan.markers) if (!ids.has(m.key)) m.remove();
+    // Incomplete copied selections keep the text, never a dangling wrapper.
+    const visit = value => {
+      if (!value || typeof value !== 'object') return;
+      if (value.t === 'sdte') value.key = ids.get(value.key) || value.key;
+      if (Array.isArray(value.sdte)) value.sdte = value.sdte.filter(k => ids.has(k)).map(k => ids.get(k));
+      for (const v of Object.values(value)) visit(v);
+    };
+    visit(copy);
+    const bookmarks = new Map(), paragraphs = [];
+    D.walk({ blocks: copy }, b => {
+      if (b.t !== 'p') return;
+      paragraphs.push(b);
+      for (const it of b.runs) if (it.t === 'bs' || it.t === 'be') {
+        const key = String(it.id); if (!bookmarks.has(key)) bookmarks.set(key, {});
+        bookmarks.get(key)[it.t] = it;
+      }
+    });
+    const names = new Map();
+    for (const pair of bookmarks.values()) if (pair.bs && pair.be) {
+      pair.id = 'copy' + D.nid();
+      const name = (pair.bs.name || 'Bookmark').slice(0, 24) + '_' + pair.id;
+      names.set(pair.bs.name, name); pair.bs.name = name;
+    }
+    for (const p of paragraphs) p.runs = p.runs.filter(it => {
+      if (it.t === 'bs' || it.t === 'be') {
+        const pair = bookmarks.get(String(it.id)); if (!pair.id) return false; it.id = pair.id;
+      }
+      if (it.rPr?.link?.anchor && names.has(it.rPr.link.anchor)) it.rPr.link.anchor = names.get(it.rPr.link.anchor);
+      return true;
+    });
+    return copy;
+  };
+  P.copyParagraphProperties = function (p, from, to) {
+    const pr = L.clone(p.pPr);
+    if (from > 0) delete pr.sdts;
+    if (to < D.plen(p)) delete pr.sdte;
+    return pr;
+  };
+  P.splitControls = function (doc, p, next) {
+    delete next.pPr.sdts;
+    if (p.pPr.sdte) { next.pPr.sdte = p.pPr.sdte; delete p.pPr.sdte; }
+    const open = [], offsets = new Map(); let offset = 0;
+    for (const it of p.runs) {
+      if (it.t === 'sdts') { open.push(it.control); offsets.set(it.control.key, offset); }
+      else if (it.t === 'sdte') { const i = open.findIndex(c => c.key === it.key); if (i >= 0) open.splice(i, 1); }
+      offset += D.ilen(it);
+    }
+    if (!open.length) return;
+    const ends = new Map(); offset = 0;
+    for (const it of next.runs) { if (it.t === 'sdte') ends.set(it.key, offset); offset += D.ilen(it); }
+    if (open.every(c => offsets.get(c.key) === 0 && ends.get(c.key) === offset)) {
+      // A control covering the whole paragraph becomes a block control when
+      // Enter gives it a second paragraph. Its identity and binding stay intact.
+      const keys = new Set(open.map(c => c.key));
+      p.runs = p.runs.filter(it => it.t !== 'sdts' || !keys.has(it.control.key));
+      next.runs = next.runs.filter(it => it.t !== 'sdte' || !keys.has(it.key));
+      p.pPr.sdts = [...(p.pPr.sdts || []), ...open];
+      next.pPr.sdte = [...open.map(c => c.key).reverse(), ...(next.pPr.sdte || [])];
+    } else {
+      // Word cannot put half of two paragraphs inside one run-level sdt. Keep
+      // both editable halves as controls and report the necessary unbinding.
+      const starts = [];
+      for (const c of open) {
+        const copy = K.duplicate(c); copy.key = D.nid();
+        for (const control of [c, copy]) { delete control.binding; control.unbound = true; if (typed(control)) control.converted = true; }
+        for (const it of next.runs) if (it.t === 'sdte' && it.key === c.key) it.key = copy.key;
+        starts.push(D.item('sdts', { control: copy }));
+        controlLoss(doc, c, 'splitting its paragraph created separate unbound controls.');
+      }
+      p.runs.push(...open.map(c => D.item('sdte', { key: c.key })).reverse());
+      next.runs.unshift(...starts);
+    }
+  };
+  P.inlineControls = function (p) {
+    if (!p.pPr.sdts?.length || !p.pPr.sdte?.length) return;
+    const closed = new Set(p.pPr.sdte), controls = p.pPr.sdts.filter(c => closed.has(c.key));
+    if (!controls.length) return;
+    const keys = new Set(controls.map(c => c.key));
+    p.runs.unshift(...controls.map(control => D.item('sdts', { control })));
+    p.runs.push(...p.pPr.sdte.filter(key => keys.has(key)).map(key => D.item('sdte', { key })));
+    p.pPr.sdts = p.pPr.sdts.filter(c => !keys.has(c.key)); p.pPr.sdte = p.pPr.sdte.filter(k => !keys.has(k));
+    if (!p.pPr.sdts.length) delete p.pPr.sdts; if (!p.pPr.sdte.length) delete p.pPr.sdte;
+  };
+  P.joinControls = function (doc, p, q) {
+    if (!doc.keep?.controls) return;
+    P.inlineControls(p); P.inlineControls(q);
+    const scan = P.controls(doc);
+    for (const [key, r] of scan.records) if (r.start.pr && ((r.end?.owner === p) || (r.start.owner === q))) {
+      P.removeControl(scan, key); controlLoss(doc, r.control, 'joining across its boundary converted the control to ordinary content.');
+    }
+    if (q.pPr.sdte) p.pPr.sdte = [...(p.pPr.sdte || []), ...q.pPr.sdte];
+    delete q.pPr.sdte;
+  };
+  P.controlAt = function (pos) {
+    if (!pos || !D.doc?.keep?.controls) return null;
+    let found = null;
+    for (const r of P.controls(D.doc).records.values()) if (r.complete && r.start.pos && r.end.pos && D.storyOf(D.doc, r.start.pos.p) === D.storyOf(D.doc, pos.p) && D.cmp(D.doc, r.start.pos, pos) <= 0 && D.cmp(D.doc, pos, r.end.pos) <= 0) found = r;
+    return found;
+  };
+  P.setControlValue = function (key, value) {
+    const r = P.controls(D.doc).records.get(key);
+    if (!r?.complete || !typed(r.control) || r.control.converted || r.start.pos?.p !== r.end.pos?.p) return false;
+    const c = r.control, p = r.start.pos.p;
+    r.start.touch(); D.touch(p);
+    let display = String(value);
+    if (c.type === 'checkbox') {
+      value = value === true || value === 'true' ? 'true' : 'false'; c.checked = value === 'true';
+      const tp = child(child(K.parse(c.shell.xml), 'sdtPr'), 'checkbox'), state = child(tp, c.checked ? 'checkedState' : 'uncheckedState');
+      display = state ? String.fromCodePoint(parseInt(attr(state, 'val'), 16)) : c.checked ? '\u2612' : '\u2610';
+    } else if (c.choices) display = c.choices.find(v => v.value === value)?.text ?? String(value);
+    else if (c.type === 'date') {
+      const date = new Date(String(value).slice(0, 10) + 'T12:00:00');
+      if (!Number.isFinite(date.getTime())) return false;
+      value = String(value).slice(0, 10) + 'T00:00:00Z';
+      if (c.dateFormat && L.fields?.formatDate) display = L.fields.formatDate(date, c.dateFormat);
+    }
+    c.value = String(value);
+    const from = r.start.pos.o, to = r.end.pos.o;
+    D.splitAt(p, from); D.splitAt(p, to);
+    let start, end;
+    if (r.start.pr) { start = 0; end = p.runs.length; }
+    else { start = p.runs.findIndex(it => it.t === 'sdts' && it.control.key === key) + 1; end = p.runs.findIndex(it => it.t === 'sdte' && it.key === key); }
+    const format = p.runs.slice(start, end).find(it => D.ilen(it))?.rPr || {};
+    p.runs.splice(start, end - start, D.text(display, L.clone(format)));
+    return D.pos(p, from + display.length);
+  };
+  P.controlDialog = function (record) {
+    const c = record?.control;
+    if (!c || !typed(c) || c.converted) return;
+    const apply = value => L.ed.edit('Content Control Value', () => P.setControlValue(c.key, value));
+    if (c.type === 'checkbox') { apply(!c.checked); return; }
+    const input = c.type === 'dropDownList' ? L.h('select', {}, ...(c.choices || []).map(v => L.h('option', { value: v.value, selected: c.value === v.value || record.text === v.text }, v.text)))
+      : L.h('input', { type: c.type === 'date' ? 'date' : 'text', value: c.type === 'date' ? (c.value || attr(child(child(K.parse(c.shell.xml), 'sdtPr'), 'date'), 'fullDate') || '').slice(0, 10) : c.value ?? record.text });
+    L.ui.dialog({ title: c.name, width: 340, body: L.h('label', { class: 'col' }, 'Value:', input), buttons: [
+      { label: 'OK', primary: true, onClick: () => { if (c.type === 'date' && !input.value) { input.focus(); return false; } apply(input.value); } }, { label: 'Cancel' } ] });
+  };
+  P.clipboard = function (blocks) {
+    const refs = [];
+    const visit = value => {
+      if (!value || typeof value !== 'object') return;
+      if (value.source && value.part && value.storeID) refs.push({ source: value.source, part: value.part });
+      if (Array.isArray(value.related)) for (const r of value.related) if (!r.external && r.part) refs.push({ source: r.source, part: r.part });
+      if (Array.isArray(value.deps)) for (const d of value.deps) if (!d.external && d.part) refs.push({ source: d.source, part: d.part });
+      for (const v of Object.values(value)) visit(v);
+    };
+    visit(blocks);
+    try { return K.export(refs); } catch (error) { return null; }
+  };
+  P.controlXML = function (c, content, ctx) {
+    let xml = c.shell.xml;
+    const tree = K.parse(xml), pr = child(tree, 'sdtPr'), changes = [];
+    for (const e of kids(pr)) {
+      const remove = (c.converted && ['date', 'dropDownList', 'comboBox', 'checkbox', 'text', 'dataBinding', 'showingPlcHdr'].includes(e.localName)) || (c.unbound && e.localName === 'dataBinding') || (c.edited && e.localName === 'showingPlcHdr');
+      if (remove) { const p = location(e); changes.push({ start: p.start, end: p.end, value: '' }); }
+    }
+    xml = K.patch(xml, changes);
+    if (c.binding?.originalStoreID) {
+      const binding = child(child(K.parse(xml), 'sdtPr'), 'dataBinding');
+      if (binding) xml = setAttrs(xml, binding, { [binding.prefix + ':storeItemID']: c.binding.storeID });
+    }
+    if (c.value !== undefined && !c.converted) {
+      const tp = child(child(K.parse(xml), 'sdtPr'), c.type);
+      if (tp && c.type === 'date') xml = setAttrs(xml, tp, { [tp.prefix + ':fullDate']: c.value });
+      if (tp && (c.type === 'dropDownList' || c.type === 'comboBox')) xml = setAttrs(xml, tp, { [tp.prefix + ':lastValue']: c.value });
+      if (tp && c.type === 'checkbox') {
+        const checked = child(tp, 'checked');
+        if (checked) xml = setAttrs(xml, checked, { [checked.prefix + ':val']: c.value === 'true' ? '1' : '0' });
+      }
+    }
+    try {
+      for (const dependency of c.related || []) if (dependency.source !== ctx.writer.pkg?.id) ctx.writer.keepRel(ctx.mainPart, dependency);
+      if (c.binding?.part && !propertyStores.has(c.binding.storeID)) ctx.writer.keepRel(ctx.part, { source: c.binding.source, owner: c.shell.part, type: RT('customXml'), part: c.binding.part, target: K.relative(c.shell.part, c.binding.part) });
+      return ctx.writer.emit(K.slice(c.shell, xml), ctx.part).replace(SLOT, () => content);
+    }
+    catch (error) { controlLoss(ctx.doc, c, 'the original properties could not be retained: ' + error.message, ctx.writer); return content; }
+  };
+  P.controlSequence = function (objects, prop, render, ctx) {
+    const stack = [{ xml: '' }];
+    for (const o of objects) {
+      const pr = prop(o);
+      for (const c of pr?.sdts || []) stack.push({ xml: '', control: c });
+      stack.at(-1).xml += render(o);
+      for (const key of pr?.sdte || []) {
+        const current = stack.at(-1);
+        if (current.control?.key !== key) continue;
+        stack.pop(); stack.at(-1).xml += P.controlXML(current.control, current.xml, ctx);
+      }
+    }
+    while (stack.length > 1) { const r = stack.pop(); controlLoss(ctx.doc, r.control, 'an incomplete control boundary was removed.', ctx.writer); stack.at(-1).xml += r.xml; }
+    return stack[0].xml;
+  };
+  P.writeBindings = function (doc, writer) {
+    const updates = {};
+    if (doc.keep?.controls) for (const r of P.controls(doc).records.values()) {
+      const b = r.control.binding;
+      if (b?.value !== undefined) updates[b.storeID + ':' + b.xpath] = b;
+      if (b?.originalStoreID) {
+        const source = K.package(b.source), props = source?.rels(b.part).find(r => canonical(r.type) === RT('customXmlProps'))?.part;
+        if (props) {
+          const tree = source.xml(props), id = Array.from(tree.attributes).find(a => a.localName === 'itemID');
+          if (id) {
+            const dest = writer.claim(props, 'merged', writer.target(source, props), source);
+            writer.put(dest, K.partXML(source.text(props), K.attributes(K.raw(tree), { [id.name]: b.storeID })), source.type(props));
+            writer.carryRels(source, props, dest);
+          }
+        }
+      }
+    }
+    Object.assign(updates, doc.keep?.boundUpdates);
+    for (const update of Object.values(updates)) {
+      const source = K.package(update.source) || doc.pkg, part = update.part;
+      try {
+        if (!source?.has(part)) throw new Error('The XML store is missing');
+        const dest = writer.claim(part, 'merged', writer.target(source, part), source);
+        const raw = writer.parts.get(dest) || source.text(part);
+        const xml = typeof raw === 'string' ? raw : L.xmlTree.decode(raw);
+        const dom = new DOMParser().parseFromString(xml, 'application/xml'), ns = {};
+        for (const m of update.mappings.matchAll(/xmlns:([\w.-]+)\s*=\s*['"]([^'"]*)['"]/g)) ns[m[1]] = m[2];
+        let node = dom.evaluate(update.xpath, dom, p => ns[p] || null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+        if (!node) throw new Error('The binding XPath has no target');
+        if (node.nodeType === 3 && node.parentNode.childNodes.length === 1) node = node.parentNode;
+        const element = node.nodeType === 2 ? node.ownerElement : node, path = [];
+        if (element.nodeType !== 1) throw new Error('The binding target is not a scalar value');
+        for (let e = element; e.parentElement; e = e.parentElement) path.unshift(Array.from(e.parentElement.children).indexOf(e));
+        let target = K.parse(xml); for (const i of path) target = kids(target)[i];
+        let output;
+        if (node.nodeType === 2) {
+          const a = location(target).attrs.find(a => a.name === node.name);
+          output = K.patch(xml, [{ start: a.start, end: a.end, value: K.esc(String(update.value)).replace(/'/g, '&apos;') }]);
+        } else output = inner(xml, target, K.esc(String(update.value)));
+        writer.put(dest, output, source.type(part)); writer.carryRels(source, part, dest);
+      } catch (error) {
+        writer.loss({ id: 'binding:' + update.storeID + ':' + update.xpath, what: 'The edited content control value could not be written to its XML store: ' + error.message, where: part || update.storeID, action: 'conversion' });
+      }
+    }
   };
 })();

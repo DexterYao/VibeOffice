@@ -115,8 +115,8 @@ Checks (tools in docs/testing.md):
 ## What a save keeps, converts and drops
 
 Quire regenerates document content from its model and carries original package dependencies alongside
-it. Package preservation is implemented; content controls, opaque objects and unknown run/paragraph
-properties are still being integrated. The Compatibility Checker reports recorded losses before a
+it. Package preservation and content-control boundaries are implemented. Opaque objects and unknown
+run/paragraph properties are still being integrated. The Compatibility Checker reports recorded losses before a
 user save. Its coverage is incomplete until those remaining object paths populate the loss ledger.
 
 ### Package preservation (2026-10-08)
@@ -151,6 +151,41 @@ part of the next object stage.
 Reports: `~/corpora/results/package-preservation-2026-10-08/`. Word samples are in
 `~/Downloads/lossless-check/quire/package/`; Office acceptance is pending. The 24 Markdown fixtures
 still save byte for byte unchanged, and each scripted edit stays within its edited block.
+
+### Content controls (2026-10-08, focused increment)
+
+Inline controls use zero-length `sdts`/`sdte` items. Block, row and cell controls keep boundaries in
+`pPr`/`tblPr`, `trPr` and `tcPr`. Their original properties, namespaces, identities and dependencies
+wrap regenerated editable content on save. Nested boundaries survive history; incomplete pasted
+selections keep their text without introducing dangling control or bookmark markers.
+
+| Edit | Preservation behavior |
+|---|---|
+| Text inside plain/rich controls | Keep the control; update scalar custom XML XPath targets, including attributes |
+| Date/list value command or checkbox click | Keep the typed properties and update the bound value |
+| Typing inside a date/list/checkbox control | Convert to unbound text and report it before save |
+| Formatting | Keep control properties; content locks prevent changes |
+| Enter in a control covering a whole paragraph | Promote its boundaries to a block control with the same identity |
+| Enter inside a control covering part of a paragraph | Separate unbound controls; report the conversion |
+| Join across a multi-paragraph control boundary | Convert the affected wrapper to ordinary content and report it |
+| Partial boundary deletion | Remove the pair and report it; deletion/content locks roll back forbidden edits |
+| Copy/paste | Fresh control/bookmark identities; carry XML stores and glossary dependencies; copied stores get distinct identities in another document |
+| Undo/redo and drafts | Restore wrappers, binding updates and pending conversions |
+
+The context menu has **Content Control Value…** for dates, lists and checkboxes. Complex XML/Flat OPC
+bindings remain intact while untouched; editing them unbinds the control and reports that conversion.
+Copying a built-in document-property binding to another document also unbinds it and reports it.
+Preserving the wrapper does not yet preserve every unsupported object inside its content.
+
+Focused measurement: **8/8 authored files** retain all **16/16 controls**, including row and cell
+wrappers, with no new package or Open XML SDK diagnostics. Three authored edit fixtures pass **25
+browser assertions** for scalar binding updates, typed values, undo, copying and draft recovery;
+their **15 saved states** have no new package/SDK diagnostics. Six model tests cover locks, boundaries,
+copy identity and history. One edited binding sample opens in LibreOffice with the original page
+count. This is a focused increment; the full corpus and Markdown corpus were not rerun.
+
+Reports: `~/corpora/results/quire-controls-2026-10-08/`. Review copies:
+`~/Downloads/lossless-check/quire/content-controls/`. Word acceptance remains pending.
 
 ### Historical feature baseline
 
@@ -294,7 +329,7 @@ rich text, and RC4-encrypted files from Office 97–2003.
 | `js/dmodel.js`, `js/ops.js` | Document model (paragraphs, runs, tables, sections, styles, numbering), undo history, editing operations |
 | `js/render.js`, `js/layout.js` | Paragraph/run rendering, pagination, headers/footers, footnotes, columns, floats |
 | `js/editor.js` | contentEditable bridge: selection mapping, typing, IME, clipboard, keyboard |
-| `js/preserve.js` | Package ownership and settings, font-table and document-property merges |
+| `js/preserve.js` | Package ownership/merges; content-control wrappers, mutation rules, XML bindings and clipboard dependencies |
 | `js/docx-read.js`, `js/docx-write.js`, `../common/dml.js` | `.docx` import/export, DrawingML/VML shapes, charts, themes |
 | `js/rtf.js`, `js/htmlio.js` | RTF and HTML import/export |
 | `js/markdown.js`, `js/mdio.js` | Markdown reader (CommonMark + GitHub extensions, with source lines; also loads in Node) and Markdown/`.zip` import and export |

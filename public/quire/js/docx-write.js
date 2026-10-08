@@ -296,6 +296,11 @@
     let i = 0;
     while (i < items.length) {
       const it = items[i];
+      if (it.t === 'sdts') {
+        const end = items.findIndex((n, at) => at > i && n.t === 'sdte' && n.key === it.control.key);
+        if (end >= 0) { out += L.preserve.controlXML(it.control, runsXML({ ...p, runs: items.slice(i + 1, end) }, ctx), ctx); i = end + 1; continue; }
+      }
+      if (it.t === 'sdts' || it.t === 'sdte') { i++; continue; }
       const r = it.rPr || {};
       const link = D.ilen(it) ? r.link : null;
       const ins = D.ilen(it) || it.t === 'fb' || it.t === 'fs' || it.t === 'fe' ? r.ins : null;
@@ -583,28 +588,25 @@
   function tableXML(t, ctx) {
     const map = L.R.tblMap(t);
     let x = `<w:tbl><w:tblPr>${tblPrXML(Object.assign({}, t.tblPr, { w: t.tblPr.w || { type: 'auto', v: 0 } }), { full: true })}</w:tblPr><w:tblGrid>${t.grid.map((g) => `<w:gridCol w:w="${tw(g)}"/>`).join('')}</w:tblGrid>`;
-    t.rows.forEach((row, ri) => {
+    x += L.preserve.controlSequence(t.rows, row => row.trPr, row => {
+      const ri = t.rows.indexOf(row);
       const trp = trPrXML(row.trPr, ctx);
-      x += `<w:tr>${trp ? `<w:trPr>${trp}</w:trPr>` : ''}`;
-      row.cells.forEach((cell, ci) => {
+      let rowXML = `<w:tr>${trp ? `<w:trPr>${trp}</w:trPr>` : ''}`;
+      rowXML += L.preserve.controlSequence(row.cells, cell => cell.tcPr, cell => {
+        const ci = row.cells.indexOf(cell);
         const m = map[ri][ci];
         const w = cell.tcPr.w != null ? cell.tcPr.w : t.grid.slice(m.c0, m.c0 + m.span).reduce((a, b) => a + b, 0);
         const blocks = cell.blocks.length ? cell.blocks : [D.para()];
         let inner = blocksXML(blocks, ctx);
         if (!blocks.length || blocks[blocks.length - 1].t !== 'p') inner += '<w:p/>';
-        x += `<w:tc><w:tcPr>${tcPrXML(cell.tcPr, w)}</w:tcPr>${inner}</w:tc>`;
-      });
-      x += '</w:tr>';
-    });
+        return `<w:tc><w:tcPr>${tcPrXML(cell.tcPr, w)}</w:tcPr>${inner}</w:tc>`;
+      }, ctx);
+      return rowXML + '</w:tr>';
+    }, ctx);
     return x + '</w:tbl>';
   }
   function blocksXML(blocks, ctx) {
-    let x = '';
-    for (const b of blocks) {
-      if (b.t === 'p') x += paraXML(b, ctx);
-      else if (b.t === 'tbl') x += tableXML(b, ctx);
-    }
-    return x;
+    return L.preserve.controlSequence(blocks, b => b.t === 'p' ? b.pPr : b.tblPr, b => b.t === 'p' ? paraXML(b, ctx) : b.t === 'tbl' ? tableXML(b, ctx) : '', ctx);
   }
 
   /* ================= styles, numbering, settings ================= */
@@ -840,7 +842,7 @@
     const charts = [];
     const usedPaths = new Set();
     const mkCtx = (rels, main) => ({
-      rels, main, writer: pack.writer, part: rels.owner,
+      rels, main, doc, writer: pack.writer, part: rels.owner, mainPart: pack.part('word/document.xml'),
       rev: () => ++revN,
       docPrId: () => pack.writer.ids.fresh('document', 'docPr'),
       bmSeen: new Set(),
@@ -1070,6 +1072,7 @@
     files.unshift({ name: '[Content_Types].xml', data: ct });
     const types = new Map(overrides);
     for (const file of files) pack.put(file.name, file.data, types.get(file.name) || defaults.get(file.name.split('.').pop()));
+    L.preserve.writeBindings(doc, pack.writer);
     const result = pack.finish();
     const blob = await L.zip.write(result.files, format.mime); blob.dropped = result.dropped;
     return blob;

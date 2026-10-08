@@ -39,7 +39,7 @@
   D.ilen = (it) => {
     switch (it.t) {
       case 'text': return it.text.length;
-      case 'cs': case 'ce': case 'bs': case 'be': case 'fb': case 'fs': case 'fe': case 'perm': return 0;
+      case 'cs': case 'ce': case 'bs': case 'be': case 'fb': case 'fs': case 'fe': case 'perm': case 'sdts': case 'sdte': return 0;
       default: return 1;
     }
   };
@@ -746,11 +746,11 @@
     return null;
   };
   /** split runs so that a run boundary exists at offset o; returns the index of the first item at/after o */
-  /** where new content goes at offset o: after end markers sitting there (field/comment/bookmark ends),
-   *  before start markers — so typing after a field never lands inside its result */
+  /** Field/comment/bookmark ends precede new content; content-control starts
+   *  precede it too, so typing at a control's boundary edits its value. */
   D.insertIndex = function (p, o) {
     let i = D.splitAt(p, o);
-    while (i < p.runs.length && (p.runs[i].t === 'fe' || p.runs[i].t === 'ce' || p.runs[i].t === 'be')) i++;
+    while (i < p.runs.length && (p.runs[i].t === 'fe' || p.runs[i].t === 'ce' || p.runs[i].t === 'be' || p.runs[i].t === 'sdts')) i++;
     return i;
   };
   D.splitAt = function (p, o) {
@@ -804,7 +804,7 @@
       const n = D.ilen(it);
       const s = pos, e = pos + n;
       pos = e;
-      if (n === 0) { if (s >= a && s <= b && !(s === b && b !== a && it.t !== 'ce' && it.t !== 'be' && it.t !== 'fe') && !(s === a && a !== b && (it.t === 'ce' || it.t === 'be' || it.t === 'fe'))) out.push(L.clone(it)); continue; }
+      if (n === 0) { const end = ['ce', 'be', 'fe', 'sdte'].includes(it.t); if (s >= a && s <= b && !(s === b && b !== a && !end) && !(s === a && a !== b && end)) out.push(L.clone(it)); continue; }
       if (e <= a || s >= b) continue;
       if (it.t === 'text') out.push(Object.assign(L.clone(it), { text: it.text.slice(Math.max(0, a - s), Math.min(n, b - s)) }));
       else out.push(L.clone(it));
@@ -815,7 +815,7 @@
   /* ================= cloning ================= */
   /** deep clone of blocks with fresh ids */
   D.cloneBlocks = function (blocks) {
-    const c = L.clone(blocks);
+    const c = L.preserve ? L.preserve.duplicateControls(L.clone(blocks)) : L.clone(blocks);
     const fresh = (bl) => {
       for (const b of bl) {
         b.id = D.nid();
@@ -897,13 +897,14 @@
     const t = { label, objs: new Map(), keys: new Map(), paras: new Set(), tbls: new Set(), struct: false, global: false, full: null, selBefore: D.getSel ? D.getSel() : null, merge: opts.merge || null, time: Date.now() };
     H.cur = t;
     let res, err = null;
-    try { res = fn(); } catch (e) { err = e; }
+    try { const kept = L.preserve?.beforeEdit(D.doc); res = fn(); L.preserve?.afterEdit(D.doc, kept); } catch (e) { err = e; }
     H.cur = null;
     if (err) {
       /* roll back partial changes so the document stays consistent */
       try { undoEntry(t); } catch (e2) { console.error(e2); }
       D.doc._idxDirty = true;
       L.bus.emit('doc-changed', { full: true });
+      if (err.code === 'locked-control') { L.bus.emit('history', { sel: t.selBefore }); L.ui?.toast(err.message); return false; }
       throw err;
     }
     if (!t.objs.size && !t.keys.size && !t.full) return res;
@@ -913,7 +914,7 @@
     if (t.struct) D.doc._idxDirty = true;
     /* merge consecutive typing into one undo step */
     const last = H.undo[H.undo.length - 1];
-    if (t.merge && last && last.merge === t.merge && !H.breakMerge && t.time - last.time < 4000 && !t.struct && !last.full && !t.full && t.objs.size === 1 && last.objs.has(t.objs.keys().next().value)) {
+    if (t.merge && last && last.merge === t.merge && !H.breakMerge && t.time - last.time < 4000 && !t.struct && !last.full && !t.full && !t.global && !last.global && t.objs.size === 1 && last.objs.has(t.objs.keys().next().value)) {
       last.time = t.time;
       last.selAfter = t.selAfter;
     } else {

@@ -72,22 +72,23 @@
     const relOfType = (t) => Object.values(docRels).find((r) => r.type === t && !r.external);
 
     /* ---- custom XML data stores: content controls bound to them show the stored values (as Word does on open) ---- */
-    const stores = new Map();
+    const stores = new Map(), storeParts = {};
     for (const k of Array.from(zip.keys())) {
-      if (!/^customXml\/item\d+\.xml$/i.test(k)) continue;
+      if (!/\.xml$/i.test(k)) continue;
       const rr = await rels(k);
       const pr = Object.values(rr).find((r) => /customXmlProps$/.test(r.type));
+      if (!pr) continue;
       const px = pr && await xml(pr.target);
       const root = px && (px.documentElement || px);
       const idAttr = root && Array.from(root.attributes).find((a) => a.localName === 'itemID');
-      const dx = await xml(k);
-      if (idAttr && dx) stores.set(idAttr.value.toUpperCase(), dx);
+      const dx = idAttr && await xml(k);
+      if (idAttr && dx) { stores.set(idAttr.value.toUpperCase(), dx); storeParts[idAttr.value.toUpperCase()] = k; }
     }
     if (stores.size || get('docProps/core.xml')) {
       const core = await xml('docProps/core.xml');
-      if (core) stores.set('{6C3C8BC8-F283-45AE-878A-BAB7291924A1}', core);
+      if (core) { stores.set('{6C3C8BC8-F283-45AE-878A-BAB7291924A1}', core); storeParts['{6C3C8BC8-F283-45AE-878A-BAB7291924A1}'] = 'docProps/core.xml'; }
       const appx = await xml('docProps/app.xml');
-      if (appx) stores.set('{6668398D-A668-4E3E-A5EB-62B293D839F1}', appx);
+      if (appx) { stores.set('{6668398D-A668-4E3E-A5EB-62B293D839F1}', appx); storeParts['{6668398D-A668-4E3E-A5EB-62B293D839F1}'] = 'docProps/app.xml'; }
     }
     /** text a data-bound content control should show, or null to keep what the file has */
     const boundText = (sdtPr) => {
@@ -129,6 +130,7 @@
     };
     /** paragraph items for a bound value: line breaks for new lines, markers kept */
     const boundRuns = (value, from) => {
+      if (from.some(r => r.t === 'sdts')) return from;
       const first = from.find((r) => r.t === 'text' || r.t === 'sym');
       const rPr = first ? Object.assign({}, first.rPr || {}) : {};
       const out = from.filter((r) => D.ilen(r) === 0 && !/^f[bse]$/.test(r.t));
@@ -144,7 +146,7 @@
     doc.src = { mainPath };
     try { L.opc.attach(doc, await L.opc.open(zip)); }
     catch (error) { L.opc.loss(doc, { id: 'package', what: 'Some original package data could not be retained: ' + error.message, where: mainPath, action: 'drop' }); }
-    doc.keep = { media: {} };
+    doc.keep = { media: {}, stores: storeParts };
 
     /* ---- theme ---- */
     const themeRel = relOfType('theme');
@@ -648,7 +650,7 @@
 
     /* ---- story parsing ---- */
     let fid = 0;
-    function storyCtx(partPath, relMap, story) { return { part: partPath, rels: relMap, story, fstack: [], dropFids: new Set(), cmtOpen: new Set(), pendingBm: [], hyper: new Map() }; }
+    function storyCtx(partPath, relMap, story) { return { part: partPath, rels: relMap, story, stores, fstack: [], dropFids: new Set(), cmtOpen: new Set(), pendingBm: [], hyper: new Map() }; }
 
     function parseBlocks(el, ctx, out) {
       out = out || [];
@@ -663,6 +665,9 @@
             parseBlocks(sc, ctx, out);
             const bv = boundText(kid(c, 'sdtPr'));
             if (bv != null) { const ps = out.slice(n0).filter((b) => b.t === 'p'); if (ps.length === 1) ps[0].runs = boundRuns(bv, ps[0].runs); }
+            if (out.length === n0) out.push(D.para());
+            const owned = out.slice(n0), control = L.preserve.control(c, ctx, doc);
+            if (control) { const first = owned[0], last = owned.at(-1); const a = first.t === 'p' ? first.pPr : first.tblPr, b = last.t === 'p' ? last.pPr : last.tblPr; (a.sdts || (a.sdts = [])).unshift(control); (b.sdte || (b.sdte = [])).push(control.key); }
             break;
           }
           case 'customXml': case 'ins': case 'moveTo': case 'smartTag': parseBlocks(c, ctx, out); break;
@@ -737,10 +742,12 @@
             const sc = kid(c, 'sdtContent');
             if (!sc) break;
             const bv = boundText(kid(c, 'sdtPr'));
-            if (bv == null) { parseInline(sc, p, ctx, inh); break; }
             const tmp = D.para();
             parseInline(sc, tmp, ctx, inh);
-            p.runs.push(...boundRuns(bv, tmp.runs));
+            const control = L.preserve.control(c, ctx, doc);
+            if (control) p.runs.push(D.item('sdts', { control }));
+            p.runs.push(...(bv == null ? tmp.runs : boundRuns(bv, tmp.runs)));
+            if (control) p.runs.push(D.item('sdte', { key: control.key }));
             break;
           }
           case 'bookmarkStart': p.runs.push(D.item('bs', { id: at(c, 'id'), name: at(c, 'name') })); break;
@@ -979,15 +986,17 @@
       const grid = kids(kid(el, 'tblGrid'), 'gridCol').map((g) => tw(at(g, 'w')));
       const rows = [];
       const rowEls = [];
-      const collectRows = (parent) => { for (const c of parent.children) { if (c.localName === 'tr') rowEls.push(c); else if (c.localName === 'sdt') { const sc = kid(c, 'sdtContent'); if (sc) collectRows(sc); } else if (c.localName === 'customXml' || c.localName === 'ins' || c.localName === 'del') collectRows(c); } };
+      const rowControls = [], rowModels = new Map();
+      const collectRows = (parent) => { for (const c of parent.children) { if (c.localName === 'tr') rowEls.push(c); else if (c.localName === 'sdt') { const sc = kid(c, 'sdtContent'); if (sc) { const n = rowEls.length; collectRows(sc); rowControls.push({ control: L.preserve.control(c, ctx, doc), elements: rowEls.slice(n) }); } } else if (c.localName === 'customXml' || c.localName === 'ins' || c.localName === 'del') collectRows(c); } };
       collectRows(el);
       for (const tr of rowEls) {
         const rp = trPr(kid(tr, 'trPr'));
         const ex = kid(tr, 'tblPrEx');
         const cells = [];
         const cellEls = [];
+        const cellControls = [], cellModels = new Map();
         const cellBound = new Map(); /* cell-level content controls bound to a data store */
-        const collectCells = (parent) => { for (const c of parent.children) { if (c.localName === 'tc') cellEls.push(c); else if (c.localName === 'sdt') { const sc = kid(c, 'sdtContent'); if (sc) { const n0 = cellEls.length; collectCells(sc); const bv = boundText(kid(c, 'sdtPr')); if (bv != null && cellEls.length === n0 + 1) cellBound.set(cellEls[n0], bv); } } else if (c.localName === 'customXml') collectCells(c); } };
+        const collectCells = (parent) => { for (const c of parent.children) { if (c.localName === 'tc') cellEls.push(c); else if (c.localName === 'sdt') { const sc = kid(c, 'sdtContent'); if (sc) { const n0 = cellEls.length; collectCells(sc); const bv = boundText(kid(c, 'sdtPr')); if (bv != null && cellEls.length === n0 + 1) cellBound.set(cellEls[n0], bv); cellControls.push({ control: L.preserve.control(c, ctx, doc), elements: cellEls.slice(n0) }); } } else if (c.localName === 'customXml') collectCells(c); } };
         collectCells(tr);
         for (const tc of cellEls) {
           const cp = tcPr(kid(tc, 'tcPr'));
@@ -995,6 +1004,7 @@
           if (cellBound.has(tc)) { const ps = blocks.filter((b) => b.t === 'p'); if (ps.length === 1) ps[0].runs = boundRuns(cellBound.get(tc), ps[0].runs); }
           if (!blocks.length || blocks[blocks.length - 1].t !== 'p') { const sp = D.para(); if (blocks.length) sp.synth = true; blocks.push(sp); }
           cells.push({ id: D.nid(), tcPr: cp, blocks });
+          cellModels.set(tc, cells.at(-1));
         }
         /* legacy horizontal merges → gridSpan */
         for (let i = cells.length - 1; i > 0; i--) {
@@ -1006,11 +1016,14 @@
           }
         }
         for (const c of cells) delete c.tcPr.hMerge;
+        for (const c of cellControls) L.preserve.markControl(c.elements.map(e => cellModels.get(e)).filter(c => cells.includes(c)), 'tcPr', c.control);
         if (!cells.length) continue;
         const row = { id: D.nid(), trPr: rp, cells };
         if (ex) { const xp = tblPr(ex); if (xp.borders) row.exBorders = xp.borders; }
         rows.push(row);
+        rowModels.set(tr, row);
       }
+      for (const c of rowControls) L.preserve.markControl(c.elements.map(e => rowModels.get(e)).filter(Boolean), 'trPr', c.control);
       if (!rows.length) return null;
       /* grid sanity: compute from cell widths when missing or inconsistent */
       const nCols = Math.max(...rows.map((r) => (r.trPr.gridBefore || 0) + r.cells.reduce((s, c) => s + (c.tcPr.span || 1), 0) + (r.trPr.gridAfter || 0)));
