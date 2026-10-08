@@ -108,15 +108,24 @@
   });
   const propertyKeys = (kind, el) => wordNS(el.namespaceURI) ? P.propertyFields[kind][el.localName] : kind === 'rPr' && /word\/2010\/wordml$/.test(el.namespaceURI || '') ? ({ shadow: ['shadow'], textFill: ['color'], textOutline: ['outline'] }[el.localName]) : undefined;
   const propertyValues = (model, keys) => JSON.stringify(keys.map(k => model[k] ?? null), (k, v) => k === 'x' && v?.fragment ? undefined : v);
+  const propertyRanks = new Map();
   P.properties = function (model, el, kind, context) {
     if (!el) return model;
     const fragment = K.fragment(K.parse(originalProperties.get(el) || K.raw(el)), context), tree = K.parse(fragment.xml);
-    model.x = { key: D.nid(), fragment, values: Object.fromEntries(propertyChildren(tree).map(c => [expanded(c), propertyValues(model, propertyKeys(kind, c) || [])])) };
+    model.x = { key: D.nid(), fragment, owner: el.parentNode?.localName, values: Object.fromEntries(propertyChildren(tree).map(c => [expanded(c), propertyValues(model, propertyKeys(kind, c) || [])])) };
     return model;
   };
   P.propertyXML = function (kind, model, generated, ctx) {
     const kept = model.x, root = '<w:' + kind + ' xmlns:w="' + N.w + '">' + generated + '</w:' + kind + '>';
     if (!kept) return generated ? root : '';
+    let repaired = false;
+    const type = { rPr: 'w:CT_RPr', pPr: 'w:CT_PPr', tblPr: 'w:CT_TblPr' }[kind];
+    if (!propertyRanks.has(type)) {
+      const ranks = new Map();
+      K.schema.types[type].forEach((slot, i) => slot.forEach(name => ranks.set('{' + K.schema.namespaces[name.split(':')[0]] + '}' + name.split(':')[1], i)));
+      propertyRanks.set(type, ranks);
+    }
+    const ranks = propertyRanks.get(type);
     const original = K.parse(kept.fragment.xml), fresh = kids(K.parse(root)), present = new Set(propertyChildren(original).map(expanded));
     // Paragraph-mark revisions belong to CT_ParaRPr. They precede CT_RPr's
     // shared property sequence; pPr's nested mark/section are regenerated too.
@@ -134,12 +143,50 @@
         if (always || keys && kept.values[name] !== propertyValues(model, keys)) replacements[name] = fresh.filter(c => expanded(c) === name).map(K.raw);
       }
       if (outer) for (const c of fresh) if (!mark(c) && !present.has(expanded(c))) replacements[expanded(c)] = fresh.filter(e => expanded(e) === expanded(c)).map(K.raw);
-      return K.merge(xml, replacements, { rPr: 'w:CT_RPr', pPr: 'w:CT_PPr', tblPr: 'w:CT_TblPr' }[kind]);
+      // Invalid source properties can be copied into several runs by text edits.
+      // Normalize their spelling/order before that multiplies the source errors;
+      // retain extension attributes and every unrelated property.
+      const content = kind === 'pPr' && kept.owner === 'p' || kind === 'rPr' && ['r', 'pPr'].includes(kept.owner);
+      if (!content) return K.merge(xml, replacements, type);
+      const groups = new Map(); let previous = -1, unordered = false, unknown = false;
+      for (const e of kids(tree)) {
+        const name = expanded(e), rank = ranks.get(name);
+        if (!wordNS(e.namespaceURI) || mark(e)) continue;
+        if (rank == null) { unknown = true; continue; }
+        unordered ||= rank < previous; previous = rank;
+        if (!groups.has(name)) groups.set(name, []);
+        groups.get(name).push(e);
+      }
+      // Only content properties are duplicated by splitting text. Leave styles,
+      // table defaults and ambiguous source properties intact: choosing between
+      // conflicting values or unknown Word children requires an explicit edit.
+      const conflicting = [...groups.values()].some(group => group.some(e => K.raw(e) !== K.raw(group[0])));
+      if (unknown || conflicting) return K.merge(xml, replacements, type);
+      for (const [name, group] of groups) {
+        if (Object.hasOwn(replacements, name)) continue;
+        let value = K.raw(group[0]);
+        const duplicate = group.length > 1 && group.every(e => K.raw(e) === value);
+        if (wordNS(group[0].namespaceURI) && group[0].localName === 'color') {
+          const color = attr(group[0], 'val'), key = (group[0].prefix ? group[0].prefix + ':' : '') + 'val';
+          if (/^#[\da-f]{6}$/i.test(color || '')) value = K.attributes(value, { [key]: color.slice(1) });
+          else if (color == null && attr(group[0], 'themeColor')) value = K.attributes(value, { [key]: 'auto' });
+        }
+        if (duplicate || value !== K.raw(group[0])) { replacements[name] = [value]; repaired = true; }
+      }
+      if (unordered) {
+        // merge() keeps an untouched fragment byte-for-byte unless asked to
+        // replace a child. Replacing an identical child also orders this repair.
+        const first = [...groups].find(([name]) => !Object.hasOwn(replacements, name));
+        if (first && !Object.keys(replacements).length) replacements[first[0]] = first[1].map(K.raw);
+        repaired = true;
+      }
+      return K.merge(xml, replacements, type);
     };
     try {
       let xml = merge(kept.fragment.xml, true);
       const marks = fresh.filter(mark).map(K.raw).join('');
       if (marks) { const tree = K.parse(xml); xml = inner(xml, tree, marks + kids(tree).map(K.raw).join('')); }
+      if (repaired) ctx.writer.loss({ id: 'property:repair:' + (kept.fragment.source || '') + ':' + kept.fragment.part, what: 'Invalid source formatting was normalized for compatibility.', where: kept.fragment.part, action: 'conversion' });
       return ctx.writer.emit(K.slice(kept.fragment, xml), ctx.part);
     } catch (error) {
       ctx?.writer.loss({ id: 'property:' + kept.key, what: 'Some ' + (kind === 'rPr' ? 'text' : 'paragraph') + ' formatting could not be retained: ' + error.message, where: kept.fragment.part, action: 'conversion' });

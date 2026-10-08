@@ -12,7 +12,46 @@ const { D, O, preserve: P, opc: K } = L;
 const w14 = 'http://schemas.microsoft.com/office/word/2010/wordml';
 const doc = () => { const d = D.newDoc(); D.doc = d; D.resetHistory(); return d; };
 const context = d => ({ writer: new K.Writer(null, { doc: d }), doc: d, part: 'word/document.xml' });
-const property = (xml, model = {}, kind = 'rPr') => P.properties(model, K.parse(`<w:${kind} xmlns:w="${K.NS.w}" xmlns:w14="${w14}" xmlns:mc="${K.NS.mc}" mc:Ignorable="w14">${xml}</w:${kind}>`), kind, { part: 'word/document.xml' });
+const property = (xml, model = {}, kind = 'rPr', owner = kind === 'rPr' ? 'r' : 'p') => P.properties(model, K.parse(`<w:${owner} xmlns:w="${K.NS.w}" xmlns:w14="${w14}" xmlns:mc="${K.NS.mc}" mc:Ignorable="w14"><w:${kind}>${xml}</w:${kind}></w:${owner}>`).children[0], kind, { part: 'word/document.xml' });
+
+test('copied source formatting repairs property order and invalid color spelling without losing extensions', () => {
+  const d = doc(), r = property('<w:sz w:val="24"/><w:color w:val="#123456" w:themeColor="accent1"/><w14:glow w14:rad="190500"/>', { sz: 12, color: '123456' });
+  const xml = P.propertyXML('rPr', r, '<w:color w:val="123456"/><w:sz w:val="24"/>', context(d));
+  assert.match(xml, /w:val="123456"/); assert.doesNotMatch(xml, /#123456/);
+  assert.match(xml, /w:themeColor="accent1"/); assert.match(xml, /w14:glow/);
+  assert.ok(xml.indexOf('<w:color') < xml.indexOf('<w:sz'));
+  assert.equal(d.losses.length, 1);
+});
+
+test('theme-only colors receive their required fallback when retained across text splits', () => {
+  const d = doc(), r = property('<w:u w:val="single"/><w:color w:themeColor="hyperlink"/>', { u: 'single' });
+  const xml = P.propertyXML('rPr', r, '<w:u w:val="single"/>', context(d));
+  assert.match(xml, /w:themeColor="hyperlink"/); assert.match(xml, /w:val="auto"/);
+  assert.ok(xml.indexOf('<w:color') < xml.indexOf('<w:u'));
+});
+
+test('redundant invalid properties collapse without removing unknown children', () => {
+  const d = doc(), p = property('<w:pBdr/><w:framePr w:w="1000"/><w:pBdr/><w14:unknown/><w14:unknown/>', {}, 'pPr');
+  const xml = P.propertyXML('pPr', p, '', context(d));
+  assert.equal((xml.match(/<w:pBdr\b/g) || []).length, 1);
+  assert.equal((xml.match(/<w14:unknown\b/g) || []).length, 2);
+  assert.ok(xml.indexOf('<w:framePr') < xml.indexOf('<w:pBdr'));
+  P.propertyXML('rPr', property('<w:b/><w:b/>', { b: true }), '<w:b/>', context(d));
+  // A document with hundreds of malformed runs gets one notice per source part.
+  assert.equal(d.losses.length, 1);
+});
+
+test('automatic repairs leave styles and ambiguous source properties unchanged', () => {
+  for (const [kind, owner, raw] of [
+    ['rPr', 'style', '<w:highlight w:val="cyan"/><w:rFonts w:cs="Times New Roman"/>'],
+    ['rPr', 'r', '<w:b/><w:b/><w:sz w:val="24"/><w:sz w:val="26"/>'],
+    ['pPr', 'p', '<w:spacing w:after="200"/><w:suppressAutoHyphens/><w:hyphenationLines w:val="0"/>'],
+  ]) {
+    const d = doc(), model = property(raw, {}, kind, owner);
+    const xml = P.propertyXML(kind, model, '', context(d));
+    assert.ok(xml.includes(raw)); assert.equal(d.losses.length, 0);
+  }
+});
 
 test('formatting changes replace their own property and undo restores unsupported effects', () => {
   const d = doc(), r = property('<w:lang w:val="en-US" w:bidi="ar-SA"/><w14:glow w14:rad="190500"/><w14:shadow w14:blurRad="76200"/><w14:reflection w14:blurRad="12700"/>', { lang: 'en-US' });

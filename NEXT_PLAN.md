@@ -5,9 +5,9 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 
 ## Status
 
-**Implementation and final automated measurement are complete**, with the explicit compatibility
-exceptions in the app docs. **The plan is not signed off:** Excel batch 3 and PowerPoint batch 4
-still need the user's Office results.
+**Implementation and automated measurements are complete.** The final Word correction clears all
+31 failing SDK comparisons in six malformed-formatting fixtures; the 74-file affected subset adds no errors.
+**The plan is not signed off:** Excel and PowerPoint Office acceptance remain pending.
 
 - Quire and whole-package preservation: Office batches 1–2 accepted, including the corrected
   comments and all four namespace follow-up copies.

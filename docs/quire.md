@@ -126,14 +126,21 @@ XML patch performance correction. **2,880 save/reopen and draft-recovery attempt
 and 22 failures**. The failed inputs are password-protected, malformed or mislabeled. One timeout
 from the initial slow writer has a passing targeted correction; its original failure remains recorded.
 
-The full package/SDK comparison covers **19,028 emitted/attempted states**: **18,025 OK, 404 failed
-and 599 excluded**. Save/reopen alone reports **2,823 OK and 79 failed**. Failed or unopenable originals
-stay in those totals. No output adds package-consistency issues. The previous duplicate compatibility
+The full run with targeted formatting corrections covers **19,028 emitted/attempted states**:
+**18,056 OK, 373 failed and 599 excluded**. Save/reopen alone reports **2,828 OK and 74 failed**.
+Failed or unopenable originals stay in those totals. No output adds package-consistency issues.
+The previous duplicate compatibility
 attribute and drawing-ID defects are fixed; recovery and generated drawings now reserve their identities.
-Six malformed-formatting inputs remain exceptions: `Tdf147485`, `tdf147485-forcepoint`, `tdf115212`,
-`tdf91095`, `tdf57589_hashColor`, and the edited `tdf149198`. Reordering or splitting their already
-invalid properties adds diagnostics; these are failed comparisons, not passes. Diagnostic matching
-follows style IDs and unchanged property content when positions move, while retaining occurrence counts.
+No output adds SDK diagnostics. Six malformed-formatting fixtures previously failed in 31 states;
+their **36 emitted save/edit/history/draft states** now pass, with two inapplicable edits excluded.
+Retained content properties normalize known invalid order, redundant identical properties and
+unambiguous color spelling, with one Compatibility Checker notice per affected source part.
+Styles, conflicting values and unknown Word children remain intact. A corpus scan found 74 candidate
+files; all save/reopen, and all 71 with validatable originals add no package/SDK errors. The three
+unvalidatable originals remain failures. Independent previous-writer comparisons find only the
+declared formatting repairs and generated timestamps; other content and opaque bytes are unchanged.
+All six regression saves open in LibreOffice with unchanged page counts. Diagnostic matching follows
+style IDs and unchanged property content when positions move, while retaining occurrence counts.
 Newly generated drawings reserve both document drawing IDs and part-local shape IDs, so converting
 one object cannot collide with the identity of an unrelated retained group.
 An Office-found comment repair is also fixed: pre-release comment extensions retain their original
@@ -163,6 +170,7 @@ malformed input, unreferenced stories and unsupported markup remain exceptions.
 | Kept, with range/story exceptions | Comments, notes, bookmarks and permissions | 1,404/1,421 comments, 674/684 footnotes, 57/57 endnotes, 4,870/4,965 bookmarks and 50/54 permission ranges |
 | Kept, with remaining losses | Revisions, fields, pictures and tables | 1,385/1,427 insertions/deletions, 1,085/1,103 formatting revisions, 2,590/2,711 fields, 1,239/1,242 pictures and 1,605/1,606 tables |
 | Converted when edited | Unsupported contents inside an opaque frame; typed/complex controls | Edited or ungrouped converted content uses the model representation; incompatible typed-control edits unbind and report the conversion |
+| Normalized, with a notice | Invalid paragraph/run formatting that edits can duplicate | Six regression files / 36 emitted states pass; 74-file candidate scan checked, with 34 saves changing formatting; conflicting or unknown source properties remain intact |
 | Mostly converted, with a notice | Smart tags and inline custom-XML markup | 18/519 original wrappers remain; their text is represented as ordinary content |
 | Kept; Office accepted | Per-property drawing edits, row/cell alternatives and watermarks | 62 focused checks and 48 save/edit/history/draft states pass; full corpus completed; 14 original batch-2 files pass Office and the comment repair has a confirmed correction |
 
@@ -183,6 +191,8 @@ conversion passes **67 documents / 268 emitted states** against original package
 keeps its notice through draft recovery; its Office review is included in batch 2.
 Current reports and explicit exceptions: `~/corpora/results/final-suite-2026-10-09/quire/`. Earlier
 feature checks remain in `~/corpora/results/quire-remainder-2026-10-08/`.
+The final formatting correction and combined validation report are in
+`~/corpora/results/quire-property-repair-2026-10-09/`; the original failures remain archived.
 The Office checklist is `~/Downloads/lossless-check/office-batch-2/CHECKLIST.md`; file 12 records its
 original repair and links the accepted corrected save. Both samples in
 `~/Downloads/lossless-check/office-batch-2-comment-fix/` pass Word, package/SDK checks and LibreOffice,
