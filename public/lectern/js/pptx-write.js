@@ -141,7 +141,8 @@
     if (r.hl) kids += `<a:highlight>${clr(r.hl, null, design)}</a:highlight>`;
     if (r.font) { const f = X(fontRef(r.font)); kids += `<a:latin typeface="${f}"/><a:ea typeface="${f}"/><a:cs typeface="${f}"/>`; }
     if (r.link && ctx && tag === 'a:rPr') kids += hlinkXML(r.link, ctx);
-    return kids ? `<${tag} ${a.join(' ')}>${kids}</${tag}>` : `<${tag} ${a.join(' ')}/>`;
+    const xml = kids ? `<${tag} ${a.join(' ')}>${kids}</${tag}>` : `<${tag} ${a.join(' ')}/>`;
+    return L.properties.text(r, ctx, xml, 'run', tag);
   }
   function hlinkXML(link, ctx, tag) {
     tag = tag || 'a:hlinkClick';
@@ -175,8 +176,8 @@
     if (pp.algn) a.push(`algn="${pp.algn}"`);
     let kids = spc(pp.lnSpc, 'a:lnSpc') + spc(pp.spcBef, 'a:spcBef') + spc(pp.spcAft, 'a:spcAft') + buXML(pp.bu, design);
     if (withDefRPr && pp.rPr && Object.keys(pp.rPr).length) kids += rPrXML(pp.rPr, 'a:defRPr', ctx, design);
-    if (!a.length && !kids) return '';
-    return kids ? `<${tag}${a.length ? ' ' + a.join(' ') : ''}>${kids}</${tag}>` : `<${tag} ${a.join(' ')}/>`;
+    const xml = !a.length && !kids ? '' : kids ? `<${tag}${a.length ? ' ' + a.join(' ') : ''}>${kids}</${tag}>` : `<${tag} ${a.join(' ')}/>`;
+    return L.properties.text(pp, ctx, xml, 'para', tag, lvl);
   }
   function lstStyleXML(lst, ctx, design) {
     if (!lst) return '<a:lstStyle/>';
@@ -194,10 +195,10 @@
         const parts = String(r.t).split('\n');
         parts.forEach((t, i) => {
           if (i) x += `<a:br>${rPrXML(Object.assign({}, props, { link: undefined }), 'a:rPr', ctx, design)}</a:br>`;
-          if (t) x += `<a:r>${rPrXML(props, 'a:rPr', ctx, design)}<a:t>${X(t)}</a:t></a:r>`;
+          if (t || r.keep && parts.length === 1) x += `<a:r>${rPrXML(props, 'a:rPr', ctx, design)}<a:t>${X(t)}</a:t></a:r>`;
         });
       }
-      const end = p.end || (p.rs.length ? L.txt.runProps(p.rs[p.rs.length - 1]) : {});
+      const end = p.end || (p.rs.length ? Object.fromEntries(Object.entries(L.txt.runProps(p.rs[p.rs.length - 1])).filter(([key]) => key !== 'keep')) : {});
       x += rPrXML(Object.assign({}, end, { link: undefined }), 'a:endParaRPr', ctx, design);
       return x + '</a:p>';
     }).join('');
@@ -222,7 +223,7 @@
   function txBodyXML(tx, ctx, design, tag, extra) {
     tag = tag || 'p:txBody';
     const ps = tx.ps && tx.ps.length ? tx.ps : [L.txt.para('')];
-    return `<${tag}>${bodyPrXML(tx, extra)}${lstStyleXML(tx.lst, ctx, design)}${parasXML(ps, ctx, design)}</${tag}>`;
+    return `<${tag}>${L.properties.text(tx, ctx, bodyPrXML(tx, extra), 'body', 'a:bodyPr')}${L.properties.list(tx, ctx, lstStyleXML(tx.lst, ctx, design))}${parasXML(ps, ctx, design)}</${tag}>`;
   }
 
   /* ---------- shapes ---------- */
@@ -255,14 +256,19 @@
       const kept = L.designs.shape(sh, ctx);
       if (kept != null) return kept;
     }
+    return L.properties.apply(sh, ctx, shapeContentXML(sh, id, ctx, design));
+  }
+  function shapeContentXML(sh, id, ctx, design) {
     switch (sh.type) {
       case 'group': {
         const kids = sh.kids.map((k) => shapeXML(k, { ...ctx, inGroup: true }, design)).join('');
         const ext = `<a:chOff x="${emu(sh.x)}" y="${emu(sh.y)}"/><a:chExt cx="${emu(sh.w)}" cy="${emu(sh.h)}"/>`;
         return `<p:grpSp><p:nvGrpSpPr>${cNvPr(id, sh, ctx)}<p:cNvGrpSpPr/><p:nvPr/></p:nvGrpSpPr><p:grpSpPr>${xfrm(sh, 'a:xfrm', ext)}</p:grpSpPr>${kids}</p:grpSp>`;
       }
-      case 'line':
-        return `<p:cxnSp><p:nvCxnSpPr>${cNvPr(id, sh, ctx)}<p:cNvCxnSpPr/><p:nvPr/></p:nvCxnSpPr><p:spPr>${xfrm(sh)}<a:prstGeom prst="${sh.geom || 'line'}"><a:avLst/></a:prstGeom>${lineXML(sh.line || { c: 'tx1', w: 0.75 }, design)}${shadowXML(sh.shadow, design)}</p:spPr></p:cxnSp>`;
+      case 'line': {
+        const simple = sh.keep?.element === 'sp' || !!sh.tx, tag = simple ? 'sp' : 'cxnSp', nv = simple ? 'SpPr' : 'CxnSpPr';
+        return `<p:${tag}><p:nv${nv}>${cNvPr(id, sh, ctx)}<p:cNv${nv}/><p:nvPr/></p:nv${nv}><p:spPr>${xfrm(sh)}<a:prstGeom prst="${sh.geom || 'line'}"><a:avLst/></a:prstGeom>${lineXML(sh.line || { c: 'tx1', w: 0.75 }, design)}${shadowXML(sh.shadow, design)}</p:spPr>${sh.tx ? txBodyXML(sh.tx, ctx, design) : ''}</p:${tag}>`;
+      }
       case 'image': {
         /* a picture whose image is missing or linked from outside keeps its frame (PowerPoint shows its own placeholder) */
         const rid = ctx.media(sh.media) || (sh.linkUrl ? ctx.rels.add(RT('image'), sh.linkUrl, true) : null);
@@ -515,7 +521,7 @@
         const effs = sub.map((a) => {
           const total = (a.delay || 0) + (a.dur || 500) * (a.cls === 'emph' ? Math.max(1, a.repeat || 1) : 1);
           end = Math.max(end, start + total);
-          if (!bld.has(a.sid + ':' + a.id)) bld.set(a.sid + ':' + a.id, { sid: a.sid, grpId: grp++, para: a.by === 'para' });
+          if (!bld.has(a.sid + ':' + a.id)) bld.set(a.sid + ':' + a.id, { sid: a.sid, grpId: ctx.nextBuildId ? ctx.nextBuildId() : grp++, para: a.by === 'para' });
           const gi = bld.get(a.sid + ':' + a.id).grpId;
           return effectXML(a, ctx, nid, gi, a === sub[0] && sub === g.subs[0] ? (g.click ? 'clickEffect' : a.start === 'with' ? 'withEffect' : 'afterEffect') : a.start === 'after' ? 'afterEffect' : 'withEffect');
         }).join('');
@@ -944,6 +950,7 @@
         addChart: (xml, parts) => { chartN++; charts.push({ n: chartN, xml, parts }); return chartN; },
       };
       L.model.walk(s.shapes, shape => { ctx.nextId(shape.id); return true; });
+      ctx.liveShapeIds = new Set(Array.from(idMap.values(), String));
       const comments = L.comments.slide(commentState, s, ctx);
       let tree = s.shapes.map((sh) => shapeXML(sh, ctx, d)).join('');
       /* header & footer placeholders */
@@ -962,11 +969,11 @@
         if (hf.num && !has('sldNum')) tree += foot('sldNum', { t: String(i + (pres.firstNum || 1)), fld: 'slidenum' }, 'Slide Number Placeholder');
       }
       const timing = L.preserve.timing(s, ctx, () => timingXML(s, ctx));
-      const transition = s.keep?.transition && s.keep.trans === JSON.stringify(s.trans) ? writer.emit(s.keep.transition, part) : transitionXML(s.trans);
+      const transition = L.properties.transition(s, ctx, transitionXML(s.trans));
       const attrs = [];
       if (s.hidden) attrs.push('show="0"');
       if (s.hideMaster) attrs.push('showMasterSp="0"');
-      const xml = HEAD + `<p:sld ${NSDECL}${attrs.length ? ' ' + attrs.join(' ') : ''}><p:cSld>${s.bg ? bgXML(s.bg, ctx, d) : ''}<p:spTree>${GRP.replace('id="1"', 'id="' + rootId + '"')}${tree}</p:spTree>${comments.creation}</p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>${transition}${timing}${comments.ext}</p:sld>`;
+      const xml = L.properties.finishSlide(s, ctx, HEAD + `<p:sld ${NSDECL}${attrs.length ? ' ' + attrs.join(' ') : ''}><p:cSld>${s.bg ? bgXML(s.bg, ctx, d) : ''}<p:spTree>${GRP.replace('id="1"', 'id="' + rootId + '"')}${tree}</p:spTree>${comments.creation}</p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>${transition}${timing}${comments.ext}</p:sld>`);
       if (s.notes && s.notes.trim() || s.keep?.notes) {
         if (s.keep?.copy && s.keep.notes?.text === s.notes && pres.pkg?.has(s.keep.notes.part)) {
           const target = pack.part(`ppt/notesSlides/notesSlide${n}.xml`);

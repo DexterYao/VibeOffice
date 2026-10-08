@@ -57,7 +57,8 @@
     return (item.slides || []).flatMap(s => (s.keep?.comments || []).flatMap(r => [r, ...(r.author ? [r.author] : [])]));
   };
   C.shapeIdentity = function (shape, ctx, xml) {
-    if (!shape.keep?.commentAnchor || !shape.keep.identity.copy) return xml;
+    const f = shape.keep?.identity;
+    if (!f || !f.copy && f.source === ctx.writer?.pkg?.id && f.part === ctx.part) return xml;
     return rewrite(xml, el => el.localName === 'creationId' && /^\{/.test(at(el, 'id') || '') ? { id: guid('shape:' + shape.id + ':' + at(el, 'id')) } : null);
   };
   C.begin = function (pres, pack) {

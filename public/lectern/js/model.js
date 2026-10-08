@@ -284,13 +284,13 @@
   T.paraText = (p) => p.rs.map((r) => (r.fld ? r.t || '' : r.t)).join('');
   T.plain = (tx) => (tx && tx.ps ? tx.ps.map(T.paraText).join('\n') : '');
   T.isEmpty = (tx) => !tx || !tx.ps || tx.ps.every((p) => !T.paraText(p).length);
-  T.RUN_KEYS = ['b', 'i', 'u', 'strike', 'sz', 'font', 'color', 'base', 'shd', 'shdX', 'link', 'fld', 'spc', 'cap', 'fill', 'ln', 'hl', 'emb'];
+  T.RUN_KEYS = ['b', 'i', 'u', 'strike', 'sz', 'font', 'color', 'base', 'shd', 'shdX', 'link', 'fld', 'spc', 'cap', 'fill', 'ln', 'hl', 'emb', 'keep'];
   T.runProps = (r) => { const o = {}; for (const k of T.RUN_KEYS) if (r[k] !== undefined && k !== 'fld') o[k] = r[k]; return o; };
   T.sameProps = (a, b) => L.equal(T.runProps(a), T.runProps(b)) && !a.fld && !b.fld;
   T.normalize = (p) => {
     const out = [];
     for (const r of p.rs) {
-      if (!r.fld && !r.t) continue;
+      if (!r.fld && !r.t && !r.keep) continue;
       const prev = out[out.length - 1];
       if (prev && T.sameProps(prev, r)) prev.t += r.t;
       else out.push(Object.assign({}, r));

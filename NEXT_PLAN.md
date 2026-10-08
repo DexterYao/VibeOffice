@@ -14,10 +14,11 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 
 **Implemented; Office pending:** Ledger object-level features and the full group measurement.
 
-**Not done:** Lectern object-level remainder and final suite measurement/loss reporting.
+**Not done:** full Lectern group measurement, PowerPoint acceptance and final suite measurement/loss reporting.
 
-Lectern sections/custom shows, comments, opaque frames and design retention are implemented and measured; PowerPoint acceptance
-will be requested together in batch 4 after the remaining Lectern features.
+Lectern sections/custom shows, comments, opaque frames, designs, tags, actions and effects are
+implemented and measured; PowerPoint acceptance will be requested together in batch 4 after
+the full Lectern run.
 
 **Slide-6 repair: fixed** (60c26b4, confirmed in PowerPoint). Read "Office acceptance" in AGENTS.md
 first: two bugs in the shared save code passed every automated check (master and layout sharing an
@@ -283,6 +284,17 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   Ten focused cases / 32 states pass package/SDK; two edited samples keep their LibreOffice slide
   counts. All 118 unit tests pass and four pages load. Reports: `~/corpora/results/lectern-preservation-2026-10-09/designs-*`.
   PowerPoint batch 4 and the full Lectern run are pending. Next: tags, actions and non-media effects.
+
+- Lectern tags, actions, transitions and non-media properties now retain unsupported details until
+  their owning property changes. The 214-deck sweep plus targeted corrections retains every
+  inventoried effect family, all 482 transitions, 29 actions and 13 tag lists. All inputs save/reopen;
+  212 package/SDK comparisons pass and two damaged originals remain failed comparisons. Eighteen
+  focused cases / 56 states pass; four edited samples open in LibreOffice with unchanged counts.
+  A UTF-16 reader correction retains all six slides of a previously skipped template, with four
+  passing SDK/LibreOffice states. The corpus driver now checks source/opened/saved slide counts.
+  All 118 unit tests pass and four pages load. Reports:
+  `~/corpora/results/lectern-preservation-2026-10-09/properties-*`. Next: the full Lectern group run,
+  then PowerPoint batch 4; Excel batch 3 acceptance also remains pending.
 
 ## Review of 6d24c43..275406e (2026-10-08)
 Followed well: bounded Office batches with previous-writer comparison, checker rules for the WordArt

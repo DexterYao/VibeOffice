@@ -35,8 +35,12 @@
     const fresh = K.parse(generated), changes = {}, attrs = {};
     for (const [field, names] of Object.entries(mapping)) if (!same(current?.[field], before?.[field])) {
       for (const name of names.split(' ')) {
+        if (!name) continue;
         if (name.startsWith('@')) attrs[name.slice(1)] = fresh.getAttribute(name.slice(1));
-        else changes['{' + N.a + '}' + name] = kids(fresh).filter(e => e.localName === name).map(raw);
+        else if (name === 'effectLst' && type === 'a:CT_TextCharacterProperties') {
+          const old = kid(K.parse(xml), name), next = kid(fresh, name);
+          changes['{' + N.a + '}' + name] = K.merge(raw(old) || '<a:effectLst xmlns:a="' + N.a + '"/>', { ['{' + N.a + '}outerShdw']: raw(kid(next, 'outerShdw')) }, 'a:CT_EffectList');
+        } else changes['{' + N.a + '}' + name] = kids(fresh).filter(e => e.localName === name).map(raw);
       }
     }
     return K.attributes(K.merge(xml, changes, type), attrs);
@@ -165,10 +169,10 @@
       return ctx;
     };
     const emit = (fragment, target) => local.emit(fragment, target, { references: fragment.ids });
-    const carryRels = (part, target) => {
+    const carryRels = (part, target, whole) => {
       for (const r of pkg.rels(part)) {
         const type = K.relationshipType(r.type);
-        if (/\/(slideMaster|slideLayout|theme|image|chart|hyperlink)$/.test(type) || L.frames.consumes(pres, part, r)) continue;
+        if (!whole && (/\/(slideMaster|slideLayout|theme|image|chart|hyperlink|tags)$/.test(type) || L.frames.consumes(pres, part, r))) continue;
         try { local.keepRel(target, { source: pkg.id, owner: part, ...r }); }
         catch (error) { writer.loss({ id: 'design-dependency:' + part + ':' + r.id, what: 'A design dependency could not be retained: ' + error.message, where: part, action: 'drop' }); }
       }
@@ -177,7 +181,7 @@
       const xml = original && !copied ? pkg.bytes(part) : K.hoistNamespaces(emit(fragment, target));
       // Unchanged content is copied exactly; relations still follow copied designs.
       if (original && !copied) for (const dep of fragment.deps) local.keepRel(target, dep);
-      writer.put(target, xml, pkg.type(part)); carryRels(part, target);
+      writer.put(target, xml, pkg.type(part)); carryRels(part, target, original);
     }
     if (themePart) {
       const fragment = K.fragment(pkg.xml(keep.theme), { pkg, part: keep.theme });
@@ -217,7 +221,7 @@
     if (themePart) writer.rels(master).add(RT('theme'), K.relative(master, themePart), false, masterRels.find(r => /\/theme$/.test(r.type))?.id);
     const rel = pkg.rels(pkg.main).find(r => r.part === keep.part && /\/slideMaster$/.test(r.type));
     const entry = all(pkg.xml(pkg.main)).find(e => e.localName === 'sldMasterId' && (e.getAttributeNS(N.rel, 'id') || e.getAttributeNS(N.strictRel, 'id')) === rel?.id);
-    const id = !copied && entry ? entry.getAttribute('id') : writer.ids.fresh('presentation', 'sldMasterId');
+    const id = !copied && entry?.getAttribute('id') || writer.ids.fresh('presentation', 'sldMasterId');
     return { part: master, theme: themePart, id, rid: !copied ? rel?.id : null, layouts: targets };
   };
   const RT = name => N.rel + '/' + name;

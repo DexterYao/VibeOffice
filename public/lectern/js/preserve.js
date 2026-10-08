@@ -87,7 +87,7 @@
   P.designValues = design => JSON.stringify(Object.fromEntries(Object.entries(design).filter(([key]) => key !== 'keep')));
   P.begin = function (pres, format) {
     const pkg = pres.pkg;
-    const consumed = new Set([RT('officeDocument'), ...P.parts.map(p => p[1]), ...L.comments.types, ...['slide', 'slideMaster', 'slideLayout', 'notesSlide', 'theme', 'image', 'chart', 'hyperlink'].map(RT)]);
+    const consumed = new Set([RT('officeDocument'), ...P.parts.map(p => p[1]), ...L.comments.types, ...['slide', 'slideMaster', 'slideLayout', 'notesSlide', 'theme', 'image', 'chart', 'hyperlink', 'tags'].map(RT)]);
     const output = K.output(pkg, { doc: pres, format, contentType: P.mediaType,
       consumes: (base, rel, type) => consumed.has(type) || L.frames.consumes(pres, base, rel),
       convert: (base, source, data) => /^ppt\/(theme\/|notesMasters\/|notesSlides\/|viewProps\.xml$|tableStyles\.xml$)/.test(base) ? data : null,
@@ -132,6 +132,7 @@
     const tree = pkg.xml(part), map = new Map();
     for (const el of all(tree)) if (el.localName === 'cNvPr') {
       const shape = el.parentNode?.parentNode;
+      if (shape?.localName === 'spTree') continue;
       const prior = map.get(el.getAttribute('id'));
       // An OLE preview can repeat its outer frame's ID. The frame owns that
       // identity; sibling Choice/Fallback definitions still prefer the fallback.
@@ -147,7 +148,8 @@
     if (![N.p, 'http://purl.oclc.org/ooxml/presentationml/main'].includes(original.namespaceURI)) return;
     const cnv = kid(kids(original).find(e => /^nv/.test(e.localName)), 'cNvPr');
     if (!cnv) return;
-    shape.keep = { source: pkg.id, part, identity: K.fragment(cnv, { pkg, part }) };
+    shape.keep = { source: pkg.id, part, element: original.localName, identity: K.fragment(cnv, { pkg, part }) };
+    L.properties.shape(shape, original, pkg, part);
     if (/\/slide(?:Masters|Layouts)\//.test(part)) shape.keep.designFrame = K.fragment(working && K.alternate(working) ? working : original, { pkg, part });
     if (find(cnv, 'snd')) shape.keep.sound = true;
     const alternate = K.alternate(working);
@@ -156,12 +158,13 @@
     }
   };
   P.seal = function (pres) {
+    L.properties.seal(pres);
     L.designs.seal(pres);
     for (const d of Object.values(pres.designs)) if (d.keep) {
       d.keep.themeValues = JSON.stringify([d.colors, d.fonts]);
       d.keep.values = P.designValues(d);
     }
-    for (const slide of pres.slides) L.model.walk(slide.shapes, shape => {
+    for (const list of L.properties.lists(pres)) L.model.walk(list, shape => {
       if (shape.keep) shape.keep.metadata = Object.fromEntries(['name', 'alt', 'hidden', 'link'].map(k => [k, JSON.stringify(shape[k] ?? null)]));
       if (shape.keep?.media) {
         const keep = shape.keep.media;
@@ -179,17 +182,17 @@
   P.pruneTiming = function (xml, allowed, media = allowed, modeled = false) {
     const root = K.parse(xml), text = XML.source.get(root).text;
     const atomic = new Set(['video', 'audio', 'cmd', 'set', 'anim', 'animClr', 'animEffect', 'animMotion', 'animRot', 'animScale', 'bldP', 'bldDgm', 'bldOleChart', 'bldGraphic']);
-    function visit(el) {
+    function visit(el, inMain = false) {
       const pos = XML.source.get(el), tag = el.localName, refs = shapeRefs(el), ctn = kid(el, 'cTn');
+      inMain ||= tag === 'cTn' && el.getAttribute('nodeType') === 'mainSeq';
       const cls = ctn?.getAttribute('presetClass');
       if (atomic.has(tag) && refs.some(id => !allowed.has(id))) return '';
       if (['video', 'audio', 'cmd'].includes(tag) && refs.some(id => !media.has(id))) return '';
-      if (tag === 'par' && cls && (modeled && ['entr', 'exit', 'emph', 'path'].includes(cls) || cls === 'mediacall' && refs.some(id => !media.has(id)))) return '';
+      if (tag === 'par' && cls && (modeled && inMain && ['entr', 'exit', 'emph', 'path'].includes(cls) || cls === 'mediacall' && refs.some(id => !media.has(id)))) return '';
       if (tag === 'seq' && ctn?.getAttribute('nodeType') === 'interactiveSeq' && shapeRefs(kid(ctn, 'stCondLst')).some(id => !allowed.has(id))) return '';
-      if (modeled && tag === 'bldP') return '';
       const changes = [], alive = [];
       for (const child of kids(el)) {
-        const cp = XML.source.get(child), output = visit(child);
+        const cp = XML.source.get(child), output = visit(child, inMain);
         if (output) alive.push(child.localName);
         if (output !== text.slice(cp.start, cp.end)) changes.push({ start: cp.start - pos.start, end: cp.end - pos.start, value: output });
       }
@@ -198,7 +201,15 @@
       if (tag === 'cTn' && kid(el, 'childTnLst') && !alive.includes('childTnLst') && !['tmRoot', 'mainSeq'].includes(el.getAttribute('nodeType'))) return '';
       return K.patch(text.slice(pos.start, pos.end), changes);
     }
-    return visit(root);
+    let output = visit(root);
+    if (modeled && output) {
+      const tree = K.parse(output), groups = new Set(all(tree).filter(e => e.localName === 'cTn' && e.hasAttribute('grpId')).map(e => e.getAttribute('grpId'))), edits = [];
+      for (const e of all(tree).filter(e => /^bld/.test(e.localName) && e.hasAttribute('grpId') && !groups.has(e.getAttribute('grpId')))) {
+        const p = XML.source.get(e); edits.push({ start: p.start, end: p.end, value: '' });
+      }
+      output = K.patch(output, edits);
+    }
+    return output;
   };
   function tokenIds(fragment, kind, id) {
     return fragment.ids.flatMap((r, i) => r.kind === kind && String(r.id) === String(id) ? ['\u0001id:' + i + '\u0001'] : []);
@@ -209,7 +220,7 @@
     L.comments.read(slide, original, pkg, part);
     const media = []; L.model.walk(slide.shapes, s => { if (s.keep?.media) media.push(s); return true; });
     const timing = kid(original, 'timing');
-    if (timing && (media.length || find(timing, 'sndTgt'))) {
+    if (timing) {
       const fragment = K.fragment(timing, { pkg, part });
       slide.keep.timing = fragment; slide.keep.anims = P.anims(slide);
       const raw = K.parse(fragment.xml), root = all(raw).find(e => e.localName === 'cTn' && e.getAttribute('nodeType') === 'tmRoot');
@@ -229,9 +240,10 @@
     }
     const normalized = kid(working, 'transition');
     const transition = normalized && K.alternate(normalized) ? normalized : kid(original, 'transition');
-    if (transition && all(transition).some(e => e.localName === 'sndAc')) {
+    if (transition) {
       slide.keep.transition = K.fragment(transition, { pkg, part }); slide.keep.trans = JSON.stringify(slide.trans);
     }
+    L.properties.slide(slide, original, pkg, part);
   };
   // Change a known property in every alternative while leaving the rest lexical.
   function rewrite(xml, select, change) {
@@ -254,13 +266,15 @@
     return K.serialize(clone);
   }
   P.nonVisual = function (shape, ctx, generated) {
-    if (!ctx.writer || !(shape.keep?.sound || shape.keep?.commentAnchor)) return generated;
+    if (!ctx.writer || !shape.keep?.identity) return generated;
     const absent = missing(shape.keep.identity);
     if (absent) {
       ctx.writer.loss({ id: 'action-sound:' + shape.id, what: 'The action sound refers to a part missing from the original file.', where: shape.name + ': ' + (absent.part || absent.id), action: 'drop' });
       return generated;
     }
-    let xml = ctx.writer.emit(shape.keep.identity, ctx.part);
+    const identity = L.properties.action(shape.keep.identity, shape.link, ctx, generated);
+    let xml = L.properties.emit(identity, ctx);
+    if (xml == null) return generated;
     if (['name', 'alt', 'hidden', 'link'].some(k => shape.keep.metadata[k] !== JSON.stringify(shape[k] ?? null))) {
       const g = K.parse('<root xmlns:p="' + N.p + '" xmlns:a="' + N.a + '" xmlns:r="' + N.rel + '">' + generated + '</root>');
       xml = metadata(xml, shape, shape.keep.metadata, find(g, 'cNvPr'));
@@ -325,7 +339,9 @@
     const kept = slide.keep?.timing;
     if (!kept && !extras.some(Boolean)) return generate();
     let xml = kept ? ctx.writer.emit(kept, ctx.part) : '';
-    const edited = !!kept && slide.keep.anims !== P.anims(slide);
+    const live = new Set(); L.model.walk(slide.shapes, shape => { live.add(shape.id); return true; });
+    const previous = slide.keep?.anims ? JSON.parse(slide.keep.anims).filter(a => live.has(a.sid)) : [];
+    const edited = !!kept && JSON.stringify(previous) !== P.anims(slide);
     if (xml) xml = P.pruneTiming(xml, allowed, media, edited);
     if (!xml) {
       const rootId = ctx.writer.ids.fresh(ctx.part, 'timing'), mainId = ctx.writer.ids.fresh(ctx.part, 'timing');
@@ -336,6 +352,7 @@
     const main = all(tree).find(e => e.localName === 'cTn' && e.getAttribute('nodeType') === 'mainSeq');
     ctx.timingRootId = root?.getAttribute('id'); ctx.timingMainId = main?.getAttribute('id');
     ctx.nextTimingId = () => ctx.writer.ids.fresh(ctx.part, 'timing');
+    ctx.nextBuildId = () => ctx.writer.ids.fresh(ctx.part, 'build');
     const add = { main: '', root: '' };
     for (const extra of extras.filter(Boolean)) for (const where of ['main', 'root']) for (const f of extra[where]) {
       const references = f.ids.filter(i => !i.definition && i.kind === 'timing' && extra.mainRef && i.source === extra.mainRef.source && i.scope === extra.mainRef.scope && i.id === extra.mainRef.id);
@@ -352,7 +369,14 @@
       if (fresh) {
         const g = K.parse('<root xmlns:p="' + N.p + '">' + fresh + '</root>'), seq = all(g).find(e => e.localName === 'cTn' && e.getAttribute('nodeType') === 'mainSeq');
         add.main += kids(kid(seq, 'childTnLst')).map(K.raw).join('');
-        const builds = find(g, 'bldLst'); if (builds) xml = append(xml, K.parse(xml), K.raw(builds));
+        const builds = find(g, 'bldLst');
+        if (builds) {
+          const old = kid(K.parse(xml), 'bldLst');
+          if (old) {
+            const p = XML.source.get(old), combined = append(K.raw(old), K.parse(K.raw(old)), kids(builds).map(K.raw).join(''));
+            xml = K.patch(xml, [{ start: p.start, end: p.end, value: combined }]);
+          } else xml = append(xml, K.parse(xml), K.raw(builds));
+        }
       }
     }
     for (const where of ['main', 'root']) if (add[where]) {

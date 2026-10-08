@@ -237,7 +237,12 @@ files using LibreOffice with its own temporary profile, checks conversion succes
 counts with `pdfinfo`. Unedited saves must keep the page count; edit scenarios can record
 `expectedPages` or `expectedSlides`. LibreOffice and the validator cannot certify acceptance by Office itself.
 
-### Lectern media preservation
+### Lectern preservation
+
+`node tools/lectern/test/properties.mjs OUTPUT_DIR [SCENARIO_REGEX]` checks per-property edits,
+tags, actions, transitions, animation changes, clipboard dependencies, undo/redo and actual drafts.
+The corpus driver also records original/opened/saved slide counts so a skipped source slide cannot
+pass merely because the remaining package is valid.
 
 `tools/lectern/test/designs.mjs OUTPUT [SCENARIO_REGEX]` checks imported design edits, independent
 copies, unused-master retention, history and draft recovery. It checks that unrelated layouts

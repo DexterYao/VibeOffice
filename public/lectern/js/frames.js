@@ -87,6 +87,17 @@
   F.seal = async function (pres, media) {
     const records = [], images = [], imageParts = new Map(Array.from(media, ([part, id]) => [id, part]));
     containers(pres, list => {
+      for (const s of list) if (!s.keep?.frame && s.keep?.properties) {
+        const previews = [], collect = v => {
+          if (!v || typeof v !== 'object') return;
+          for (const [k, value] of Object.entries(v)) {
+            if (k === 'keep') continue;
+            if (typeof value === 'string' && L.media.has(value)) previews.push({ id: value, source: imageParts.has(value) ? pres.pkg.id : null, part: imageParts.get(value), size: L.media.get(value).size });
+            else collect(value);
+          }
+        };
+        collect(s); s.keep.properties.previews = previews; images.push(...previews);
+      }
       const groups = new Map();
       for (const s of list) if (s.keep?.frame) {
         const k = key(s.keep.frame.fragment); if (!groups.has(k)) groups.set(k, []); groups.get(k).push(s);
@@ -299,14 +310,16 @@
     const visit = v => {
       if (!v || typeof v !== 'object') return;
       if (v.frame?.fragment) refs.push(...(v.frame.related || []).filter(d => !d.external), ...(v.frame.previews || []).flatMap(r => [r, ...(r.view ? [r.view] : [])]));
+      if (v.properties?.previews) refs.push(...v.properties.previews.flatMap(r => [r, ...(r.view ? [r.view] : [])]));
       Object.values(v).forEach(visit);
     };
     visit(item); return refs;
   };
   F.restore = function (item) {
     const images = new Map();
-    L.model.walk(item.kind === 'slides' ? item.slides.flatMap(s => s.shapes) : item.shapes || [], shape => {
-      const record = shape.keep?.frame; if (!record) return true;
+    const lists = item.kind === 'slides' ? item.slides.map(s => s.shapes).concat(Object.values(item.designs || {}).flatMap(d => [d.deco, d.titleDeco, ...Object.values(d.layoutDecos || {})]).filter(Boolean)) : [item.shapes || []];
+    for (const list of lists) L.model.walk(list, shape => {
+      const record = shape.keep?.frame || shape.keep?.properties; if (!record) return true;
       const replacements = new Map();
       for (const ref of record.previews || []) {
         const pkg = K.package(ref.source), key = ref.source + ':' + ref.part;
@@ -325,7 +338,10 @@
           if (typeof value === 'string' && replacements.has(value)) v[k] = replacements.get(value); else replace(value);
         }
       };
-      replace(shape); const signature = JSON.parse(record.signature); replace(signature); record.signature = JSON.stringify(signature);
+      replace(shape);
+      if (record.signature) { const signature = JSON.parse(record.signature); replace(signature); record.signature = JSON.stringify(signature); }
+      if (record.before) replace(record.before);
+      if (shape.keep.designValue) { const signature = JSON.parse(shape.keep.designValue); replace(signature); shape.keep.designValue = JSON.stringify(signature); }
       return true;
     });
   };

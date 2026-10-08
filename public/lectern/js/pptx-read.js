@@ -206,6 +206,7 @@
         default: break;
       }
     }
+    if (ctx?.pkg && ctx.partPath) L.properties.capture(r, rPr, ctx, 'run');
     return r;
   }
   function spacing(el) {
@@ -246,6 +247,7 @@
       if (o.bu.font && /wingdings|symbol/i.test(o.bu.font)) delete o.bu.font;
     }
     if (withDef) { const d = kid(pPr, 'defRPr'); if (d) { const r = runProps(d, ctx); delete r.link; if (Object.keys(r).length) o.rPr = r; } }
+    if (ctx?.pkg && ctx.partPath) L.properties.capture(o, pPr, ctx, 'para');
     return o;
   }
   function listStyle(lst, ctx) {
@@ -773,7 +775,7 @@
       if (textCache.has(p)) return textCache.get(p);
       const f = file(p);
       let t = null;
-      if (f) { try { t = await f.text(); } catch (e) { damaged.push(p); } }
+      if (f) { try { t = pkg?.has(p) ? pkg.text(p) : L.xmlTree.decode(await f.bytes()); } catch (e) { damaged.push(p); } }
       textCache.set(p, t);
       return t;
     };
@@ -1053,7 +1055,7 @@
     /* per-part parsing context */
     function mkCtx(partPath, partRels, design, theme) {
       const ctx = {
-        design, theme, partPath, rels: partRels, phClr: null, clrMapOvr: null, mediaQueue: [],
+        pkg, design, theme, partPath, rels: partRels, phClr: null, clrMapOvr: null, mediaQueue: [],
         media: (id) => { const r = partRels[id]; if (!r || r.external) return null; const m = mediaCache.get(r.target); if (m) return m; ctx.pendingMedia.add(r.target); return '__pending__:' + r.target; },
         link: (el) => {
           const action = at(el, 'action') || '';
