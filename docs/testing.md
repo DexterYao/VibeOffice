@@ -147,7 +147,8 @@ content types and internal relationship URIs share one decoded identity; output 
 remaps copied definitions and references together; `export`/`import` transport dependency bytes for a
 cross-document clipboard. `finish()` checks relationship targets and returns `{files, dropped}`.
 Loss acknowledgement is per entry; autosave must neither show a dialog nor acknowledge entries.
-Package ownership and save-dialog integration are implemented in all three apps; remaining object preservation is still in progress.
+Package ownership, object preservation and save-dialog integration are implemented in all three apps.
+Current corpus limits and pending Office acceptance are listed in each app’s save table.
 
 `opc-order.js` contains ordering and ID-bound facts for 27 types, generated from the official
 [ECMA-376 Part 4 schemas](https://ecma-international.org/publications-and-standards/standards/ecma-376/), and each preset shape's adjustment values (names, order, defaults) from Part 1's `presetShapeDefinitions.xml`.

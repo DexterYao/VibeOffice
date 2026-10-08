@@ -171,6 +171,8 @@ remains in the report. The feature audit now rejects an invalid UTF-8 part in `t
 | Kept; Excel edit acceptance pending | Controls, OLE, non-comment VML and sheet custom properties | All 40 relevant workbooks save without new package/SDK errors: 344/344 control references, 370/370 control/ActiveX parts, 26/26 OLE entries, 367/367 non-note VML shapes and 31/31 sheet properties. All 43 VML parts retain their original bytes |
 | Kept; Excel edit acceptance pending | Slicers and timelines | Three pinned supplemental workbooks retain 7/7 views and 12/12 definition/cache parts byte for byte; edits cover shared pivots, table copies, source deletion and drafts. OLAP cases remain unmeasured |
 | Kept; Excel edit acceptance pending | Query tables and column metadata | Ten public workbooks retain 23/23 query parts and 10/10 connections parts byte for byte, with 20/20 query tables and 68/68 column identities. Six focused cases cover column edits, copies, deletion and history |
+| Converted, with a notice | Edited imported charts, opaque drawing contents and macro/dialog sheets | Regenerate the edited model content; report its conversion before download |
+| Dropped, with a notice | Missing or unreferenced package dependencies; VBA in macro-free Save As | One source connection dependency is missing; two unreferenced custom-XML parts are not reattached. Macro removal requires the selected format and successful save |
 
 Package figures compare bytes, content types, original rIds and intended targets. The user accepted
 both Excel files in Office batch 1 (XLSM and custom XML/external links); the namespace sample also

@@ -120,6 +120,8 @@ Counts alone do not establish rendering fidelity; the edit checks below verify o
 | Kept; PowerPoint edit acceptance pending | Ink and 3-D models | 44/44 ink/content-part entries and 2/2 3-D models; unavailable previews have editable placeholder frames |
 | Kept; PowerPoint edit acceptance pending | Extended visual effects | The property sweep retains all 18 glow, 30 reflection, 16 soft-edge, 36 inner-shadow, 136 scene3d, 123 sp3d and 6 picture-treatment entries; unknown run/paragraph details remain with their properties |
 | Kept; PowerPoint edit acceptance pending | Program/macro actions and shape tags | All 29 action settings and 13 slide/shape tag lists remain in the property sweep; copied tag parts and shape identities are independent |
+| Converted, with a notice | Edited opaque contents, imported charts and notes formatting | The text script converts 67 selected SmartArt previews; untouched inventoried features remain |
+| Dropped, with a notice | Missing source dependencies, invalidated signatures and VBA in macro-free Save As | Damaged source parts cannot be reconstructed; explicit deletion and format changes remove their owned parts |
 
 The custom-XML/tag inventory retains **234/234 parts**, excluding ZIP directory markers. Package
 carry checks pass byte comparison in **818 files**; **9 Strict inputs** deliberately convert retained
