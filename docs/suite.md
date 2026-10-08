@@ -117,6 +117,9 @@ and draft recovery keeps it pending until a successful user save.
 `L.opc.open` reads the immutable baseline; `attach` keeps it out of JSON snapshots. `fragment` records
 namespace context, relationship attributes and identity definitions/references. `captureAC` runs on
 the original XML before branch selection, and `emit` writes an outer compatibility record once.
+Inherited compatibility attributes are merged by namespace URI and local name, even when an ancestor
+and a fragment use different prefixes. Repeated saves must not add a second `Ignorable` attribute
+under an alias; the fragment keeps its own spelling and the inherited value list.
 `duplicate` assigns a shared copy identity to the selected definitions and references; `export` and
 `import` transport their dependency bytes between documents. The writer reserves existing part names,
 relationship IDs and identity spaces before allocating new values. Master and layout IDs share one

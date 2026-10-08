@@ -135,12 +135,27 @@
       if (a.name === 'xmlns' || a.prefix === 'xmlns') bindings[a.name] = a.value;
       else if (ans(e, a) === NS.xml) contextual[a.name] = a.value;
       else if (ans(e, a) === NS.mc) {
-        const key = a.name;
-        if (!lists.has(key)) lists.set(key, new Set());
-        for (const v of a.value.split(/\s+/).filter(Boolean)) lists.get(key).add(v);
+        // Prefix aliases still name the same attribute. Prefer the closest
+        // spelling so a recovered fragment does not acquire both ns1:Ignorable
+        // and mc:Ignorable from its new ancestors.
+        const key = a.localName;
+        if (!lists.has(key)) lists.set(key, { name: a.name, values: new Set() });
+        const list = lists.get(key); list.name = a.name;
+        for (const v of a.value.split(/\s+/).filter(Boolean)) list.values.add(v);
       }
     }
-    for (const [key, values] of lists) contextual[key] = Array.from(values).join(' ');
+    for (const [local, list] of lists) {
+      let prefix = list.name.split(':')[0];
+      if (bindings['xmlns:' + prefix] !== NS.mc && el.lookupNamespaceURI(prefix) !== NS.mc) {
+        prefix = Object.keys(bindings).find(k => k.startsWith('xmlns:') && bindings[k] === NS.mc)?.slice(6);
+        if (!prefix) {
+          prefix = 'mc'; let i = 0;
+          while (bindings['xmlns:' + prefix]) prefix = 'mc' + ++i;
+          bindings['xmlns:' + prefix] = NS.mc;
+        }
+      }
+      contextual[prefix + ':' + local] = Array.from(list.values).join(' ');
+    }
     // Detached lightweight fragments from older models may lack their ancestor.
     walk(el, e => {
       const prefixes = [e.prefix];

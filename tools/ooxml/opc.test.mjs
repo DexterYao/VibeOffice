@@ -18,6 +18,26 @@ const text = data => typeof data === 'string' ? data : new TextDecoder().decode(
 const kid = (el, name) => el.children.find(c => c.localName === name);
 const children = xml => K.parse(xml).children.map(e => e.localName);
 
+test('compatibility attributes retain one expanded identity across prefix aliases and repeated saves', () => {
+  const source = `<w:document xmlns:w="${N.w}" xmlns:mc="${N.mc}" xmlns:ns1="${N.mc}" xmlns:w14="urn:w14" xmlns:wp14="urn:wp14" mc:Ignorable="w14" mc:ProcessContent="w14:outer"><w:p ns1:Ignorable="wp14" ns1:ProcessContent="wp14:inner"/></w:document>`;
+  for (const serialize of [K.raw, K.serialize]) {
+    let element = K.parse(source).children[0];
+    for (let save = 0; save < 3; save++) {
+      const xml = serialize(element), parsed = K.parse(xml);
+      const compatibility = Array.from(parsed.attributes).filter(a => a.prefix && parsed.lookupNamespaceURI(a.prefix) === N.mc);
+      assert.equal(compatibility.length, 2);
+      assert.equal(parsed.getAttributeNS(N.mc, 'Ignorable'), 'w14 wp14');
+      assert.equal(parsed.getAttributeNS(N.mc, 'ProcessContent'), 'w14:outer wp14:inner');
+      assert.ok(xml.includes('ns1:Ignorable='));
+      element = K.parse(`<w:document xmlns:w="${N.w}" xmlns:mc="${N.mc}" xmlns:w14="urn:w14" mc:Ignorable="w14">${xml}</w:document>`).children[0];
+    }
+    const rebound = K.parse(`<outer xmlns:mc="${N.mc}" xmlns:w14="urn:w14" mc:Ignorable="w14"><inner xmlns:mc="urn:unrelated"/></outer>`).children[0];
+    const result = K.parse(serialize(rebound));
+    assert.equal(result.getAttributeNS(N.mc, 'Ignorable'), 'w14');
+    assert.equal(result.lookupNamespaceURI('mc'), 'urn:unrelated');
+  }
+});
+
 test('new revision IDs avoid preserved changes and copied changes get distinct IDs', async () => {
   const source = `<w:rPr xmlns:w="${N.w}"><w:rPrChange w:id="2147483647" w:author="Author"><w:rPr/></w:rPrChange></w:rPr>`;
   const p = await pkg({ 'word/document.xml': source }), w = new K.Writer(p);
