@@ -7,7 +7,7 @@ import { ensureServer, openPage } from '../../ooxml/cdp.mjs';
 const [out, filter = ''] = process.argv.slice(2);
 if (!out) throw Error('Usage: designs.mjs OUTPUT_DIR [SCENARIO_REGEX]');
 const corpus = path.join(process.env.VO_CORPORA || path.join(os.homedir(), 'corpora'), 'powerpoint');
-const cases = ['color', 'font', 'background', 'geometry', 'style', 'copy-design', 'delete-slide', 'draft', 'footer', 'title-align'].map(edit => ({
+const cases = ['color', 'font', 'background', 'geometry', 'style', 'copy-design', 'new-layout', 'delete-slide', 'draft', 'footer', 'title-align'].map(edit => ({
   file: 'libreoffice__07eb8b76b2cf__master-slides.pptx', edit, scenario: edit,
 }));
 const selected = cases.filter(c => new RegExp(filter).test(c.scenario));
@@ -63,6 +63,10 @@ async function run(o) {
     blob ||= await L.pptx.write(L.pres);
     const pkg = await K.open(new Uint8Array(await blob.arrayBuffer()));
     check(JSON.stringify(count(pkg)) === JSON.stringify(expected), 'Design count changed: ' + JSON.stringify(count(pkg)));
+    for (const part of pkg.names.filter(n => /\/slideLayouts\/[^/]+\.xml$/.test(n) && !originalLayouts.includes(n))) {
+      const ids = all(pkg.xml(part)).filter(e => e.namespaceURI === 'http://schemas.openxmlformats.org/presentationml/2006/main' && e.localName === 'cNvPr').map(e => e.getAttribute('id'));
+      check(new Set(ids).size === ids.length, 'New layout has duplicate shape IDs: ' + part);
+    }
     for (const part of originalLayouts.filter(p => !edited || !['footer', 'title-align'].includes(o.edit))) check(pkg.text(part) === original.text(part), 'Unrelated layout changed: ' + part);
     if (!edited || ['color', 'font', 'copy-design', 'delete-slide', 'draft'].includes(o.edit)) check(pkg.text(masterPart) === original.text(masterPart), 'Unrelated master changed');
     if (edited && ['color', 'font', 'copy-design', 'draft'].includes(o.edit)) {
@@ -100,6 +104,10 @@ async function run(o) {
   else if (o.edit === 'copy-design') {
     const copy = K.duplicate(design); copy.id = L.uid('dsn'); copy.colors.accent1 = '#AA2244'; pres.designs[copy.id] = copy; slide.design = copy.id;
     expected.masters++; expected.layouts += design.keep.layoutParts.length;
+  } else if (o.edit === 'new-layout') {
+    const layout = M.LAYOUTS.find(l => !design.keep.layouts[l.key]);
+    check(layout, 'Fixture already has every modeled layout');
+    M.insertSlides(pres, 1, [M.newSlide(pres, layout.key, design.id)]); expected.layouts++;
   } else if (o.edit === 'delete-slide') { pres.slides.splice(0, 1); M.gcDesigns(pres); }
   else design.colors.accent1 = '#AA2244';
   const after = { ...expected };

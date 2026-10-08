@@ -815,6 +815,9 @@
             name: freshName, master: masterXML, layout: layoutXML, theme: themeXML, shape: shapeXML,
             context: (part, shapes, owner) => {
               pack.use(part);
+              // Generated masters/layouts use 1 for their structural spTree.
+              // Reserve it before allocating placeholders in a new layout.
+              owner.ids.reserve(part, 'shape', '1');
               const rels = pack.rels(part), ids = new Map(), byId = new Map();
               L.model.walk(shapes, s => { byId.set(s.id, s); return true; });
               return { writer: owner, frames, part, rels, media: mediaSync(rels, part), svg: svgSync(rels, part), slideIndex,

@@ -252,7 +252,8 @@ pass merely because the remaining package is valid.
 
 `tools/lectern/test/designs.mjs OUTPUT [SCENARIO_REGEX]` checks imported design edits, independent
 copies, unused-master retention, history and draft recovery. It checks that unrelated layouts
-retain their exact bytes and theme effects retain their expanded XML. Reports follow the same
+retain their exact bytes, theme effects retain their expanded XML, and new layouts allocate unique
+shape IDs including the structural group. Reports follow the same
 package/SDK and LibreOffice comparison workflow.
 
 `node tools/lectern/test/frames.mjs OUTPUT_DIR [SCENARIO_REGEX]` exercises opaque SmartArt, OLE,

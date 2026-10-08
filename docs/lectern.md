@@ -155,6 +155,7 @@ LibreOffice rendering has not been completed. Reports and history:
 | Duplicate a slide | Copy its notes page and redirect its backlink |
 | Edit notes text | Regenerate the notes page and report its formatting conversion |
 | Leave a design unchanged, unused, or delete its last slide | Retain its original master, every layout and theme |
+| Insert a slide using a missing layout | Generate that layout under the selected master; reserve its structural shape ID before assigning placeholders |
 | Change colors or fonts | Update only changed color slots or Latin font entries; keep theme effects, other scripts and layouts |
 | Edit a master background, decoration or placeholder frame | Update the owning property; retain unrelated layouts and original shape identities |
 | Change master text styles, footer font or title alignment | Replace edited attributes/properties; keep unknown siblings and other levels |
@@ -163,9 +164,9 @@ LibreOffice rendering has not been completed. Reports and history:
 | Save as a macro-free variant | Report VBA removal; cancellation leaves file identity and acknowledgements unchanged |
 
 The 13-deck design sweep, with four targeted corrections, has 11 passing package/SDK comparisons;
-two originals with missing dependencies remain failed comparisons. Ten focused cases / 32 saved
+two originals with missing dependencies remain failed comparisons. Eleven focused cases / 35 saved
 states pass package/SDK checks and cover geometry, theme changes, styles, independent copies,
-last-slide deletion, undo/redo and actual drafts. Two edited samples open in LibreOffice with
+last-slide deletion, new layouts, undo/redo and actual drafts. Three edited samples open in LibreOffice with
 expected slide counts. All 118 unit tests pass and four pages load without console errors.
 PowerPoint batch 4 and the full Lectern group run remain pending. Reports:
 `~/corpora/results/lectern-preservation-2026-10-09/designs-*`.
