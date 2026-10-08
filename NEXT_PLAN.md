@@ -171,5 +171,7 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   comparison against writer `4c47a1d` has only explained differences. Office acceptance is pending.
 - Next: Office batch 2 review, then Ledger pivot implementation. The pivot behavior matrix is
   written in docs/ledger.md before code changes, as step 6 requires. The source inventory finds
-  105 pivot workbooks, including 14 with shared caches; name/consolidation source fixtures remain
-  to be authored. No Ledger preservation-feature code has started ahead of the Office gate.
+  105 pivot workbooks, including 14 with shared caches. Defined-name and consolidation source
+  fixtures are authored by `tools/ledger/test/pivot-fixtures.py`; both pass package/SDK checks,
+  and their source/cache data is independently checked. Their Office acceptance and Ledger mutation
+  checks remain pending. No Ledger preservation-feature code has started ahead of the Office gate.

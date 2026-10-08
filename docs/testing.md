@@ -232,6 +232,13 @@ targets. It stops at model-owned boundaries and does not treat a preserved pivot
 pivot editing works. Driver failures and malformed originals remain explicit failed/excluded rows.
 Corpus writers select the source main-part variant, including inputs with a misleading extension.
 
+`python3 tools/ledger/test/pivot-fixtures.py ~/corpora/excel OUTDIR` authors the two pivot source kinds
+absent from the pinned inventory: a defined-name source and a two-area consolidation source. It keeps
+all unchanged package parts byte-identical, records source/output hashes and changed parts, and
+requires an empty destination. Consolidation input cells, cached records and displayed output agree.
+These are structural fixtures; package/SDK validity does not establish Office acceptance or Ledger's
+edit behavior. Use them alongside the public range, table, external-source and shared-cache workbooks.
+
 ### Quire controls, properties and objects
 
 `node --test tools/quire/test/*.test.js` covers control boundaries and locks, independent property

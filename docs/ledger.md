@@ -225,6 +225,12 @@ an external connection. Excel performs any requested refresh when it opens the s
 | Undo/redo a cell or structural edit | Restore source/output locations, refresh flags, cache membership and loss entries together with the cells. `snapSheet`/`restoreSheet` must cover the preserved state, including changes to caches shared with another sheet. |
 | Save, reopen or recover a draft | Write the current pivot state and original identities; drafts retain the same refresh requests and pending notices without showing or acknowledging the checker. |
 
+The pinned inventory contains 105 pivot workbooks, including 14 with shared caches, but no
+defined-name or consolidation source. `tools/ledger/test/pivot-fixtures.py` supplies those two
+structural fixtures from a pinned range-source workbook. Both have zero package/SDK diagnostics;
+an independent reader confirms their source kinds, and the consolidation's ten input values match
+its cache and output. Office acceptance and Ledger mutation checks remain pending.
+
 ## Compatibility testing
 
 `tools/corpora.sh` pins the LibreOffice, Apache POI and Open XML SDK inputs used above. The Node and
