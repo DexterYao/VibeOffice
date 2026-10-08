@@ -4,7 +4,7 @@
 (function (root) {
   'use strict';
   const L = root.L;
-  const M = L.model, F = L.formula, NF = L.numfmt, XML = L.xml;
+  const M = L.model, F = L.formula, NF = L.numfmt, XML = L.xml, K = L.opc;
   const R = (L.xlsxRead = {});
 
   /* ------------------------------------------------------------ element helpers */
@@ -545,6 +545,9 @@
     const sd = sliceSheetData(text);
     let el;
     try { el = XML.parse(sd.rest); } catch (e) { el = XML.parse(sd.rest.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '')); }
+    L.sheetObjects.capture(sh, part, sd.rest);
+    L.opc.captureAC(el, sd.rest);
+    resolveAC(el);
     const rels = await pkg.rels(part);
     /* sheet properties */
     const pr = kid(el, 'sheetPr');
@@ -729,6 +732,7 @@
     if (keep.length) sh.extra.keep = keep;
     const scn = kid(el, 'scenarios');
     if (scn) sh.scenarios = kids(scn, 'scenario').map((x) => ({ name: at(x, 'name') || '', comment: at(x, 'comment') || '', user: at(x, 'user') || '', cells: kids(x, 'inputCells').map((ic) => { const p = F.parseCell(at(ic, 'r') || 'A1'); const v = at(ic, 'val'); return { r: p ? p.r : 0, c: p ? p.c : 0, v: v != null && v !== '' && !isNaN(+v) ? +v : v }; }) }));
+    L.sheetObjects.read(sh);
   }
 
   function readAutoFilter(af) {
@@ -970,7 +974,8 @@
     sh.extra.ooxmlDrawing = part;
     // Shape XML is saved as an opaque object. Capture before selecting a
     // display branch, so nested equations and effects keep Choice/Fallback.
-    const originalShapes = new WeakMap(el.getElementsByTagName('*').filter(e => /^(sp|grpSp|cxnSp)$/.test(e.localName)).map(e => [e, XML.serialize(e)]));
+    const originalShapes = new WeakMap(el.getElementsByTagName('*').filter(e => /^(sp|grpSp|cxnSp|pic)$/.test(e.localName)).map(e => [e, XML.serialize(e)]));
+    const owned = new Set((sh.extra.objectGroups || []).flatMap(g => g.ids));
     resolveAC(el, true);
     const rels = await pkg.rels(part);
     for (const a of el.children) {
@@ -987,6 +992,8 @@
       if (d.kind === 'shape' && originalShapes.has(obj)) d.xml = originalShapes.get(obj);
       d.anchor = anchor;
       if (d.kind === 'shape' && ctx.wb.pkg) d.keep = { source: ctx.wb.pkg.id, part };
+      if (d.kind === 'image' && owned.has(d.id) && originalShapes.has(obj)) d.keep = { source: ctx.wb.pkg.id, part,
+        frame: K.fragment(K.parse(originalShapes.get(obj)), { pkg: ctx.wb.pkg, part }) };
       const cd = kid(a, 'clientData');
       if (cd && at(cd, 'fLocksWithSheet') === '0') d.unlocked = true;
       if (cd && at(cd, 'fPrintsWithSheet') === '0') d.noPrint = true;

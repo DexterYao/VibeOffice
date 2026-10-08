@@ -162,7 +162,7 @@ including 8 saved copies openpyxl cannot read. No blanket lossless claim is made
 | Kept | Notes, tables, merges, validation and names | 373/373 notes, 230/230 tables, 56,263/56,263 merges, 258/259 validations, 2,106/2,106 names |
 | Kept, with exceptions | Charts, pictures and shapes | 155/157 charts, 164/165 pictures and 492/493 shapes; unedited raw shapes retain nested compatibility alternatives and relationships |
 | Converted | Newer conditional formatting | 733/752 base conditional-format entries and 7/30 data-bar/icon-set extensions; some newer properties fall back to the base representation |
-| Dropped from worksheet content | Controls and embedded OLE objects | 0/344 control references and 0/26 OLE objects; carrying 370/371 control-related package parts does not make the controls usable |
+| Kept; Excel edit acceptance pending | Controls, OLE, non-comment VML and sheet custom properties | All 40 relevant workbooks save without new package/SDK errors: 344/344 control references, 26/26 OLE entries, 367/367 non-note VML shapes and 31/31 sheet properties. All 43 VML parts retain their original bytes |
 | Pending / unmeasured | Slicers, timelines, query-table edit rules and unknown worksheet extensions | The pinned inventory has no slicer/timeline samples; query-table parts alone do not establish preservation of table fields or refresh behavior |
 
 Package figures compare bytes, content types, original rIds and intended targets. The user accepted
@@ -193,7 +193,7 @@ and `~/corpora/results/strict-transitional-2026-10-08/`.
 | Edit cells around an unedited raw shape | Keep its original XML, compatibility alternatives and relationships |
 | Move a drawing | Update its worksheet anchor |
 | Edit chart contents or a converted shape | Regenerate the modeled content; general per-property preservation remains pending |
-| Copy/duplicate or delete | Existing drawing operations apply; complete opaque-object ownership and reference rules are part of the remaining Ledger work |
+| Copy/duplicate or delete | Controls and OLE follow the ownership rules below; other opaque-frame ownership remains part of the remaining Ledger work |
 
 ### Pivots, threads, controls and extensions: current edit limits
 
@@ -203,7 +203,7 @@ and `~/corpora/results/strict-transitional-2026-10-08/`.
 | Edit pivot source cells, insert/delete rows or columns, rename/delete a sheet | Pivot sources, output locations and shared caches follow the rules below; slicer dependencies are still pending |
 | Move or edit a threaded comment | References follow the note; editing its displayed text converts that thread to an ordinary note with a notice |
 | Edit conditional formatting | The model writes its base form; extended bars and unknown entries need property-level merging |
-| Save a sheet containing controls, OLE or non-comment VML | Their worksheet/VML content still needs integration; retained package parts alone are insufficient |
+| Save a sheet containing controls, OLE or non-comment VML | Keep their worksheet entries, previews, VML and dependencies together; they remain uneditable |
 | Edit a query table | Modeled table fields are written; query-specific field identity and refresh rules remain pending |
 
 ### Pivots: edit behavior
@@ -256,10 +256,31 @@ full-corpus figures above; the Ledger group rerun and Excel batch 3 remain pendi
 Five focused cases cover the four pinned thread workbooks and an authored mention/no-legacy-note
 fixture. All **16 emitted states** pass package/SDK comparison. Actual browser Paste Special,
 undo/redo and draft recovery keep two threads, four comments and their mention/parent links without
-console errors. Two LibreOffice samples retain their one-page counts. The complete unit set has
-**84 passing tests**; the full Ledger group run and Excel batch 3 remain pending. The authored fixture
+console errors. Two LibreOffice samples retain their one-page counts. The full Ledger group run and
+Excel batch 3 remain pending. The authored fixture
 and failed pre-fix SDK attempts are retained with the reports; mention coverage is not claimed from
 the public corpus.
+
+### Controls, embedded objects and VML: edit behavior
+
+| Edit | Save behavior |
+|---|---|
+| Leave the object untouched | Keep its worksheet XML, both compatibility branches, preview and dependent parts; VML-only objects remain retained without an editing UI |
+| Move/resize or insert/delete rows and columns | Update linked worksheet, drawing and VML anchors; fixed-size objects move without shrinking |
+| Copy an object or sheet | Remap worksheet/drawing/VML identities together and copy mutable control/OLE payload parts independently |
+| Paste into another workbook | Transfer preview and payload dependencies; IDs remain valid in the destination |
+| Delete the displayed object | Remove all its representations and unreachable dependencies; undo restores them |
+| Edit converted drawing content | Convert only that object to its displayed drawing, with a compatibility notice |
+| Add, edit or remove a note | Merge note VML while keeping non-comment shapes and their dependencies |
+| Undo/redo or recover a draft | Retain object ownership, payloads, current anchors and pending notices |
+
+Nine focused cases produce **26 passing package/SDK states**, plus **two passing browser draft states**
+after cross-workbook paste and undo/redo. Two edited samples open in LibreOffice with unchanged
+one-page counts. All **93 unit tests** pass and all four pages load without console errors (existing
+font requests remain). The 40-workbook feature sweep keeps **396 dependent parts byte-identical**;
+13 ActiveX XML parts in a Strict input undergo the approved Transitional conversion. One unrelated
+unsupported drawing in `stress020.xlsx` remains reported. Excel batch 3 and the complete Ledger
+group run are pending. Reports and failed pre-fix attempts: `~/corpora/results/ledger-preservation-2026-10-08/`.
 
 ## Compatibility testing
 
@@ -297,6 +318,7 @@ support for every formula or external data source.
 | `index.html`, `tools/ledger/build/` | Window chrome, Ledger's CSS after the shared `../common/luna.css`, script order (generated by the build script) |
 | `js/pivots.js` | Preserved pivot/cache identities, source and output edits, shared-cache history and refresh notices |
 | `js/threads.js` | Complete threads beside notes, mentions/persons, copied identities and ordinary-note conversion |
+| `js/objects.js` | Controls/OLE ownership, linked DrawingML/VML identities, payload copies and note/VML merging |
 | `../common/core.js`, `../common/zip.js` | Utilities, file saving, PDF writer, ZIP reader/writer |
 | `../common/xml.js`, `../common/opc.js`, `../common/opc-order.js`, `js/xml.js` | Shared XML parser and OOXML preservation core; `js/xml.js` aliases the shared tree as `L.xml`. Original package ownership, settings merges and style/string identities are implemented. |
 | `../common/sha.js`, `../common/crypto.js` | SHA-1/256/384/512 and AES, Office document encryption (standard and agile) |

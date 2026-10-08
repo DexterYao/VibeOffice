@@ -773,6 +773,8 @@
     }
     return O.structural(sh, label, () => {
       const op = { sheet: sh.name, axis, at, n };
+      const fixedSizes = new Map(sh.drawings.filter(d => d.anchor?.editAs === 'oneCell' && d.anchor.to)
+        .map(d => [d, anchorSpan(sh, d.anchor, axis)]));
       L.pivots?.lines(sh, axis, at, n);
       adjustFormulas(wb, op);
       /* move cells */
@@ -824,7 +826,7 @@
       sh.comments = cm;
       if (sh.autoFilter && sh.autoFilter.ref) { const g = shiftRange(sh.autoFilter.ref, axis, at, n); sh.autoFilter = g ? Object.assign({}, sh.autoFilter, { ref: g }) : null; }
       for (const t of wb.tables) if (t.sheet === sh) { const g = shiftRange(t.ref, axis, at, n); if (g) t.ref = g; }
-      for (const d of sh.drawings) moveAnchor(sh, d, axis, at, n);
+      for (const d of sh.drawings) moveAnchor(sh, d, axis, at, n, fixedSizes.get(d));
       if (sh.print.rowBreaks && axis === 'r') sh.print.rowBreaks = sh.print.rowBreaks.map((b) => (b >= at ? b + n : b)).filter((b) => b > 0);
       if (sh.print.colBreaks && axis === 'c') sh.print.colBreaks = sh.print.colBreaks.map((b) => (b >= at ? b + n : b)).filter((b) => b > 0);
       if (axis === 'r') sh.maxR = Math.max(-1, sh.maxR + n); else sh.maxC = Math.max(-1, sh.maxC + n);
@@ -832,14 +834,30 @@
       LY.invalidate(sh); LY.touchMerges(sh);
     });
   };
-  function moveAnchor(sh, d, axis, at, n) {
+  function anchorSpan(sh, a, axis) {
+    let size = (a.to[axis + 'Off'] || 0) - (a.from[axis + 'Off'] || 0);
+    for (let i = a.from[axis]; i < a.to[axis]; i++) size += axis === 'r' ? M.rowPt(sh, i) : M.colPx(sh, i) * 0.75;
+    return Math.max(0, size);
+  }
+  function moveAnchor(sh, d, axis, at, n, fixedSize) {
     const a = d.anchor;
     if (!a || a.type === 'abs') return;
     const k = axis === 'r' ? 'r' : 'c';
     const mv = (p) => { if (!p) return; if (n > 0) { if (p[k] >= at) p[k] += n; } else { const cnt = -n; if (p[k] >= at + cnt) p[k] -= cnt; else if (p[k] >= at) { p[k] = at; p[k + 'Off'] = 0; } } };
     if (a.editAs === 'absolute') return;
     mv(a.from);
-    if (a.editAs !== 'oneCell') mv(a.to);
+    if (fixedSize != null && a.to) {
+      // A two-cell anchor with oneCell behavior moves but keeps its physical size.
+      // Recompute its end against the rows/columns after the structural edit.
+      let i = a.from[k], off = (a.from[k + 'Off'] || 0) + fixedSize;
+      const limit = k === 'r' ? MAXR : MAXC;
+      for (; i < limit - 1; i++) {
+        const size = k === 'r' ? M.rowPt(sh, i) : M.colPx(sh, i) * 0.75;
+        if (off < size) break;
+        off -= size;
+      }
+      a.to[k] = i; a.to[k + 'Off'] = off;
+    } else if (a.editAs !== 'oneCell') mv(a.to);
   }
   /** insert / delete cells inside a range, shifting neighbours */
   O.shiftCells = function (sh, rg, dir, insert) {
@@ -1008,6 +1026,7 @@
       copy.print = JSON.parse(JSON.stringify(sh.print));
       copy.tabColor = sh.tabColor; copy.defColW = sh.defColW; copy.baseColW = sh.baseColW; copy.defRowH = sh.defRowH; copy.outline = Object.assign({}, sh.outline);
       copy.drawings = sh.drawings.map((d) => Object.assign({}, d, { anchor: JSON.parse(JSON.stringify(d.anchor)), chart: d.chart ? JSON.parse(JSON.stringify(d.chart)) : d.chart }));
+      L.sheetObjects.copySheet(sh, copy);
       wb.names = snap.names.map((n) => Object.assign({}, n));
       /* sheet-scoped names are duplicated for the copy */
       const idx = wb.sheets.indexOf(copy), srcIdx = wb.sheets.indexOf(sh);

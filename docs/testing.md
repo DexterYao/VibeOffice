@@ -182,6 +182,9 @@ Ledger's `pivots.test.js` and `threads.test.js` use the pinned public inputs (`V
 their source paths for package/SDK comparisons. The thread test also authors a mention/no-legacy-note
 fixture missing from the public corpus. `node tools/ledger/test/threads-ui.mjs INPUT.xlsx OUTPUT`
 checks the real Paste Special, undo/redo and suite draft/recovery hooks on a thread in the first sheet.
+`objects.test.js` uses `OBJECT_RESULTS=DIR` to retain controls/OLE/VML edit states from the same corpus.
+`node tools/ledger/test/objects-ui.mjs INPUT.xlsx OUTPUT` checks object paste into another workbook,
+undo/redo and actual draft recovery, including the dependent payload bytes.
 
 Build the SDK validator and install the independent workbook reader in a test environment:
 

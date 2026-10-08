@@ -201,7 +201,15 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   Paste Special, undo/redo and draft recovery; two LibreOffice samples keep their page counts.
   The complete unit set has 84 passing tests. The four public thread workbooks keep their original
   thread/person parts byte for byte; mentions additionally use an authored fixture. Excel acceptance
-  remains pending in batch 3. Next: controls, embedded objects and non-comment VML.
+  remains pending in batch 3.
+- Ledger controls, embedded objects, worksheet custom properties and non-comment VML are integrated.
+  The 40 relevant workbooks retain 344/344 control references, 26/26 OLE entries, 367/367 non-note
+  VML shapes and 31/31 worksheet properties, with no new package/SDK diagnostics. All 43 VML parts
+  retain their bytes; 396 dependency parts are byte-identical, with 13 Strict ActiveX XML parts
+  explicitly converted to Transitional. Nine focused cases produce 26 passing saved states;
+  cross-workbook clipboard, undo/redo and two real draft states also pass. Two edited samples open
+  in LibreOffice with unchanged counts. All 93 unit tests pass and four pages load. The full Ledger
+  run and Excel batch 3 remain pending. Next: slicers and timelines, then extensions and query tables.
 
 ## Review of 6d24c43..275406e (2026-10-08)
 Followed well: bounded Office batches with previous-writer comparison, checker rules for the WordArt

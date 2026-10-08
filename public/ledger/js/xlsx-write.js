@@ -704,11 +704,12 @@
       }
       pack.bind(part, sh.extra.ooxmlPart);
       const rels = relsFor(part);
+      const objects = L.sheetObjects.begin(sh, pack, pack.part(part));
       if (sh.kind === 'chartsheet') {
         let body = HDR + `<chartsheet xmlns="${NS_MAIN}" xmlns:r="${NS_R}">` + (sh.tabColor ? `<sheetPr>${colorEl('tabColor', sh.tabColor)}</sheetPr>` : '') + `<sheetViews><sheetView${si === wb.active ? ' tabSelected="1"' : ''}${sh.view.zoom && sh.view.zoom !== 100 ? ` zoomScale="${Math.round(sh.view.zoom)}"` : ''}${sh.view.zoomToFit ? ' zoomToFit="1"' : ''} workbookViewId="0"/></sheetViews>`;
         const m = sh.print.margins;
         body += `<pageMargins left="${m.l}" right="${m.r}" top="${m.t}" bottom="${m.b}" header="${m.header}" footer="${m.footer}"/><pageSetup orientation="${sh.print.orientation === 'portrait' ? 'portrait' : 'landscape'}"/>`;
-        const dr = await drawingPart(sh, rels);
+        const dr = await drawingPart(sh, rels, objects);
         if (dr) body += `<drawing r:id="${dr}"/>`;
         body += '</chartsheet>';
         add(part, body, CT.chartsheet);
@@ -763,21 +764,26 @@
         }).join('') + '</hyperlinks>');
       }
       out.push(printXml(sh));
+      out.push(L.sheetObjects.sheetXML('customProperties', objects));
       out.push(keepXml(sh, 'cellWatches'), keepXml(sh, 'ignoredErrors'), keepXml(sh, 'smartTags'));
-      const dr = await drawingPart(sh, rels);
+      const dr = await drawingPart(sh, rels, objects);
       if (dr) out.push(`<drawing r:id="${dr}"/>`);
       if (sh.comments.size) {
         const cPart = `xl/comments${++nComment}.xml`;
         pack.bind(cPart, L.preserve.related(wb, sh.extra.ooxmlPart, 'comments'));
         add(cPart, commentsXml(sh, pack.writer, pack.part(cPart)), CT.comments);
         rels.add('comments', '../' + cPart.slice(3));
+      }
+      if (sh.comments.size || L.sheetObjects.hasVML(sh)) {
         const vPart = `xl/drawings/vmlDrawing${++nVml}.vml`;
-        pack.bind(vPart, L.preserve.related(wb, sh.extra.ooxmlPart, 'vmlDrawing'));
-        defaults.set('vml', CT.vml);
-        add(vPart, vmlXml(sh, si + 1));
-        out.push(`<legacyDrawing r:id="${rels.add('vmlDrawing', '../drawings/' + vPart.split('/').pop())}"/>`);
+        const data = L.sheetObjects.vml(vmlXml(sh, si + 1), vPart, objects);
+        if (data) {
+          defaults.set('vml', CT.vml); add(vPart, data);
+          out.push(`<legacyDrawing r:id="${rels.add('vmlDrawing', '../drawings/' + vPart.split('/').pop())}"/>`);
+        }
       }
       if (sh.background) { const mp = mediaPart(sh.background); if (mp) out.push(`<picture r:id="${rels.add('image', '../media/' + mp.split('/').pop())}"/>`); }
+      out.push(L.sheetObjects.sheetXML('oleObjects', objects), L.sheetObjects.sheetXML('controls', objects));
       out.push(keepXml(sh, 'webPublishItems'));
       const tables = wb.tables.filter((t) => t.sheet === sh);
       if (tables.length) {
@@ -796,18 +802,19 @@
       sheetEntries.push({ sh, part, kind: 'worksheet' });
     }
 
-    async function drawingPart(sh, rels) {
+    async function drawingPart(sh, rels, objects) {
       const list = sh.drawings.filter((d) => d && d.anchor && (d.kind === 'image' ? (wb.media && wb.media.get(d.media)) || d.imgLink : d.kind === 'chart' ? d.xml || d.chart : d.kind === 'shape'));
       if (!list.length) return null;
       const dPart = `xl/drawings/drawing${++nDrawing}.xml`;
       pack.bind(dPart, sh.extra.ooxmlDrawing);
       const drels = relsFor(dPart);
+      for (const id of objects.ids.values()) pack.writer.ids.reserve(drels.owner, 'shape', id);
       let nextId = 2;
       for (const d of list) if (d.id >= nextId) nextId = d.id + 1;
       const usedIds = new Set();
       let x = HDR + `<xdr:wsDr xmlns:xdr="${XDR}" xmlns:a="${NS_A}">`;
       for (const d of list) {
-        let id = d.id > 0 && !usedIds.has(d.id) ? d.id : nextId++;
+        let id = objects.ids.get(d) || (d.id > 0 && !usedIds.has(d.id) ? d.id : nextId++);
         usedIds.add(id);
         const a = d.anchor;
         const sz = anchorSize(sh, a);
@@ -815,9 +822,10 @@
         if (a.type === 'two' && a.from && a.to) { open = `<xdr:twoCellAnchor${a.editAs && a.editAs !== 'twoCell' ? ` editAs="${a.editAs}"` : ''}>` + ptXml('from', a.from) + ptXml('to', a.to); close += '</xdr:twoCellAnchor>'; }
         else if (a.type === 'one' && a.from) { open = '<xdr:oneCellAnchor>' + ptXml('from', a.from) + `<xdr:ext cx="${emu(a.w)}" cy="${emu(a.h)}"/>`; close += '</xdr:oneCellAnchor>'; }
         else { open = `<xdr:absoluteAnchor><xdr:pos x="${emu(a.x)}" y="${emu(a.y)}"/><xdr:ext cx="${emu(a.w)}" cy="${emu(a.h)}"/>`; close += '</xdr:absoluteAnchor>'; }
-        let obj = '';
+        let obj = L.sheetObjects.frame(d, objects, drels.owner, sz);
         const nameAttr = esc(d.name || (d.kind === 'chart' ? 'Chart ' : d.kind === 'image' ? 'Picture ' : 'Shape ') + (id - 1));
-        if (d.kind === 'image') {
+        if (obj) { /* preserved picture representation of a control or embedded object */ }
+        else if (d.kind === 'image') {
           let blipRefs = '';
           if (d.media && wb.media && wb.media.get(d.media)) { const mp = mediaPart(d.media); blipRefs += ` r:embed="${drels.add('image', '../media/' + mp.split('/').pop())}"`; }
           if (d.imgLink) blipRefs += ` r:link="${drels.add('image', d.imgLink, true)}"`;
@@ -859,7 +867,8 @@
             if (source) {
               try {
                 let fragment = K.fragment(K.parse(d.xml), { pkg: source, part: d.keep.part });
-                if (id !== d.id) fragment = K.duplicate(fragment);
+                if (d.objectKeep) fragment = L.sheetObjects.drawing(d, fragment, objects, sz);
+                else if (id !== d.id) fragment = K.duplicate(fragment);
                 obj = pack.writer.emit(fragment, drels.owner);
               } catch (error) {
                 pack.writer.loss({ id: 'shape:' + d.keep.part + ':' + d.id, what: 'The shape was converted because its original references could not be retained: ' + error.message, where: dPart, action: 'conversion' });
