@@ -13,7 +13,7 @@ import shutil
 import subprocess
 import tempfile
 import sys
-from package import Package, added_issues
+from package import Package, added_issues, conversion_issues
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
@@ -57,7 +57,7 @@ def main():
                 try:
                     a, b = Package(original), Package(saved)
                     r['originalIssues'], r['savedIssues'] = a.check(), b.check()
-                    r['newIssues'] = added_issues(r['originalIssues'], r['savedIssues'])
+                    r['newIssues'] = added_issues(r['originalIssues'], r['savedIssues']) + conversion_issues(a, b)
                     r['status'] = 'failed' if r['newIssues'] else 'ok'
                     if args.sdk:
                         if sdk is None or sdk.poll() is not None:

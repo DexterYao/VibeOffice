@@ -8,6 +8,8 @@
   const attr = (el, name) => Array.from(el?.attributes || []).find(a => a.localName === name && a.prefix !== 'xmlns')?.value;
   const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
   const coreRel = N.pkg + '/metadata/core-properties';
+  P.commentMetadata = doc => Object.entries(doc.comments).map(([id, c]) => [id, c.keep?.paraId, c.parent ?? null, !!c.done]);
+  P.keepCommentExtension = doc => doc.keep?.commentExtension && same(P.commentMetadata(doc), doc.keep.commentExtension.values);
   // Full relationship types, never just their last path segment. Opaque is the
   // default: reading a preview does not mean the target has been represented.
   P.parts = Object.freeze([
@@ -37,7 +39,8 @@
     output.bind('word/document.xml', pkg?.main);
     for (const [base, type, mode, root] of P.parts) {
       const rel = pkg?.rels(root ? '' : pkg.main).find(r => canonical(r.type) === type && !r.external);
-      output.bind(base, rel?.part, base === 'word/theme/theme1.xml' && !same(doc.theme, doc.keep?.values?.theme) ? 'regenerated' : mode);
+      output.bind(base, rel?.part, base === 'word/commentsExtended.xml' && P.keepCommentExtension(doc) ? 'opaque' :
+        base === 'word/theme/theme1.xml' && !same(doc.theme, doc.keep?.values?.theme) ? 'regenerated' : mode);
     }
     return output;
   };

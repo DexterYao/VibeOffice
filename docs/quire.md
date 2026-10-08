@@ -137,6 +137,11 @@ invalid properties adds diagnostics; these are failed comparisons, not passes. D
 follows style IDs and unchanged property content when positions move, while retaining occurrence counts.
 Newly generated drawings reserve both document drawing IDs and part-local shape IDs, so converting
 one object cannot collide with the identity of an unrelated retained group.
+An Office-found comment repair is also fixed: pre-release comment extensions retain their original
+namespace and unchanged bytes, and a comment is written with one reference. Removing a duplicate
+reference records a Compatibility Checker entry. The pinned scan finds one saved file with excess
+anchors and 55 automatic extension-namespace promotions; the corrected point-comment save and a
+current-format reply control both pass Word. These checks are separate from the frozen full-run totals.
 
 The feature inventory compares **2,864 readable pairs**, with **38 failed attempts**. It retains
 **776,207 of 776,869 counted words**; **2,811 documents** keep every counted word. Data-bound values,
@@ -153,7 +158,7 @@ malformed input, unreferenced stories and unsupported markup remain exceptions.
 | Kept, with remaining losses | Revisions, fields, pictures and tables | 1,385/1,427 insertions/deletions, 1,085/1,103 formatting revisions, 2,590/2,711 fields, 1,239/1,242 pictures and 1,605/1,606 tables |
 | Converted when edited | Unsupported contents inside an opaque frame; typed/complex controls | Edited or ungrouped converted content uses the model representation; incompatible typed-control edits unbind and report the conversion |
 | Mostly converted | Smart tags and inline custom-XML markup | 18/519 original wrappers remain; their text is represented as ordinary content |
-| Kept; Office review pending | Per-property drawing edits, row/cell alternatives and watermarks | 62 focused checks and 48 save/edit/history/draft states pass; full corpus completed; all 15 Office batch 2 files pass package/SDK and LibreOffice checks |
+| Kept; Office accepted | Per-property drawing edits, row/cell alternatives and watermarks | 62 focused checks and 48 save/edit/history/draft states pass; full corpus completed; 14 original batch-2 files pass Office and the comment repair has a confirmed correction |
 
 Package counts verify bytes, types, rIds and targets; unreferenced parts have separate loss entries.
 The raw carry audit reports 2,795 exact passes and 107 findings: 38 failed driver/package reads,
@@ -168,7 +173,10 @@ samples in Office batch 1. All 15 batch 2 files open in LibreOffice with unchang
 conversion passes **67 documents / 268 emitted states** against original package/SDK diagnostics and
 keeps its notice through draft recovery; its Office review is included in batch 2.
 Current reports, failed attempts and historical figures: `~/corpora/results/quire-remainder-2026-10-08/`.
-The Office checklist is `~/Downloads/lossless-check/office-batch-2/CHECKLIST.md`; acceptance is pending.
+The Office checklist is `~/Downloads/lossless-check/office-batch-2/CHECKLIST.md`; file 12 records its
+original repair and links the accepted corrected save. Both samples in
+`~/Downloads/lossless-check/office-batch-2-comment-fix/` pass Word, package/SDK checks and LibreOffice,
+with unchanged page counts.
 
 ### Content controls: edit behavior
 

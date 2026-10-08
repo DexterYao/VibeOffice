@@ -393,7 +393,8 @@
       case 'be': { const k = 'e' + it.id; if (ctx.bmSeen.has(k)) return ''; ctx.bmSeen.add(k); return L.preserve.markerXML(it, ctx) ?? `<w:bookmarkEnd w:id="${ctx.bmId(it.id)}"/>`; }
       case 'perm': return L.preserve.markerXML(it, ctx) || '';
       case 'cs': return ctx.cmtOk(it.id) && !it.point ? `<w:commentRangeStart w:id="${ctx.cmtId(it.id)}"/>` : '';
-      case 'ce': return ctx.cmtOk(it.id) ? (it.point ? '' : `<w:commentRangeEnd w:id="${ctx.cmtId(it.id)}"/>`) + runWrap({ style: 'CommentReference' }, `<w:commentReference w:id="${ctx.cmtId(it.id)}"/>`, ctx) : '';
+      case 'ce': return ctx.cmtOk(it.id) ? (it.point ? '' : `<w:commentRangeEnd w:id="${ctx.cmtId(it.id)}"/>`) +
+        (ctx.cmtReference(it.id) ? runWrap({ style: 'CommentReference' }, `<w:commentReference w:id="${ctx.cmtId(it.id)}"/>`, ctx) : '') : '';
       case 'fn': case 'en': {
         const kind = it.t === 'fn' ? 'footnote' : 'endnote';
         if (it.self) return runWrap(Object.assign({ style: it.t === 'fn' ? 'FootnoteReference' : 'EndnoteReference' }, cleanRPr(r)), `<w:${kind}Ref/>`, ctx);
@@ -860,6 +861,7 @@
     const numIds = new Map();
     const numMap = (id) => { if (!numIds.has(String(id))) numIds.set(String(id), String(id)); return numIds.get(String(id)); };
     const cmtIds = new Map();
+    const cmtReferences = new Set();
     const fnIds = new Map(), enIds = new Map();
     const highNote = kind => Math.max(0, ...Object.keys(kind === 'fn' ? doc.fn : doc.en).map(x => +x || 0), ...(doc.keep?.notes?.[kind] || []).map(n => +n.id || 0)) + 1;
     let fnN = highNote('fn'), enN = highNote('en');
@@ -881,6 +883,14 @@
       bmSeen: new Set(),
       bmId: (id) => { const k = rels.owner + ':' + id; if (!bmIds.has(k)) bmIds.set(k, pack.writer.ids.fresh(rels.owner, 'bookmark')); return bmIds.get(k); },
       cmtOk: (id) => !!doc.comments[id],
+      cmtReference: (id) => {
+        const key = String(id);
+        if (cmtReferences.has(key)) {
+          pack.writer.loss({ id: 'comment-reference:' + key, what: 'A duplicate reference to the same comment was removed; the comment and its first reference are kept.', where: rels.owner, action: 'conversion' });
+          return false;
+        }
+        cmtReferences.add(key); return true;
+      },
       cmtId: (id) => { const k = String(id); if (!cmtIds.has(k)) cmtIds.set(k, cmtIds.size); return cmtIds.get(k); },
       noteId: (kind, id) => {
         const store = kind === 'fn' ? doc.fn : doc.en;
@@ -1011,7 +1021,8 @@
         ex += `<w15:commentEx w15:paraId="${pid}"${parent ? ` w15:paraIdParent="${parent}"` : ''} w15:done="${c.done ? 1 : 0}"/>`;
       }
       cmPart = { xml: HEAD + `<w:comments ${NSDECL}>${x}</w:comments>`, rels };
-      cmExPart = HEAD + `<w15:commentsEx xmlns:mc="${NS.mc}" xmlns:w15="${NS.w15}" mc:Ignorable="w15">${ex}</w15:commentsEx>`;
+      const extendedNS = doc.keep?.commentExtension?.namespace || NS.w15;
+      cmExPart = HEAD + `<w15:commentsEx xmlns:mc="${NS.mc}" xmlns:w15="${X(extendedNS)}" mc:Ignorable="w15">${ex}</w15:commentsEx>`;
     }
     /* --- media names --- */
     for (const mid of pendingMedia) {

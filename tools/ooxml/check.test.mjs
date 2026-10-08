@@ -41,6 +41,22 @@ test('valid shared targets and cyclic relationships do not look like missing par
   const file = await pkg('cycle', { 'a.xml': '<x/>', 'b.xml': '<y/>', '_rels/a.xml.rels': rels(rel('one', 'b.xml') + rel('two', 'b.xml')), '_rels/b.xml.rels': rels(rel('back', 'a.xml')) });
   assert.equal(run('check', file).status, 'ok');
 });
+test('Word repair regressions: duplicate comment references and promoted pre-release threads', async () => {
+  const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
+  const duplicate = await pkg('comment-reference', { 'word/document.xml': `<w:document xmlns:w="${W}"><w:body><w:p><w:r><w:commentReference w:id="0"/><w:commentReference w:id="0"/></w:r></w:p></w:body></w:document>` });
+  assert(run('check', duplicate).issues.some(i => i.code === 'duplicate-comment-reference-id'));
+  const two = await pkg('two-comment-definitions', {
+    '_rels/.rels': rels(rel('main', 'word/document.xml', 'officeDocument')),
+    'word/_rels/document.xml.rels': rels(rel('comments', 'comments.xml', 'comments')),
+    'word/document.xml': `<w:document xmlns:w="${W}"><w:body><w:p><w:r><w:commentReference w:id="0"/><w:commentReference w:id="0"/></w:r></w:p></w:body></w:document>`,
+    'word/comments.xml': `<w:comments xmlns:w="${W}"><w:comment w:id="0"/><w:comment w:id="0"/></w:comments>`,
+  });
+  assert(!run('check', two).issues.some(i => i.code === 'duplicate-comment-reference-id'));
+  const old = await pkg('old-comments', { 'word/commentsExtended.xml': '<commentsEx xmlns="http://schemas.microsoft.com/office/word/2010/11/wordml"/>' });
+  const modern = await pkg('modern-comments', { 'word/commentsExtended.xml': '<commentsEx xmlns="http://schemas.microsoft.com/office/word/2012/wordml"/>' });
+  assert(run('compare', old, modern).newIssues.some(i => i.code === 'promoted-comment-extension'));
+  assert.equal(run('compare', old, old).newIssues.length, 0);
+});
 test('IDs in mutually exclusive alternatives may repeat, active duplicate IDs may not', async () => {
   const ac = `<mc:AlternateContent xmlns:mc="${MC}" xmlns:new="urn:new"><mc:Choice Requires="new">${picture(2)}</mc:Choice><mc:Fallback>${picture(2)}</mc:Fallback></mc:AlternateContent>`;
   assert.equal(run('check', await pkg('ac', { 'slide.xml': slide(ac) })).status, 'ok');

@@ -30,6 +30,8 @@ P = {'http://schemas.openxmlformats.org/presentationml/2006/main', 'http://purl.
 A = {'http://schemas.openxmlformats.org/drawingml/2006/main', 'http://purl.oclc.org/ooxml/drawingml/main'}
 S = {'http://schemas.openxmlformats.org/spreadsheetml/2006/main', 'http://purl.oclc.org/ooxml/spreadsheetml/main'}
 W14 = 'http://schemas.microsoft.com/office/word/2010/wordml'
+LEGACY_COMMENTS = '{http://schemas.microsoft.com/office/word/2010/11/wordml}commentsEx'
+MODERN_COMMENTS = '{http://schemas.microsoft.com/office/word/2012/wordml}commentsEx'
 # each preset shape's adjustment names, from the generated schema facts the apps use
 _ORDER = (Path(__file__).resolve().parents[2] / 'public/common/opc-order.js').read_text()
 PRESET_ADJUST = {k: [n for n, _ in v] for k, v in json.loads(_ORDER[_ORDER.index('= {') + 2:_ORDER.rindex('; })')]).get('presetAdjust', {}).items()}
@@ -64,6 +66,15 @@ def added_issues(original, saved):
         if remaining[k]: remaining[k] -= 1
         else: added.append(issue)
     return added
+
+def conversion_issues(original, saved):
+    """Office-found incompatibilities requiring comparison with the source."""
+    issues = []
+    for part, root in original.xml.items():
+        if root.tag == LEGACY_COMMENTS and part in saved.xml and saved.xml[part].tag == MODERN_COMMENTS:
+            issues.append(dict(code='promoted-comment-extension', part=part, path='',
+                               detail='Pre-release comment metadata was promoted to the released namespace. Word repairs this conversion; retain its source vocabulary.'))
+    return issues
 
 def rels_owner(name):
     if name == '_rels/.rels':
@@ -201,6 +212,11 @@ class Package:
         references = []
         caches = set()
         pivot_refs = []
+        comment_counts = {}
+        for part, root in self.xml.items():
+            if split(root.tag)[0] in W and split(root.tag)[1] == 'comments':
+                comment_counts[part] = Counter(at(c, 'id') for c in root if split(c.tag)[1] == 'comment')
+        main = next((r['target'] for r in self.rels.get('', {}).values() if r['type'].endswith('/officeDocument')), '')
         for part, root in self.xml.items():
             parents = {child: parent for parent in root.iter() for child in parent}
             for el, path, branches in walk(root):
@@ -230,6 +246,8 @@ class Package:
                     kind, scope = 'master-layout', 'presentation'
                 elif tag in ('bookmarkStart', 'permStart') and ns in W:
                     kind = 'bookmark' if tag == 'bookmarkStart' else 'permission'
+                elif tag == 'commentReference' and ns in W:
+                    kind = 'comment-reference'
                 elif tag == 'pivotCache' and ns in S:
                     id_ = at(el, 'cacheId')
                     if id_ in caches:
@@ -237,11 +255,22 @@ class Package:
                     caches.add(id_)
                 if kind and at(el, 'id') is not None:
                     key = (scope, kind, at(el, 'id'))
+                    allowance = 1
+                    if kind == 'comment-reference':
+                        related = list(self.rels.get(part, {}).values()) + list(self.rels.get(main, {}).values())
+                        target = next((r['target'] for r in related if r['type'].endswith('/comments')), '')
+                        # Word accepts the original Comment040 with two matching
+                        # definitions. It repairs our former one-definition save
+                        # with two anchors. Do not blame that accepted source.
+                        allowance = max(1, comment_counts.get(target, {}).get(key[2], 0))
+                    matches = 0
                     for prior_part, prior_path, prior_branches in definitions[key]:
                         # Branch paths include a part identifier to avoid conflating unrelated ACs.
                         both = compatible({part + k: v for k, v in branches.items()}, {prior_part + k: v for k, v in prior_branches.items()})
                         if both:
-                            self.issue('duplicate-' + kind + '-id', part, key[2], path)
+                            matches += 1
+                            if matches >= allowance:
+                                self.issue('duplicate-' + kind + '-id', part, key[2], path)
                     definitions[key].append((part, path, branches))
                 # PresentationML spid targets cNvPr. VML o:spid is the shape's
                 # own identity, not a reference into DrawingML's ID space.
@@ -385,7 +414,7 @@ def compare(a, b, policy):
         count = sum(1 for x in b.xml.values() if split(x.tag)[0] in P and split(x.tag)[1] == 'sld')
         if count != policy['expectedSlides']:
             differences.append(dict(what='slide-count', expected=policy['expectedSlides'], actual=count))
-    new_issues = added_issues(a.check(), b.check())
+    new_issues = added_issues(a.check(), b.check()) + conversion_issues(a, b)
     return dict(original=a.file, saved=b.file, status='failed' if differences or new_issues else 'ok',
                 summary=dict(summary), differences=differences, newIssues=new_issues)
 

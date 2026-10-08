@@ -1751,6 +1751,12 @@
         doc.comments[id] = story;
       }
       for (const k in doc.comments) { const c = doc.comments[k]; if (c._parentPara) { c.parent = paraOwner.get(c._parentPara); delete c._parentPara; } }
+      const exRoot = exX && (exX.documentElement || exX);
+      if (exRoot && exRoot.namespaceURI !== 'http://schemas.microsoft.com/office/word/2012/wordml') {
+        // Pre-release comment extensions are not interchangeable with the
+        // released Word 2013 vocabulary. Word repairs an automatic promotion.
+        doc.keep.commentExtension = { part: exRel.target, namespace: exRoot.namespaceURI, values: L.preserve.commentMetadata(doc) };
+      }
     }
 
     /* ---- body ---- */
