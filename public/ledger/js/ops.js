@@ -12,11 +12,13 @@
   /** run fn inside one undoable step; recalculates what changed afterwards */
   O.tx = function (wb, label, fn) {
     const outer = changes == null;
+    const pivots = outer && L.pivots?.begin(wb);
     if (outer) { changes = []; structural = false; }
     wb.undo.begin(label);
     let res;
     try { res = fn(); }
     finally {
+      if (outer) L.pivots?.end(wb, pivots);
       wb.undo.end();
       if (outer) {
         const list = changes, st = structural;
@@ -46,6 +48,7 @@
   O.put = function (sh, r, c, cell) {
     sh.wb.undo.note(sh, r, c);
     const old = sh.get(r, c);
+    L.pivots?.cell(sh, r, c, old, cell);
     if (old && old._gnode && sh.wb.graph) sh.wb.graph.remove(old);
     if (cell && cell.f == null) { delete cell.ast; delete cell._fsrc; delete cell._gnode; }
     sh.put(r, c, cell);
@@ -641,6 +644,7 @@
       view: { freeze: sh.view.freeze ? Object.assign({}, sh.view.freeze) : null, top: Object.assign({}, sh.view.top) },
       tables: sh.wb.tables.filter((t) => t.sheet === sh).map((t) => ({ t, ref: Object.assign({}, t.ref), columns: t.columns.map((c) => Object.assign({}, c)) })),
       names: sh.wb.names.map((n) => Object.assign({}, n, { _ast: undefined })),
+      pivotSheet: sh.id, pivots: L.pivots?.snapshot(sh.wb),
     };
   }
   function restoreSheet(sh, s) {
@@ -658,6 +662,7 @@
     sh.view.freeze = s.view.freeze ? Object.assign({}, s.view.freeze) : null; sh.view.top = Object.assign({}, s.view.top);
     for (const x of s.tables) { x.t.ref = Object.assign({}, x.ref); x.t.columns = x.columns.map((c) => Object.assign({}, c)); }
     sh.wb.names = s.names.map((n) => Object.assign({}, n));
+    if (s.pivotSheet === sh.id) L.pivots?.restore(sh.wb, s.pivots);
     LY.invalidate(sh); LY.touchMerges(sh); sh._cfIdx = null;
   }
   O.snapSheet = snapSheet; O.restoreSheet = restoreSheet;
@@ -669,9 +674,11 @@
     if (inStruct.has(sh)) { const r = fn(); O.markStructural(); return r; }
     return O.tx(wb, label, () => {
       const before = snapSheet(sh);
+      const pivots = L.pivots?.structural(sh);
       let res;
       inStruct.add(sh);
       try { res = fn(); } finally { inStruct.delete(sh); }
+      L.pivots?.afterStructural(sh, pivots);
       const after = snapSheet(sh);
       wb.undo.op(() => restoreSheet(sh, before), () => restoreSheet(sh, after));
       O.markStructural();
@@ -766,6 +773,7 @@
     }
     return O.structural(sh, label, () => {
       const op = { sheet: sh.name, axis, at, n };
+      L.pivots?.lines(sh, axis, at, n);
       adjustFormulas(wb, op);
       /* move cells */
       if (axis === 'r') {
@@ -1009,6 +1017,7 @@
         wb.tables.push(Object.assign({}, t, { sheet: copy, name: nm, dname: nm, id: wb.tables.length + 1, ref: Object.assign({}, t.ref), columns: t.columns.map((c) => Object.assign({}, c)) }));
       }
       const tablesAfter = wb.tables.slice();
+      L.pivots?.copySheet(wb, sh, copy);
       wb.undo.op(() => { wb.sheets.splice(wb.sheets.indexOf(copy), 1); wb.tables = wb.tables.filter((t) => t.sheet !== copy); }, () => { wb.sheets.splice(idx, 0, copy); wb.tables = tablesAfter; });
       O.markStructural();
     });

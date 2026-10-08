@@ -1242,6 +1242,7 @@
     if (wb.active >= wb.sheets.length || wb.active < 0) wb.active = 0;
     if (wb.sheets[wb.active].state !== 'visible') wb.active = Math.max(0, wb.sheets.findIndex((s) => s.state === 'visible'));
     wb.extra.keepValues = L.preserve.values(wb);
+    L.pivots.read(wb);
     wb.extra.styleBaseline = { xf: st.xf.slice(), list: JSON.parse(JSON.stringify(wb.styles.list)), dxfs: JSON.parse(JSON.stringify(wb.dxfs)) };
     for (const sh of wb.sheets) if (sh.kind === 'macrosheet' || sh.kind === 'dialogsheet') sh.extra.opaqueBaseline = L.preserve.sheetContent(sh);
     return wb;

@@ -183,7 +183,7 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   samples open in LibreOffice with unchanged counts. Diffs contain only explained changes. The user
   confirmed all four namespace copies, including PowerPoint, pass Office.
   Reports: `~/corpora/results/namespace-hoist-2026-10-08/`.
-- Next: finish Ledger pivot implementation. The pivot behavior matrix is
+- Ledger pivot sources and output edits are implemented. The pivot behavior matrix was
   written in docs/ledger.md before code changes, as step 6 requires. The source inventory finds
   105 pivot workbooks, including 14 with shared caches. Defined-name and consolidation source
   fixtures are authored by `tools/ledger/test/pivot-fixtures.py`; both pass package/SDK checks,
@@ -191,8 +191,10 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   pending because it uses the package graph and identity patterns accepted in batch 1, rather than
   Quire's drawing-property patterns. That was a dependency-based interpretation of habit 1, broader
   than the execution line here stated. Work was paused for the review corrections; batch 2's required
-  checks are now accepted. Eight focused pivot edit/history cases pass, but integration, full-group
-  measurement and Excel acceptance remain pending; the pivot changes are still uncommitted.
+  checks are now accepted. Ten focused pivot cases and 31 package/SDK states pass; source-edited drafts
+  retain refresh notices, and two samples open in LibreOffice with unchanged counts. The complete
+  79-test unit set passes. Slicer dependencies will be integrated in step 6(d); full-group measurement
+  and Excel acceptance remain pending. Next: threaded comments, followed by the other Ledger features.
 
 ## Review of 6d24c43..275406e (2026-10-08)
 Followed well: bounded Office batches with previous-writer comparison, checker rules for the WordArt

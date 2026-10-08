@@ -200,31 +200,32 @@ and `~/corpora/results/strict-transitional-2026-10-08/`.
 | Edit | Current behavior / remaining work |
 |---|---|
 | No edit to pivot/thread content | Package parts are carried; there is no pivot or threaded-comment editor |
-| Edit source cells, insert/delete rows or columns, rename/delete a sheet | Pivot source/location/cache and threaded-comment reference rules are not yet implemented |
+| Edit pivot source cells, insert/delete rows or columns, rename/delete a sheet | Pivot sources, output locations and shared caches follow the rules below; slicer dependencies are still pending |
+| Move or edit a threaded comment | Threaded-comment reference and content rules are still pending |
 | Edit conditional formatting | The model writes its base form; extended bars and unknown entries need property-level merging |
 | Save a sheet containing controls, OLE or non-comment VML | Their worksheet/VML content still needs integration; retained package parts alone are insufficient |
 | Edit a query table | Modeled table fields are written; query-specific field identity and refresh rules remain pending |
 
-### Pivot preservation rules for the next implementation
+### Pivots: edit behavior
 
-These are the agreed behavior rules for the pending pivot work, not additional supported behavior.
-Pivot definitions and cached records remain original package data. The model will hold source and
-output locations, cache identities and pending changes; Ledger will not calculate a pivot or execute
+Pivot definitions and cached records remain original package data. The model holds source and
+output locations, cache identities and pending changes; Ledger does not calculate a pivot or execute
 an external connection. Excel performs any requested refresh when it opens the saved file.
 
 | Source or edit | Required save behavior |
 |---|---|
-| Several pivots share a cache | Keep one cache definition, records part and workbook `cacheId`; every surviving pivot refers to that identity. A source change marks the shared cache once. Remove it only when no pivot or other retained dependent uses it. |
+| Several pivots share a cache | Keep one cache definition, records part and workbook `cacheId`; every surviving pivot refers to that identity. A source change marks the shared cache once. Deleting one output retains the cache for the others. Integration with slicer dependents is pending in the same Ledger feature group. |
 | Worksheet range source | Resolve the source sheet to its model identity and keep the original range until an edit affects it. Sheet renames update the source name without changing the cache identity. |
 | Table source | Retain `worksheetSource@name` and the table identity; follow the table's current range after row/column edits. Do not replace the table name with a fixed range. |
 | Defined-name source | Retain the name and its scope, and use the current name formula when it resolves to a range. Keep formula-based names intact; if a source cannot be bounded safely, request refresh after workbook value or structure changes instead of inventing a range. |
 | External source | Keep the connection, external source metadata and cached records unchanged. Local edits do not execute the connection or rewrite its source. |
 | Consolidation source | Keep every source area and its page-field metadata. Shift or rename each local area by its owning sheet; retain external areas unchanged. |
 | Change a value or formula in a local source | Keep the current cache records and set `refreshOnLoad="1"` on the cache definition. Formatting-only edits do not request refresh. The Compatibility Checker explains that Excel must refresh the cached result. |
-| Insert/delete source rows or columns | Apply `O.shiftRange` to each affected area and request refresh. Preserve field identities and cached records; if a deleted source column is used by a pivot field, report that field's loss rather than silently remapping it to another column. |
+| Insert/delete source rows or columns | Shift each affected area and request refresh. Keep field identities and cached records. Deleting a used field removes its affected pivot definition with a notice, retaining the remaining result cells. |
 | Insert/delete rows or columns around the output | Shift or shrink the pivot `location` with its displayed cells. Keep offsets and field layout consistent with the surviving range. If the whole output is deleted, remove that pivot and report it. |
 | Edit a value or formula inside the output | Allow the cell edit and retain the pivot. Report that Excel can overwrite that edit on refresh; never silently discard the edit while saving. |
-| Delete a pivot sheet, source sheet, whole source range, source table or source name | Remove the affected pivots and their slicers, and report the loss. Keep caches still used elsewhere; remove dependencies that no surviving object references. Deleting one local consolidation area invalidates its dependent pivot rather than changing the meaning of the consolidation. |
+| Delete a pivot sheet, source sheet, whole source range, source table or source name | Remove the affected pivots and report the loss; retain shared caches for surviving pivots. Deleting one local consolidation area invalidates its dependent pivot. Slicer removal and other implicit dependents remain pending in the same group. |
+| Copy the output sheet | Give the copied pivot a fresh part, name and extension identity; share its source cache. Undo restores the original membership. |
 | Undo/redo a cell or structural edit | Restore source/output locations, refresh flags, cache membership and loss entries together with the cells. `snapSheet`/`restoreSheet` must cover the preserved state, including changes to caches shared with another sheet. |
 | Save, reopen or recover a draft | Write the current pivot state and original identities; drafts retain the same refresh requests and pending notices without showing or acknowledging the checker. |
 
@@ -232,7 +233,13 @@ The pinned inventory contains 105 pivot workbooks, including 14 with shared cach
 defined-name or consolidation source. `tools/ledger/test/pivot-fixtures.py` supplies those two
 structural fixtures from a pinned range-source workbook. Both have zero package/SDK diagnostics;
 an independent reader confirms their source kinds, and the consolidation's ten input values match
-its cache and output. Office acceptance and Ledger mutation checks remain pending.
+its cache and output. Ten focused pivot cases pass, covering all five source kinds, shared caches,
+format-only edits, shifts, copy/deletion and undo/redo. All **31 emitted states** introduce no
+package/SDK diagnostics; unchanged definitions and records retain their bytes. The real browser
+draft/recovery hooks keep a source-edit refresh request and its notice. Two samples open in
+LibreOffice with the same two-page counts. These are focused measurements, separate from the frozen
+full-corpus figures above; the Ledger group rerun and Excel batch 3 remain pending. Reports:
+`~/corpora/results/ledger-preservation-2026-10-08/`.
 
 ## Compatibility testing
 
@@ -250,8 +257,8 @@ support for every formula or external data source.
 
 - Macros are kept in `.xlsm` files but never run; there is no VBA editor.
 - PivotTables: Data ▸ PivotTable builds a static summary report. Pivot tables in opened files keep
-  their cached cells and original pivot/cache parts. Range changes, source edits and deletion behavior
-  are not yet safe; see the edit limits above.
+  their cached cells and original pivot/cache parts. Source/output edits follow the rules above;
+  slicer dependents and Excel acceptance are still pending.
 - Power Pivot models and Power Query connections are carried as package dependencies; Ledger does not
   execute them or maintain their query-specific edit semantics.
 - Chart editing covers the Chart Wizard types; other chart types from files are shown and kept but
@@ -268,6 +275,7 @@ support for every formula or external data source.
 | File | What it does |
 | --- | --- |
 | `index.html`, `tools/ledger/build/` | Window chrome, Ledger's CSS after the shared `../common/luna.css`, script order (generated by the build script) |
+| `js/pivots.js` | Preserved pivot/cache identities, source and output edits, shared-cache history and refresh notices |
 | `../common/core.js`, `../common/zip.js` | Utilities, file saving, PDF writer, ZIP reader/writer |
 | `../common/xml.js`, `../common/opc.js`, `../common/opc-order.js`, `js/xml.js` | Shared XML parser and OOXML preservation core; `js/xml.js` aliases the shared tree as `L.xml`. Original package ownership, settings merges and style/string identities are implemented. |
 | `../common/sha.js`, `../common/crypto.js` | SHA-1/256/384/512 and AES, Office document encryption (standard and agile) |

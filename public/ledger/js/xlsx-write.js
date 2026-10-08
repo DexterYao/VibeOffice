@@ -961,6 +961,7 @@
     for (const [n, t] of overrides) ct += `<Override PartName="${esc(n)}" ContentType="${t}"/>`;
     ct += '</Types>';
     files.unshift({ name: '[Content_Types].xml', data: ct });
+    L.pivots.write(wb, pack);
     for (const file of files) pack.put(file.name, file.data, overrides.get('/' + file.name) || defaults.get(file.name.split('.').pop()));
     const result = pack.finish();
     const blob = await L.zip.write(result.files, format.mime);
