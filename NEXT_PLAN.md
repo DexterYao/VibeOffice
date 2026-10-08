@@ -16,7 +16,7 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 
 **Not done:** Lectern object-level remainder and final suite measurement/loss reporting.
 
-Lectern sections/custom shows, comments and opaque frames are implemented and measured; PowerPoint acceptance
+Lectern sections/custom shows, comments, opaque frames and design retention are implemented and measured; PowerPoint acceptance
 will be requested together in batch 4 after the remaining Lectern features.
 
 **Slide-6 repair: fixed** (60c26b4, confirmed in PowerPoint). Read "Office acceptance" in AGENTS.md
@@ -274,6 +274,15 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   five edited samples open in LibreOffice with expected counts. All 118 unit tests pass and four
   pages load without console errors. Reports: `~/corpora/results/lectern-preservation-2026-10-09/frames-*`.
   PowerPoint batch 4 and the full Lectern group run remain pending. Next: unused masters and design edits.
+
+- Lectern now loads and writes every imported master/layout, including unused designs. Theme colors,
+  Latin fonts, master backgrounds, frames, styles and footer properties change independently; copied
+  designs get independent parts. The 13 relevant decks retain 54/54 masters and 276/276 layouts,
+  with 52 masters and all layouts byte-identical; two damaged source masters convert with a notice.
+  Eleven package/SDK comparisons pass, with two missing-dependency originals retained as failures.
+  Ten focused cases / 32 states pass package/SDK; two edited samples keep their LibreOffice slide
+  counts. All 118 unit tests pass and four pages load. Reports: `~/corpora/results/lectern-preservation-2026-10-09/designs-*`.
+  PowerPoint batch 4 and the full Lectern run are pending. Next: tags, actions and non-media effects.
 
 ## Review of 6d24c43..275406e (2026-10-08)
 Followed well: bounded Office batches with previous-writer comparison, checker rules for the WordArt

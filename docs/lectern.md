@@ -14,6 +14,7 @@ The app is `public/lectern/` (`python3 tools/serve.py`, then http://127.0.0.1:87
 | `../common/zip.js` | ZIP reader/writer (CompressionStream with a pure-JS inflate fallback) |
 | `../common/xml.js`, `../common/opc.js`, `../common/opc-order.js` | Shared OOXML preservation graph, identities, namespace capture and schema order |
 | `../common/geometry.js` | 92 AutoShape presets, adjust handles, text rectangles, connectors |
+| `js/designs.js` | Imported master/layout library, selective design changes and independent design copies |
 | `js/model.js` | Presentation model, 14 design templates, 21 slide layouts, undo history |
 | `js/render.js` | DOM/SVG renderer for slides, fills, patterns, gradients, WordArt |
 | `../common/metafile.js` | WMF/EMF player, so old clip art, logos and pasted Excel/Visio graphics display |
@@ -111,7 +112,7 @@ relationship counts do not establish that an unsupported frame remains attached 
 | Kept; PowerPoint edit acceptance pending | Sections and custom shows | All 18 relevant decks retain 32/32 sections and 8/8 custom shows with unchanged expanded XML. Eight focused edit cases / 26 saved states pass package/SDK comparison |
 | Kept; PowerPoint edit acceptance pending | Comments | The 30 relevant decks retain 39/39 comment/author parts: 37 byte-identical, two Strict parts converted to Transitional. Copy/delete/paste ownership and modern anchors are implemented |
 | Kept, with remaining losses | Animation and transitions | 639/642 general effects, 112/112 transitions and 29/43 auto-advance timings |
-| Kept for used designs; unused designs incomplete | Masters and layouts | 864/896 masters and 7,209/7,249 named layouts; all layouts of retained used masters survive |
+| Kept; PowerPoint edit acceptance pending | Masters and layouts | All 54 masters and 276 layouts in the 13 unused-master decks remain; 52 masters and every layout retain exact bytes. Two damaged source masters require conversion |
 | Kept; PowerPoint edit acceptance pending | SmartArt, OLE and newer charts | 184/184 SmartArt, 71/71 OLE entries and 4/4 chartEx frames remain attached to their slides across all 135 relevant inputs; three missing drawing-cache references are removed with a notice |
 | Kept; PowerPoint edit acceptance pending | Ink and 3-D models | 44/44 ink/content-part entries and 2/2 3-D models; unavailable previews have editable placeholder frames |
 | Dropped on general non-media shapes | Extended visual effects | 0/64 glow/reflection/soft-edge, 0/109 3-D effect, 0/36 inner-shadow, 0/4 recolour/artistic and 0/24 run-effect inventory items |
@@ -151,9 +152,21 @@ LibreOffice rendering has not been completed. Reports and history:
 |---|---|
 | Edit slide text | Keep unrelated package parts, custom-property types/pids and unedited notes |
 | Duplicate a slide | Copy its notes page and redirect its backlink |
-| Leave a used design unchanged | Retain its original master, every layout and theme |
-| Change a design, or leave a master unused | Complete invalidation/retention rules are pending |
+| Leave a design unchanged, unused, or delete its last slide | Retain its original master, every layout and theme |
+| Change colors or fonts | Update only changed color slots or Latin font entries; keep theme effects, other scripts and layouts |
+| Edit a master background, decoration or placeholder frame | Update the owning property; retain unrelated layouts and original shape identities |
+| Change master text styles, footer font or title alignment | Replace edited attributes/properties; keep unknown siblings and other levels |
+| Apply colors to only some slides | Create an independent master/layout/theme family for those slides |
+| Undo/redo or recover a draft | Restore the design library and its preserved properties |
 | Save as a macro-free variant | Report VBA removal; cancellation leaves file identity and acknowledgements unchanged |
+
+The 13-deck design sweep, with four targeted corrections, has 11 passing package/SDK comparisons;
+two originals with missing dependencies remain failed comparisons. Ten focused cases / 32 saved
+states pass package/SDK checks and cover geometry, theme changes, styles, independent copies,
+last-slide deletion, undo/redo and actual drafts. Two edited samples open in LibreOffice with
+expected slide counts. All 118 unit tests pass and four pages load without console errors.
+PowerPoint batch 4 and the full Lectern group run remain pending. Reports:
+`~/corpora/results/lectern-preservation-2026-10-09/designs-*`.
 
 ### Sections and custom shows: edit behavior
 

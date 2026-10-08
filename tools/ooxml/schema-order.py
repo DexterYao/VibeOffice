@@ -17,7 +17,7 @@ import zipfile
 XS = '{http://www.w3.org/2001/XMLSchema}'
 SELECT = {
     'w': ['CT_RPr', 'CT_PPr', 'CT_SectPr', 'CT_Settings', 'CT_TblPr', 'CT_TcPr', 'CT_TrPr'],
-    'a': ['CT_ShapeProperties', 'CT_EffectList', 'CT_TextBodyProperties', 'CT_TextParagraphProperties', 'CT_TextCharacterProperties', 'CT_Blip', 'CT_BlipFillProperties', 'CT_NonVisualDrawingProps'],
+    'a': ['CT_TextBody', 'CT_ShapeProperties', 'CT_EffectList', 'CT_TextBodyProperties', 'CT_TextParagraphProperties', 'CT_TextCharacterProperties', 'CT_Blip', 'CT_BlipFillProperties', 'CT_NonVisualDrawingProps'],
     'wp': ['CT_Anchor', 'CT_Inline'],
     'p': ['CT_Presentation', 'CT_PresentationProperties', 'CT_ViewProperties', 'CT_Slide', 'CT_CommonSlideData', 'CT_SlideLayout', 'CT_NotesMaster', 'CT_NotesSlide', 'CT_SlideMaster'],
     's': ['CT_Stylesheet', 'CT_Worksheet', 'CT_Workbook', 'CT_Table', 'CT_TableColumn', 'CT_QueryTableRefresh', 'CT_PivotCacheDefinition'],

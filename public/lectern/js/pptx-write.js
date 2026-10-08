@@ -241,6 +241,7 @@
     return `<p:nvPr><p:ph${a.length ? ' ' + a.join(' ') : ''}/></p:nvPr>`;
   }
   function shapeXML(sh, ctx, design) {
+    if (ctx.designTemplate) return '';
     const id = ctx.nextId(sh.id);
     if (ctx.writer && sh.keep?.frame) {
       const kept = L.frames.emit(sh, ctx);
@@ -248,6 +249,10 @@
     }
     if (ctx.writer && sh.keep?.media) {
       const kept = L.preserve.emitShape(sh, ctx, () => shapeXML({ ...sh, keep: null }, ctx, design));
+      if (kept != null) return kept;
+    }
+    if (ctx.writer && sh.keep?.designFrame) {
+      const kept = L.designs.shape(sh, ctx);
       if (kept != null) return kept;
     }
     switch (sh.type) {
@@ -633,8 +638,8 @@
   }
   function masterXML(d, ctx, layoutIds) {
     let id = 1;
-    const nid = () => ++id;
-    ctx.nextId = () => nid();
+    const nid = ctx.nextId || (() => ++id);
+    ctx.nextId ||= nid;
     const deco = (d.deco || []).map((s) => shapeXML(s, ctx, d)).join('');
     const body = (t) => L.txt.body([L.txt.para(t)], { anchor: 't' });
     const ph = d.ph;
@@ -646,20 +651,20 @@
     const sn = placeholderSp(nid(), 'Slide Number Placeholder 5', { type: 'sldNum', idx: 4 }, ph.sldNum, Object.assign(L.txt.body([{ lvl: 0, pp: {}, rs: [{ t: '‹#›', fld: 'slidenum' }] }]), { lst: footLst('r') }), ctx, d);
     const tStyle = levelsXML([L.deepMerge(L.model.DEFAULT_TX.title[0], d.tx.title[0])], ctx, d);
     const bStyle = levelsXML(L.model.DEFAULT_TX.body.map((lv, i) => L.deepMerge(lv, d.tx.body[i])), ctx, d);
-    const oStyle = levelsXML(L.model.DEFAULT_TX.other, ctx, d);
+    const oStyle = levelsXML(d.tx.other || L.model.DEFAULT_TX.other, ctx, d);
     const lids = layoutIds.map((l) => `<p:sldLayoutId id="${l.id}" r:id="${l.rid}"/>`).join('');
     return HEAD + `<p:sldMaster ${NSDECL}><p:cSld>${bgXML(d.bg || { t: 'solid', c: 'bg1' }, ctx, d)}<p:spTree>${GRP}${deco}${tp}${bp}${dt}${ft}${sn}</p:spTree></p:cSld>${CLRMAP}<p:sldLayoutIdLst>${lids}</p:sldLayoutIdLst><p:txStyles><p:titleStyle>${tStyle}</p:titleStyle><p:bodyStyle>${bStyle}</p:bodyStyle><p:otherStyle>${oStyle}</p:otherStyle></p:txStyles></p:sldMaster>`;
   }
   function layoutXML(d, key, lkey, ctx) {
     const info = L.model.layoutInfo(key);
     let id = 1;
-    const nid = () => ++id;
-    ctx.nextId = () => nid();
+    const nid = ctx.nextId || (() => ++id);
+    ctx.nextId ||= nid;
     let deco = '', showMaster = true, bg = '';
-    if (lkey && d.layoutDecos && d.layoutDecos[lkey]) { deco = d.layoutDecos[lkey].map((s) => shapeXML(s, ctx, d)).join(''); showMaster = false; }
-    else if (key === 'title' && d.titleDeco) { deco = d.titleDeco.map((s) => shapeXML(s, ctx, d)).join(''); showMaster = false; }
-    if (lkey && d.layoutBgs && d.layoutBgs[lkey]) bg = bgXML(d.layoutBgs[lkey], ctx, d);
-    else if (key === 'title' && d.titleBg) bg = bgXML(d.titleBg, ctx, d);
+    if (key === 'title' && d.titleDeco) { deco = d.titleDeco.map((s) => shapeXML(s, ctx, d)).join(''); showMaster = false; }
+    else if (lkey && d.layoutDecos && d.layoutDecos[lkey]) { deco = d.layoutDecos[lkey].map((s) => shapeXML(s, ctx, d)).join(''); showMaster = !!d.layoutShowMaster?.[lkey]; }
+    if (key === 'title' && d.titleBg) bg = bgXML(d.titleBg, ctx, d);
+    else if (lkey && d.layoutBgs && d.layoutBgs[lkey]) bg = bgXML(d.layoutBgs[lkey], ctx, d);
     const frames = L.model.layoutFrames(key, d);
     const phs = frames.map((fr, i) => {
       const sh = L.model.makePlaceholder(fr, d);
@@ -740,8 +745,8 @@
       return freshName('ppt/slides', 'slide', 'xml');
     });
     const slideIndex = (id) => allSlides.findIndex((s) => s.id === id);
-    /* designs used, in order of first use */
-    const designIds = [];
+    /* Retain the imported design library, including masters with no slides. */
+    const designIds = Object.keys(pres.designs);
     for (const s of allSlides) if (!designIds.includes(s.design)) designIds.push(s.design);
     if (!designIds.length) designIds.push(Object.keys(pres.designs)[0]);
 
@@ -793,10 +798,41 @@
     const layoutPartOf = new Map(); /* designId|layoutKey|lkey -> layout file number */
     let layoutN = 0;
     const masterN = new Map();
+    let firstTheme = null;
     designIds.forEach((did, mi) => {
       const d = pres.designs[did] || L.model.buildDesign('default', pres.W, pres.H);
       const mNum = mi + 1;
-      const original = d.keep?.source === pres.pkg?.id && d.keep?.values === L.preserve.designValues(d);
+      if (d.keep?.master) {
+        try {
+          const kept = L.designs.write(d, pres, pack, {
+            name: freshName, master: masterXML, layout: layoutXML, theme: themeXML, shape: shapeXML,
+            context: (part, shapes, owner) => {
+              pack.use(part);
+              const rels = pack.rels(part), ids = new Map(), byId = new Map();
+              L.model.walk(shapes, s => { byId.set(s.id, s); return true; });
+              return { writer: owner, frames, part, rels, media: mediaSync(rels, part), svg: svgSync(rels, part), slideIndex,
+                fieldId: fieldIds(part), slideTarget: i => K.relative(part, slideParts[i]),
+                nextId: mid => {
+                  if (ids.has(mid)) return ids.get(mid);
+                  const f = byId.get(mid)?.keep?.identity, ref = f?.ids.find(r => r.kind === 'shape' && r.definition);
+                  const id = ref ? owner.ids.resolve(ref.source, ref.scope, ref.kind, ref.id, { primary: pres.pkg?.id, scope: part }) : owner.ids.fresh(part, 'shape');
+                  if (mid) ids.set(mid, id); return id;
+                }, idOf: mid => ids.get(mid), findShape: mid => byId.get(mid),
+                addChart: (xml, parts) => { chartN++; charts.push({ n: chartN, xml, parts }); return chartN; } };
+            },
+          });
+          if (kept) {
+            if (!mi) firstTheme = kept.theme;
+            masterIdList.push({ id: kept.id, rid: writer.rels(presRels.owner).add(RT('slideMaster'), K.relative(presRels.owner, kept.part), false, kept.rid) });
+            for (const [key, part] of kept.layouts) layoutPartOf.set(did + '|' + key, { part });
+            masterN.set(did, mNum); return;
+          }
+        } catch (error) {
+          if (error.code !== 'OOXML_DESIGN_DEPENDENCY') throw error;
+          writer.loss({ id: 'design:' + d.keep.part, what: 'The design was converted because its original dependencies are incomplete: ' + error.message, where: d.keep.part, action: 'conversion' });
+        }
+      }
+      const original = !d.keep?.master && d.keep?.source === pres.pkg?.id && d.keep?.values === L.preserve.designValues(d);
       const used = allSlides.filter(s => s.design === did).map(s => s.layout + (s.lkey ? '|' + s.lkey : ''));
       if (original && used.every(key => d.keep.layouts[key])) {
         try {
@@ -879,7 +915,10 @@
       const sRels = pack.rels(part);
       const lk = s.design + '|' + s.layout + (s.lkey ? '|' + s.lkey : '');
       const ln = layoutPartOf.get(lk) || layoutPartOf.get(designIds[0] + '|text') || 1;
-      if (ln.original) {
+      if (ln.part) {
+        const dep = pres.pkg?.rels(s.keep?.part || '').find(r => r.part === ln.part && K.relationshipType(r.type) === RT('slideLayout'));
+        writer.rels(sRels.owner).add(dep?.type || RT('slideLayout'), K.relative(sRels.owner, ln.part), false, dep?.id);
+      } else if (ln.original) {
         const dep = pres.pkg.rels(s.keep?.part || '').find(r => r.part === ln.original && K.relationshipType(r.type) === RT('slideLayout'));
         writer.rels(sRels.owner).add(dep?.type || RT('slideLayout'), K.relative(sRels.owner, writer.target(pres.pkg, ln.original)), false, dep?.id);
       } else sRels.add(RT('slideLayout'), K.relative(part, `ppt/slideLayouts/slideLayout${ln}.xml`));
@@ -982,7 +1021,8 @@
     /* presentation-level parts */
     presRels.add(RT('presProps'), 'presProps.xml');
     presRels.add(RT('viewProps'), 'viewProps.xml');
-    presRels.add(RT('theme'), 'theme/theme1.xml');
+    if (firstTheme) writer.rels(presRels.owner).add(RT('theme'), K.relative(presRels.owner, firstTheme));
+    else presRels.add(RT('theme'), 'theme/theme1.xml');
     presRels.add(RT('tableStyles'), 'tableStyles.xml');
     const sizeType = { '720x540': 'screen4x3', '720x405': 'screen16x9', '720x450': 'screen16x10', '780x540': 'A4', '810x540': '35mm', '576x72': 'banner' }[`${Math.round(pres.W)}x${Math.round(pres.H)}`] || 'custom';
     const defStyle = levelsXML(L.model.DEFAULT_TX.other, { rels: presRels, media: () => null }, pres.designs[designIds[0]]);

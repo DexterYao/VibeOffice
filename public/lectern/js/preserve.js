@@ -148,6 +148,7 @@
     const cnv = kid(kids(original).find(e => /^nv/.test(e.localName)), 'cNvPr');
     if (!cnv) return;
     shape.keep = { source: pkg.id, part, identity: K.fragment(cnv, { pkg, part }) };
+    if (/\/slide(?:Masters|Layouts)\//.test(part)) shape.keep.designFrame = K.fragment(working && K.alternate(working) ? working : original, { pkg, part });
     if (find(cnv, 'snd')) shape.keep.sound = true;
     const alternate = K.alternate(working);
     if (shape.type === 'image' && (P.isMedia(original) || alternate && P.isMedia(K.parse(alternate.xml)))) {
@@ -155,6 +156,7 @@
     }
   };
   P.seal = function (pres) {
+    L.designs.seal(pres);
     for (const d of Object.values(pres.designs)) if (d.keep) {
       d.keep.themeValues = JSON.stringify([d.colors, d.fonts]);
       d.keep.values = P.designValues(d);

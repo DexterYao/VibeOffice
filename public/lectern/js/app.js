@@ -663,7 +663,7 @@ addEventListener('resize',fit);fit();show(0);<\/script></body></html>`], { type:
     else for (const id of ids) {
       const users = L.pres.slides.filter((s) => s.design === id);
       if (users.every((s) => targets.includes(s))) { L.pres.designs[id].colors = Object.assign({}, L.pres.designs[id].colors, L.clone(cs)); continue; }
-      const d = L.clone(L.pres.designs[id]); d.id = L.uid('dsn'); d.colors = Object.assign({}, d.colors, L.clone(cs)); L.pres.designs[d.id] = d;
+      const d = L.opc.duplicate(L.pres.designs[id]); d.id = L.uid('dsn'); d.colors = Object.assign({}, d.colors, L.clone(cs)); L.pres.designs[d.id] = d;
       for (const s of targets) if (s.design === id) s.design = d.id;
     }
     if (A.view === 'master') E.buildMaster();

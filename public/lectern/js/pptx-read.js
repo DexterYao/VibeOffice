@@ -1,7 +1,7 @@
 /* Lectern — PresentationML reader (.pptx / .ppsx / .potx / .pptm). */
 (function () {
   'use strict';
-  const L = window.L;
+  const L = window.L, K = L.opc;
   const pt = L.emu2pt;
   const NS_R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
 
@@ -968,11 +968,13 @@
     async function loadMaster(p) {
       if (masters.has(p)) return masters.get(p);
       const mx = await xml(p);
+      if (!mx) throw new Error('Missing slide master: ' + p);
       const mr = await rels(p);
       const themeRel = Object.values(mr).find((r) => r.type === 'theme');
       const theme = await loadTheme(themeRel ? themeRel.target : '');
       const design = L.model.buildDesign('default', W, H);
-      design.keep = { source: pkg?.id, part: p, theme: themeRel?.target, layouts: {} };
+      design.keep = { source: pkg?.id, part: p, theme: themeRel?.target, layouts: {}, layoutParts: [] };
+      if (pkg?.has(p)) design.keep.master = K.fragment(pkg.xml(p), { pkg, part: p });
       design.name = theme.name || 'Imported Design';
       design.key = 'imported';
       design.colors = Object.assign({}, design.colors, theme.colors);
@@ -1010,6 +1012,7 @@
     async function loadLayout(p) {
       if (layouts.has(p)) return layouts.get(p);
       const lx = await xml(p);
+      if (!lx) throw new Error('Missing slide layout: ' + p);
       const lr = await rels(p);
       const mRel = Object.values(lr).find((r) => r.type === 'slideMaster');
       const master = await loadMaster(mRel ? mRel.target : '');
@@ -1030,16 +1033,19 @@
       for (const ph of phs) if ((ph.ph.type === 'ctrTitle' || ph.ph.type === 'subTitle') && ph.xfrm && !master.design._ctrSet) master.design.ph[ph.ph.type] = { x: ph.xfrm.x, y: ph.xfrm.y, w: ph.xfrm.w, h: ph.xfrm.h };
       if (phs.some((x) => x.ph.type === 'ctrTitle')) master.design._ctrSet = true;
       const d = master.design;
-      if (deco.length || bg || !showMaster) {
+      {
         const key = p.split('/').pop().replace('.xml', '');
         d.layoutDecos = d.layoutDecos || {};
         d.layoutBgs = d.layoutBgs || {};
         d.layoutNames = d.layoutNames || {};
-        d.layoutDecos[key] = (showMaster ? L.clone(d.deco) : []).concat(deco);
+        d.layoutDecos[key] = deco;
+        (d.layoutShowMaster ||= {})[key] = showMaster;
         if (bg) d.layoutBgs[key] = bg;
         d.layoutNames[key] = name;
         info.lkey = key;
       }
+      if (pkg?.has(p)) d.keep.layoutParts.push({ part: p, lkey: info.lkey, type,
+        fragment: K.fragment(pkg.xml(p), { pkg, part: p }) });
       layouts.set(p, info);
       return info;
     }
@@ -1850,6 +1856,21 @@
         console.warn('slide skipped', sp, e);
         damaged.push(sp);
       }
+    }
+    // Unused masters and layouts are still part of the document's design library.
+    for (const ref of Object.values(presRels).filter(r => r.type === 'slideMaster')) {
+      try {
+        const master = await loadMaster(ref.target);
+        for (const rel of Object.values(master.mr).filter(r => r.type === 'slideLayout')) {
+          try { await loadLayout(rel.target); } catch (_) { damaged.push(rel.target); }
+        }
+      } catch (_) { damaged.push(ref.target); }
+    }
+    for (const layout of layouts.values()) {
+      const key = LAYOUT_MAP[layout.type] || (layout.phs.some(p => p.ph.type === 'ctrTitle') ? 'title' : layout.phs.some(p => p.ph.type === 'title') ? (layout.phs.length > 1 ? 'text' : 'titleOnly') : 'blank');
+      layout.master.design.keep.layouts[key + '|' + layout.lkey] = layout.path;
+      layout.master.design.keep.layouts[key] ||= layout.path;
+      const record = layout.master.design.keep.layoutParts.find(r => r.part === layout.path); if (record) record.key = key;
     }
     /* resolve slide-jump hyperlinks and strip numeric ids */
     const fixLinks = (o) => {

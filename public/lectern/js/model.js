@@ -570,7 +570,7 @@
   M.gcDesigns = function (pres) {
     const used = new Set(pres.slides.map((s) => s.design));
     const ids = Object.keys(pres.designs);
-    for (const id of ids) if (!used.has(id) && ids.length > 1 && used.size) delete pres.designs[id];
+    for (const id of ids) if (!used.has(id) && !pres.designs[id].keep?.master && ids.length > 1 && used.size) delete pres.designs[id];
   };
 
   /* ---------- shape factories ---------- */
