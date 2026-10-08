@@ -136,24 +136,27 @@ be served over https or from localhost. A workbook opened with its password keep
 
 Ledger regenerates worksheets and keeps original package dependencies, workbook settings, style
 indices and shared strings. Save and drafts retain all four OOXML variants and encryption. The
-Compatibility Checker reports recorded conversions before a user download; reporting is incomplete
-for the remaining object features.
+Compatibility Checker reports conversions from the prepared output before a user download,
+including edited imported charts and opaque drawings. Drafts retain notices silently.
 
 The pinned 951-file corpus saves and reopens **935 workbooks**, with **11 failures and 5 exclusions**.
 Cell edit/save/undo/redo completes in **933**, with **11 failures and 7 exclusions**; draft recovery
-completes in **935**, with **11 failures and 5 exclusions**. The full run uses writer `8236f3a`
-with five measured correction inputs. Package/SDK comparison reports **911 OK, 35 failed and
+completes in **935**, with **11 failures and 5 exclusions**. The final full run uses writer `69be775`.
+Package/SDK comparison reports **911 OK, 35 failed and
 5 excluded** for unedited saves. Across **6,589** save/edit/history/draft states, **6,371 pass,
 201 fail and 17 are excluded**; none adds diagnostics. Malformed or unvalidatable originals
-remain failures in the reports. All **115 unit tests** pass.
+remain failures in the reports. The complete unit set has **120 passing tests**.
 
-The feature inventory compares **923 readable pairs**. The independent openpyxl cell comparison
-completes in **889 workbooks / 1,649,147 cells**: **883 workbooks** keep every compared value/formula;
+The feature inventory compares **922 readable pairs**. The independent openpyxl cell comparison
+covers **889 workbooks / 1,649,147 cells**: **883 workbooks** keep every compared value/formula;
 6 differ, and 2 differ in formatting. Exceptions include adversarial shared strings, out-of-range
 cells, a template and dynamic-array formulas. The other **62 attempts** remain reported failures,
 including six saved copies openpyxl cannot read. The edited comparison excludes only the scripted
 A1 target: **879 of 887 workbooks** match every other value/formula; six have existing differences
 and two recalculate dependent array-result cells. No blanket lossless claim is made for these inputs.
+One large workbook reached the fresh audit's 40-second limit; its previous passing save/edit cell comparisons are reused after
+verifying that all 18 ZIP members in each current output are byte-identical. The original timeout
+remains in the report. The feature audit now rejects an invalid UTF-8 part in `tdf76115` explicitly.
 
 | Status | Feature | Current measured result / limit |
 |---|---|---|
@@ -178,7 +181,8 @@ All 15 suite batch files open in LibreOffice with unchanged counts. Strict conve
 all **23 Strict workbooks / 92 emitted states** against original package/SDK diagnostics and keeps
 its notice through draft recovery; the Strict Excel sample passed Office batch 2.
 Reports, failed attempts and historical measurements: `~/corpora/results/next-plan-head-2026-10-08/`
-and `~/corpora/results/strict-transitional-2026-10-08/`. Current full-group results:
+and `~/corpora/results/strict-transitional-2026-10-08/`. Current full results:
+`~/corpora/results/final-suite-2026-10-09/ledger/`; feature edit checks remain in
 `~/corpora/results/ledger-group-2026-10-09/`. The 15-file **Office batch 3** passes package/SDK and
 LibreOffice, with explained changes against the previous writer; **Excel acceptance is pending**.
 

@@ -12,7 +12,7 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 - Quire content controls, text/drawing properties, embedded objects, row/cell alternatives and
   watermarks (Office batch 2 accepted, including the comment correction and namespace follow-up).
 
-**Implemented; Office pending:** Ledger object-level features and the full group measurement.
+**Implemented; Office pending:** Ledger object-level features, full group and final measurement.
 
 **Not done:** Excel/PowerPoint acceptance and completion of the final suite measurement.
 Remaining conversion paths now report from the prepared save; focused checker/cancellation/draft checks pass.
@@ -311,6 +311,16 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   151 absent from the earlier scan; preserved/converted source markup, scoped compatibility rules,
   graphic-frame transforms and content-type forms are recorded in the run report. Final Word/Excel
   runs are underway. Reports: `~/corpora/results/lectern-group-2026-10-09/`.
+
+- The final Ledger run at `69be775` completes all 2,853 attempts with unchanged driver totals.
+  All 6,589 package/SDK states are accounted for: 6,371 pass, 201 fail on damaged/unvalidatable
+  inputs and 17 are excluded; none adds diagnostics. The fresh openpyxl checks cover 888 saves
+  and 886 edits. One timed-out large workbook reuses its previous passing comparison after all
+  18 output parts in each scenario match byte for byte, giving 889/887 compared workbooks in total.
+  All new object inventories remain complete. The convention scan has 185 signatures; three additional signatures come from the recovered
+  fuzzer omitted by the earlier scan (its corrected output is byte-identical). Excel batch 3 acceptance is still pending. Markdown remains unchanged:
+  652/652 CommonMark, 22/22 GFM, 24/24 exact saves and edits confined to their blocks.
+  Reports: `~/corpora/results/final-suite-2026-10-09/ledger/`.
 
 ## Review of 6d24c43..275406e (2026-10-08)
 Followed well: bounded Office batches with previous-writer comparison, checker rules for the WordArt
