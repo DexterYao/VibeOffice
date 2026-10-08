@@ -376,6 +376,19 @@ test('geometry edits change the outer group transform without rewriting child ge
   assert.throws(() => K.setBox(xml, { w: NaN }), /Invalid box/);
 });
 
+test('moving a 3-D frame keeps model coordinates; ink has its own outer transform', () => {
+  const inner = '<am3d:model3d xmlns:am3d="http://schemas.microsoft.com/office/drawing/2017/model3d"><am3d:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="300" cy="400"/></a:xfrm></am3d:spPr></am3d:model3d>';
+  const xml = `<p:graphicFrame xmlns:p="${N.p}" xmlns:a="${N.a}"><p:xfrm><a:off x="12700" y="25400"/><a:ext cx="38100" cy="50800"/></p:xfrm><a:graphic><a:graphicData>${inner}</a:graphicData></a:graphic></p:graphicFrame>`;
+  const changed = K.setBox(xml, { x: 10, y: 20, w: 30, h: 40 });
+  assert.ok(changed.includes(inner)); assert.equal(K.getBox(changed).x, 10);
+  const ink = `<p:contentPart xmlns:p="${N.p}" xmlns:a="${N.a}" xmlns:p14="http://schemas.microsoft.com/office/powerpoint/2010/main"><p14:xfrm><a:off x="12700" y="25400"/><a:ext cx="38100" cy="50800"/></p14:xfrm></p:contentPart>`;
+  assert.equal(K.getBox(K.setBox(ink, { x: 5 })).x, 5);
+});
+test('OLE preview identities are owned by the related VML part', () => {
+  const f = K.fragment(K.parse(`<p:oleObj xmlns:p="${N.p}" spid="_x0000_s1030"/>`), { part: 'ppt/slides/slide1.xml' });
+  assert.deepEqual(f.ids, []); assert.match(f.xml, /spid="_x0000_s1030"/);
+});
+
 test('editing a Strict property replaces it once and retains Strict namespace and sibling effects', () => {
   const ns = 'http://purl.oclc.org/ooxml/drawingml/main';
   const xml = `<a:effectLst xmlns:a="${ns}"><a:glow rad="3"/><a:outerShdw blurRad="4"/><a:reflection blurRad="5"/></a:effectLst>`;

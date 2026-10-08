@@ -16,7 +16,7 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 
 **Not done:** Lectern object-level remainder and final suite measurement/loss reporting.
 
-Lectern sections/custom shows and comments are implemented and measured; PowerPoint acceptance
+Lectern sections/custom shows, comments and opaque frames are implemented and measured; PowerPoint acceptance
 will be requested together in batch 4 after the remaining Lectern features.
 
 **Slide-6 repair: fixed** (60c26b4, confirmed in PowerPoint). Read "Office acceptance" in AGENTS.md
@@ -257,6 +257,23 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   samples plus four history states have expected slide counts. All 115 unit tests pass. PowerPoint
   acceptance is pending in batch 4; these changes use the presentation merge/identity patterns
   accepted in batch 1 and do not depend on the pending Excel-specific patterns. Next: slide comments.
+
+- Lectern slide comments retain legacy/modern threads, authors, replies and anchors. All 30 relevant
+  decks save/reopen and keep 39/39 parts (37 byte-identical, two Strict conversions); 29 package/SDK
+  comparisons pass and one original CRC failure remains explicit. Twelve focused cases / 38 states
+  cover copies, deletion, anchor edits, clipboard, undo and drafts; all pass Microsoft365 SDK checks.
+  Two edited samples and four history states open in LibreOffice. Modern threads use a documented
+  schema-authored fixture because the corpus has only modern authors. PowerPoint batch 4 is pending.
+- Lectern opaque SmartArt, OLE, ink, 3-D and new-chart frames now follow their previews through
+  geometry, copies, clipboard and drafts; content edits and ungrouping record conversions. The
+  135-deck sweep plus three targeted corrections retains 184/184 SmartArt, 71/71 OLE, 44/44 ink,
+  2/2 3-D and 4/4 new-chart entries. Of 959 dependency parts, 928 are byte-identical, ten are Strict
+  conversions, three remove missing optional cache references, and 18 are unreferenced orphans
+  in one damaged original. Package checks add no issues; 133 SDK comparisons pass and two originals
+  with missing parts remain failed comparisons. Twenty focused cases / 62 states pass package/SDK;
+  five edited samples open in LibreOffice with expected counts. All 118 unit tests pass and four
+  pages load without console errors. Reports: `~/corpora/results/lectern-preservation-2026-10-09/frames-*`.
+  PowerPoint batch 4 and the full Lectern group run remain pending. Next: unused masters and design edits.
 
 ## Review of 6d24c43..275406e (2026-10-08)
 Followed well: bounded Office batches with previous-writer comparison, checker rules for the WordArt

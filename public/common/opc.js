@@ -357,7 +357,8 @@
     else if (tag === 'cNvPr' && name === 'id') { kind = 'shape'; definition = true; }
     else if (isP && tag === 'cTn' && name === 'id') { kind = 'timing'; definition = true; }
     else if (isP && tag === 'tn' && name === 'val') kind = 'timing';
-    else if ((isP && name === 'spid') || ['stCxn', 'endCxn'].includes(tag) && name === 'id') kind = 'shape';
+    // An OLE preview names a shape in the related VML part, not this slide's cNvPr space.
+    else if ((isP && name === 'spid' && tag !== 'oleObj') || ['stCxn', 'endCxn'].includes(tag) && name === 'id') kind = 'shape';
     else if (isP && name === 'grpId' && ['cTn', 'bldP', 'bldDgm', 'bldOleChart', 'bldGraphic'].includes(tag)) { kind = 'build'; definition = tag !== 'cTn'; }
     else if (isW && name === 'id' && /^(bookmark|perm)(Start|End)$/.test(tag)) { kind = tag.startsWith('bookmark') ? 'bookmark' : 'permission'; definition = tag.endsWith('Start'); }
     else if (isW && name === 'id' && /^(ins|del|moveFrom|moveTo|\w+PrChange|numberingChange|cellIns|cellDel|cellMerge)$/.test(tag)) { kind = 'revision'; scope = 'document'; definition = true; }
@@ -654,7 +655,7 @@
 
   const direct = (el, name) => elements(el).find(e => e.localName === name);
   function outerFrames(tree) {
-    const names = new Set(['sp', 'pic', 'graphicFrame', 'grpSp', 'wsp', 'wgp', 'spTree', 'shape', 'rect', 'oval', 'group']);
+    const names = new Set(['sp', 'pic', 'graphicFrame', 'grpSp', 'contentPart', 'model3d', 'wsp', 'wgp', 'spTree', 'shape', 'rect', 'oval', 'group']);
     const out = [];
     function scan(e, inside) {
       if (e !== tree && inside && names.has(e.localName)) return;

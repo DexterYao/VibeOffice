@@ -239,6 +239,12 @@ counts with `pdfinfo`. Unedited saves must keep the page count; edit scenarios c
 
 ### Lectern media preservation
 
+`node tools/lectern/test/frames.mjs OUTPUT_DIR [SCENARIO_REGEX]` exercises opaque SmartArt, OLE,
+ink, 3-D and chartEx previews with geometry/content edits, copies, deletion, ungrouping, clipboard
+renditions and drafts. Run `python3 tools/lectern/test/frame-fixtures.py FIXTURE_DIR` first for its
+multiple-member fallback case; `FRAME_FIXTURES` overrides the default sibling `frames-fixtures/`
+directory. The fixture is derived from a public SDK chartEx input, with explicit provenance.
+
 `python3 tools/lectern/test/comment-fixtures.py FIXTURE_DIR` creates a documented schema-authored
 modern thread/task/anchor sample on a pinned public deck; it is not an Office-authored input.
 `node tools/lectern/test/comments.mjs OUTPUT_DIR FIXTURE_DIR [SCENARIO_REGEX]` checks original

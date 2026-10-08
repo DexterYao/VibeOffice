@@ -242,6 +242,10 @@
   }
   function shapeXML(sh, ctx, design) {
     const id = ctx.nextId(sh.id);
+    if (ctx.writer && sh.keep?.frame) {
+      const kept = L.frames.emit(sh, ctx);
+      if (kept != null) return kept;
+    }
     if (ctx.writer && sh.keep?.media) {
       const kept = L.preserve.emitShape(sh, ctx, () => shapeXML({ ...sh, keep: null }, ctx, design));
       if (kept != null) return kept;
@@ -712,6 +716,7 @@
     const defaults = new Map([['rels', 'application/vnd.openxmlformats-package.relationships+xml'], ['xml', 'application/xml']]);
     const mainCT = format.contentType;
     const presRels = pack.rels('ppt/presentation.xml');
+    const frames = L.frames.prepare(pres, writer);
     const mediaMap = new Map(); /* media id → {name} */
     let chartN = 0;
     const charts = [];
@@ -882,11 +887,11 @@
       // Some source decks reuse the structural spTree ID for an actual shape.
       // Keep the visible shape's identity (timing may target it) and repair the root.
       let rootClash = false;
-      L.model.walk(s.shapes, shape => { if (shape.keep?.identity.ids.some(ref => ref.kind === 'shape' && ref.definition && String(ref.id) === String(rootId) && ref.scope === part)) rootClash = true; return true; });
+      L.model.walk(s.shapes, shape => { if (shape.keep?.identity?.ids.some(ref => ref.kind === 'shape' && ref.definition && String(ref.id) === String(rootId) && ref.scope === part)) rootClash = true; return true; });
       if (rootClash) rootId = writer.ids.fresh(part, 'shape');
       const idMap = new Map();
       const ctx = {
-        writer, part, rels: sRels, media: mediaSync(sRels, part), svg: svgSync(sRels, part), slideIndex, fieldId: fieldIds(part),
+        writer, frames, part, rels: sRels, media: mediaSync(sRels, part), svg: svgSync(sRels, part), slideIndex, fieldId: fieldIds(part),
         slideTarget: index => K.relative(part, slideParts[index]),
         nextId: (mid) => {
           if (idMap.has(mid)) return idMap.get(mid);

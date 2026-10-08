@@ -33,7 +33,8 @@
       const fb = kidsEl.find((c) => c.localName === 'Fallback');
       const ch = kidsEl.find((c) => c.localName === 'Choice');
       const pick = fb && fb.children.length ? fb : ch || fb;
-      if (pick) ac.replaceWith(...Array.from(pick.childNodes)); else ac.remove();
+      if (pick?.children.length) ac.replaceWith(...Array.from(pick.childNodes));
+      else if (!['spTree', 'grpSp'].includes(ac.parentNode.localName)) ac.remove();
     }
   }
   const kids = (el, name) => (el ? Array.from(el.children).filter((c) => !name || c.localName === name) : []);
@@ -1103,10 +1104,16 @@
       const out = [];
       for (const el of kids(tree)) {
         try {
-          const s = await shapeFrom(el, ctx, opts);
-          if (!s) continue;
           const source = original(ctx.partPath);
-          if (source) for (const shape of Array.isArray(s) ? s : [s]) L.preserve.shape(shape, source.map.get(String(shape.numId)), el, pkg, ctx.partPath);
+          const cnv = desc(el, 'cNvPr'), raw = source?.map.get(at(cnv, 'id'));
+          let s = await shapeFrom(el, ctx, opts);
+          if ((!s || Array.isArray(s) && !s.length) && source) s = L.frames.placeholder(el, raw, tree, ctx);
+          if (!s) continue;
+          if (source) {
+            const models = Array.isArray(s) ? s : [s];
+            for (const shape of models) L.preserve.shape(shape, source.map.get(String(shape.numId)), el, pkg, ctx.partPath);
+            L.frames.attach(models, el, raw, tree, pkg, ctx.partPath);
+          }
           if (Array.isArray(s)) out.push(...s); else out.push(s);
         } catch (e) { console.warn('shape skipped', e); }
       }
@@ -1870,8 +1877,9 @@
     for (const s of pres.slides) L.model.walk(s.shapes, pick);
     for (const d of Object.values(pres.designs)) [d.deco, d.titleDeco].concat(d.layoutDecos ? Object.values(d.layoutDecos) : []).forEach((list) => list && L.model.walk(list, pick));
     for (const sh of clearPics) { const v = await L.media.withTransparent(sh.media, sh.img.clear, 3); if (v) sh.img.view = v; }
-    L.preserve.seal(pres);
     pres.keep = { values: L.preserve.values(pres), media: Object.fromEntries(Array.from(mediaCache, ([part, id]) => [id, part])) };
+    await L.frames.seal(pres, mediaCache);
+    L.preserve.seal(pres);
     L.preserve.readSlideLists(pres);
     pres.ooxmlFormat = L.opc.variant(pres.pkg, 'pptx');
     return pres;

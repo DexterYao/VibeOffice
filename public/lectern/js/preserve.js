@@ -89,7 +89,7 @@
     const pkg = pres.pkg;
     const consumed = new Set([RT('officeDocument'), ...P.parts.map(p => p[1]), ...L.comments.types, ...['slide', 'slideMaster', 'slideLayout', 'notesSlide', 'theme', 'image', 'chart', 'hyperlink'].map(RT)]);
     const output = K.output(pkg, { doc: pres, format, contentType: P.mediaType,
-      consumes: (base, rel, type) => consumed.has(type),
+      consumes: (base, rel, type) => consumed.has(type) || L.frames.consumes(pres, base, rel),
       convert: (base, source, data) => /^ppt\/(theme\/|notesMasters\/|notesSlides\/|viewProps\.xml$|tableStyles\.xml$)/.test(base) ? data : null,
       merge: (base, source, data, writer) => P.mergePackage(pres, base, source, data, writer) });
     output.bind('ppt/presentation.xml', pkg?.main, 'merged');
@@ -132,7 +132,10 @@
     const tree = pkg.xml(part), map = new Map();
     for (const el of all(tree)) if (el.localName === 'cNvPr') {
       const shape = el.parentNode?.parentNode;
-      if (shape) map.set(el.getAttribute('id'), shape);
+      const prior = map.get(el.getAttribute('id'));
+      // An OLE preview can repeat its outer frame's ID. The frame owns that
+      // identity; sibling Choice/Fallback definitions still prefer the fallback.
+      if (shape && (!prior || !all(prior).includes(shape))) map.set(el.getAttribute('id'), shape);
     }
     return { tree, map };
   };
@@ -362,7 +365,7 @@
     return xml;
   };
   P.clipboard = function (item) {
-    const refs = L.comments.references(item), visit = value => {
+    const refs = [...L.comments.references(item), ...L.frames.references(item)], visit = value => {
       if (!value || typeof value !== 'object') return;
       if (typeof value.xml === 'string' && Array.isArray(value.deps)) {
         for (const dep of value.deps) if (!dep.external && dep.part) refs.push({ source: dep.source, part: dep.part });
@@ -393,6 +396,7 @@
       return true;
     };
     L.model.walk(item.kind === 'slides' ? item.slides.flatMap(s => s.shapes) : item.shapes || [], restore);
+    L.frames.restore(item);
     return item;
   };
 })();

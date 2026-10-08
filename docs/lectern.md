@@ -28,6 +28,7 @@ The app is `public/lectern/` (`python3 tools/serve.py`, then http://127.0.0.1:87
 | `js/slideshow.js` | Full-screen show, 58 transitions, 50+ entrance/emphasis/exit/motion-path effects, pen, rehearse timings |
 | `js/preserve.js` | Package ownership and settings merges; model-attached media, playback, property invalidation and clipboard dependencies |
 | `js/comments.js` | Legacy/modern comment ownership, author dependencies, copied identities and anchors |
+| `js/frames.js` | Opaque frame membership, geometry, diagram/VML dependencies and preview clipboard transport |
 | `js/pptx-read.js` | PresentationML import (themes, masters, layouts, placeholders, table styles, charts, SmartArt, custom geometry, animations; repairs damaged packages) |
 | `js/pptx-write.js` | PresentationML export (validated against the OOXML schema) |
 | `js/commands.js` | Every menu/toolbar command |
@@ -111,8 +112,8 @@ relationship counts do not establish that an unsupported frame remains attached 
 | Kept; PowerPoint edit acceptance pending | Comments | The 30 relevant decks retain 39/39 comment/author parts: 37 byte-identical, two Strict parts converted to Transitional. Copy/delete/paste ownership and modern anchors are implemented |
 | Kept, with remaining losses | Animation and transitions | 639/642 general effects, 112/112 transitions and 29/43 auto-advance timings |
 | Kept for used designs; unused designs incomplete | Masters and layouts | 864/896 masters and 7,209/7,249 named layouts; all layouts of retained used masters survive |
-| Converted to displayed groups/pictures | SmartArt, OLE and newer charts | 0/184 SmartArt frames, 0/71 OLE frames and 0/4 chartEx frames; their 184 diagram relationships, 51 OLE relationships and 4 chartEx parts remain in the package, which alone does not preserve editability |
-| Dropped from slide content | Ink and 3-D models | 0/44 ink/content-part entries and 0/2 3-D models |
+| Kept; PowerPoint edit acceptance pending | SmartArt, OLE and newer charts | 184/184 SmartArt, 71/71 OLE entries and 4/4 chartEx frames remain attached to their slides across all 135 relevant inputs; three missing drawing-cache references are removed with a notice |
+| Kept; PowerPoint edit acceptance pending | Ink and 3-D models | 44/44 ink/content-part entries and 2/2 3-D models; unavailable previews have editable placeholder frames |
 | Dropped on general non-media shapes | Extended visual effects | 0/64 glow/reflection/soft-edge, 0/109 3-D effect, 0/36 inner-shadow, 0/4 recolour/artistic and 0/24 run-effect inventory items |
 | Partly kept | Links, program/macro actions and shape tags | 369/422 hyperlinks and 14/29 action settings; shape-level tag ownership and unsupported action types remain unfinished |
 
@@ -193,18 +194,41 @@ Two edited samples and four history states open in LibreOffice with expected sli
 PowerPoint acceptance remains pending in batch 4. Reports:
 `~/corpora/results/lectern-preservation-2026-10-09/comments-*`.
 
-### Opaque frames: current edit limits
+### Opaque frames: edit behavior
+
+| Edit | Save behavior |
+|---|---|
+| Text outside an opaque object | Keep its original frame and dependent parts |
+| Move, resize or rotate its preview | Update the outer frame; retain internal 3-D coordinates, data and effects |
+| Copy or paste the object | Independent dependent parts and remapped identities; import preview renditions, diagram cache links and OLE/VML preview identities |
+| Change converted content or ungroup SmartArt | Save the edited group/picture and record the conversion |
+| Delete the object | Remove its original frame; do not restore it from package parts |
+| Delete or copy only some members of a compatibility fallback | Save those remaining/copied members as converted content; emit the original wrapper only when all members remain intact, ordered and contiguous |
+| Undo/redo or recover a draft | Restore original membership, dependencies and pending notices |
+
+The 135 relevant decks all save and reopen. Package/SDK comparison passes for 133; two originals
+have missing parts and remain failed comparisons. Twenty focused cases / 62 saved states cover
+geometry, copying, clipboard previews, content edits, ungrouping, deletion and actual draft recovery,
+including a schema-authored fallback with two displayed members. The two OLE identity corrections
+and the missing-cache correction were rerun separately; the original measurements remain recorded.
+Of 959 diagram, embedding, ink and model dependency parts, 928 are byte-identical, ten are Strict
+conversions, three remove missing optional cache references, and 18 are unreferenced orphan parts
+in one damaged source. Five edited samples open in LibreOffice with expected slide counts.
+All 118 unit tests pass and all four pages load without console errors.
+PowerPoint acceptance and the full Lectern group run remain pending. Reports:
+`~/corpora/results/lectern-preservation-2026-10-09/frames-*`.
+
+### Remaining shape edit limits
 
 | Edit | Current behavior / remaining work |
 |---|---|
-| Move, resize, edit or ungroup converted SmartArt/OLE/new-chart content | The displayed conversion is saved; original-frame ownership and geometry merging remain pending |
 | Change a non-media shape's shadow, fill or picture treatment | Regenerate modeled properties; unknown sibling effects still need per-property preservation |
 | Copy shape tags or unsupported file/program actions | Dependency and reference remapping still needs integration |
 
 ## Known limits
 
 * Legacy binary `.ppt` files must be re-saved as `.pptx` first. Macro-enabled OOXML variants keep their VBA; see *What a save keeps, converts and drops* for the remaining preservation gaps.
-* SmartArt currently saves as grouped shapes; its carried diagram parts do not restore the original frame. When a file carries only the diagram data (PowerPoint 2007 saved no drawing), Lectern lays it out itself with one of its built-in layout families, so unusual layouts look simpler than in PowerPoint.
+* SmartArt is displayed as grouped shapes and keeps its original frame until the group's content is edited or ungrouped. When a file carries only diagram data, Lectern draws it with a built-in layout family, so unusual layouts can look simpler in the editor.
 * 3-D charts are drawn in a fixed oblique view (no perspective, no lighting); surface charts, trendlines and error bars are not drawn (they are kept in unedited charts).
 * Embedded OLE objects and ActiveX controls import as their preview pictures.
 * Fonts that aren't installed fall back to metric-compatible web fonts (Arimo, Tinos, Cousine, Carlito, Caladea).
