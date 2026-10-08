@@ -21,6 +21,69 @@
     ['docProps/app.xml', RT('extended-properties'), 'merged', true],
   ]);
   P.values = pres => JSON.parse(JSON.stringify({ props: pres.props, W: pres.W, H: pres.H, firstNum: pres.firstNum, show: pres.show }));
+  P.readSlideLists = function (pres) {
+    const pkg = pres.pkg; if (!pkg) return;
+    const tree = pkg.xml(pkg.main), slides = pres.slides, rels = pkg.rels(pkg.main);
+    const sections = all(tree).filter(e => e.localName === 'section' && /powerpoint\/2010\/main$/.test(e.namespaceURI));
+    pres.keep.sections = sections.map(section => {
+      const id = section.getAttribute('id');
+      for (const member of kids(kid(section, 'sldIdLst'))) {
+        const slide = slides.find(s => s.keep?.sldId === member.getAttribute('id'));
+        if (slide) slide.section = id;
+      }
+      return id;
+    });
+    pres.keep.customShows = kids(kid(tree, 'custShowLst')).map(show => ({
+      id: show.getAttribute('id'), name: show.getAttribute('name'),
+      slides: kids(kid(show, 'sldLst')).map(member => {
+        const id = member.getAttributeNS(N.rel, 'id') || member.getAttributeNS(N.strictRel, 'id');
+        const part = rels.find(r => r.id === id)?.part;
+        return slides.find(s => s.keep?.part === part)?.id || null;
+      }),
+    }));
+  };
+  P.joinSection = function (pres, rest, at, slides) {
+    const sections = pres.keep?.sections;
+    const id = sections?.length ? rest[at - 1]?.section || rest[at]?.section || sections[0] : null;
+    for (const slide of slides) { if (id) slide.section = id; else delete slide.section; }
+  };
+  const emptyShows = pres => (pres.keep?.customShows || []).filter(show => show.slides.length && !show.slides.some(id => pres.slides.some(s => s.id === id)));
+  P.mergeSlideLists = function (pres, xml, writer) {
+    const tree = K.parse(xml), edits = [], live = new Set(pres.slides.map(s => s.id));
+    const members = new Map();
+    let prior;
+    for (let i = 0; i < pres.slides.length; i++) {
+      const slide = pres.slides[i];
+      // Importers may append directly; ordinary UI insert/move operations assign at edit time.
+      const id = slide.section || (!(slide.keep?.source === pres.pkg?.id && !slide.keep.copy) &&
+        (prior || pres.slides.slice(i + 1).find(s => s.section)?.section || pres.keep?.sections?.[0]));
+      if (id) { if (!members.has(id)) members.set(id, []); members.get(id).push(String(writer.slideIds.get(slide.id))); prior = id; }
+    }
+    const replace = (el, value) => { const p = XML.source.get(el); edits.push({ start: p.start, end: p.end, value }); };
+    for (const section of all(tree).filter(e => e.localName === 'section' && /powerpoint\/2010\/main$/.test(e.namespaceURI))) {
+      const list = kid(section, 'sldIdLst'), ns = section.namespaceURI, ids = members.get(section.getAttribute('id')) || [];
+      const old = kids(list), before = old.map(e => e.getAttribute('id'));
+      if (same(ids, before)) continue;
+      const children = ids.map(id => { const el = old.find(e => e.getAttribute('id') === id); return el ? K.raw(el) : '<sldId xmlns="' + ns + '" id="' + id + '"/>'; });
+      const next = K.mergeBag(list ? K.raw(list) : '<sldIdLst xmlns="' + ns + '"/>', { ['{' + ns + '}sldId']: children });
+      replace(section, K.mergeBag(K.raw(section), { ['{' + ns + '}sldIdLst']: next }));
+    }
+    const shows = kid(tree, 'custShowLst'), records = pres.keep?.customShows || [];
+    if (shows) {
+      const children = kids(shows).flatMap((show, i) => {
+        const record = records[i], list = kid(show, 'sldLst'); if (!record || !list) return [K.raw(show)];
+        const kept = kids(list).filter((el, j) => live.has(record.slides[j]));
+        if (kept.length === kids(list).length) return [K.raw(show)];
+        if (!kept.length) {
+          writer.loss({ id: 'custom-show:' + record.id, what: 'The custom show "' + record.name + '" was removed because all its slides were deleted.', where: 'Custom shows', action: 'drop' });
+          return [];
+        }
+        return [K.mergeBag(K.raw(show), { ['{' + show.namespaceURI + '}sldLst']: K.mergeBag(K.raw(list), { ['{' + list.namespaceURI + '}sld']: kept.map(K.raw) }) })];
+      });
+      replace(shows, children.length ? K.mergeBag(K.raw(shows), { ['{' + shows.namespaceURI + '}custShow']: children }) : '');
+    }
+    return K.patch(xml, edits);
+  };
   P.designValues = design => JSON.stringify(Object.fromEntries(Object.entries(design).filter(([key]) => key !== 'keep')));
   P.begin = function (pres, format) {
     const pkg = pres.pkg;
@@ -46,9 +109,15 @@
       for (const tag of ['sldMasterIdLst', 'notesMasterIdLst', 'sldIdLst']) replace(tag);
       if (pres.W !== before.W || pres.H !== before.H) replace('sldSz');
       xml = K.merge(xml, replacements, 'p:CT_Presentation');
+      xml = P.mergeSlideLists(pres, xml, writer);
       if (pres.firstNum !== before.firstNum) xml = K.attributes(xml, { firstSlideNum: pres.firstNum || 1 });
     } else if (base === 'ppt/presProps.xml') {
       if (!same(pres.show, before.show)) xml = K.merge(xml, { ['{' + N.p + '}showPr']: kids(fresh).filter(e => e.localName === 'showPr').map(K.raw) }, 'p:CT_PresentationProperties');
+      const show = kid(K.parse(xml), 'showPr'), custom = kid(show, 'custShow');
+      if (custom && emptyShows(pres).some(s => s.id === custom.getAttribute('id'))) {
+        const updated = K.mergeBag(K.raw(show), { ['{' + show.namespaceURI + '}custShow']: '<p:sldAll xmlns:p="' + N.p + '"/>' });
+        xml = K.mergeBag(xml, { ['{' + show.namespaceURI + '}showPr']: updated });
+      }
     } else {
       const owned = base === 'docProps/core.xml' ? { title: 'title', subject: 'subject', author: 'creator', keywords: 'keywords', comments: 'description', category: 'category', created: 'created', revision: 'revision' } : { company: 'Company' };
       xml = K.properties(xml, generated, pres.props, before.props, owned);

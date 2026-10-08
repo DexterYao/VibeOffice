@@ -106,7 +106,8 @@ relationship counts do not establish that an unsupported frame remains attached 
 | Kept | Video/audio and playback | 29/29 media relationships in 17 decks; 16/16 media play/pause behaviors; original frames, links and media bytes survive |
 | Kept | Package metadata and fonts | 111/111 custom-XML, 67/67 XML-property, 33/33 tag, 70/70 custom-property, 12/12 font, 7/7 VBA and 1/1 label relationships |
 | Kept | Notes and handout dependencies | 932/932 notes-master references, 97/97 handout masters and 29/29 comment-author relationships; unedited notes keep header/footer text |
-| Kept as records; edit rules pending | Comments, sections and custom shows | 20/20 comment inventory items, 32/32 sections and 8/8 custom shows; membership and slide deletion/insertion rules remain unfinished |
+| Kept; PowerPoint edit acceptance pending | Sections and custom shows | All 18 relevant decks retain 32/32 sections and 8/8 custom shows with unchanged expanded XML. Eight focused edit cases / 26 saved states pass package/SDK comparison |
+| Kept as records; edit rules pending | Comments | 20/20 comment inventory items; slide-copy/deletion ownership remains unfinished |
 | Kept, with remaining losses | Animation and transitions | 639/642 general effects, 112/112 transitions and 29/43 auto-advance timings |
 | Kept for used designs; unused designs incomplete | Masters and layouts | 864/896 masters and 7,209/7,249 named layouts; all layouts of retained used masters survive |
 | Converted to displayed groups/pictures | SmartArt, OLE and newer charts | 0/184 SmartArt frames, 0/71 OLE frames and 0/4 chartEx frames; their 184 diagram relationships, 51 OLE relationships and 4 chartEx parts remain in the package, which alone does not preserve editability |
@@ -152,11 +153,28 @@ LibreOffice rendering has not been completed. Reports and history:
 | Change a design, or leave a master unused | Complete invalidation/retention rules are pending |
 | Save as a macro-free variant | Report VBA removal; cancellation leaves file identity and acknowledgements unchanged |
 
-### Sections, comments and opaque frames: current edit limits
+### Sections and custom shows: edit behavior
+
+| Edit | Save behavior |
+|---|---|
+| Save unchanged slides | Keep original slide IDs, section names/IDs, empty sections and custom-show order, including repeated show entries |
+| Insert or copy slides | Use fresh IDs above the source maximum; join the preceding slide's section (the following section when inserting first). Copies are not automatically added to custom shows |
+| Move slides | Join the destination section and retain original slide IDs; custom shows keep their own playback order |
+| Delete slides | Remove their section and custom-show references; retain empty section definitions |
+| Delete every slide in a custom show | Remove that show with a Compatibility Checker entry; a selected removed show switches to all slides |
+| Undo/redo or recover a draft | Restore slide membership and original identities; draft recovery retains pending notices |
+
+The 18-deck sweep and all 26 edit/history/draft states introduce no package/SDK diagnostics.
+Large slide IDs and empty sections are covered by a public one-slide deck with ten sections.
+Two edited samples and four history states open in LibreOffice with the expected inserted/deleted
+slide counts. All 115 unit tests pass; the browser edit driver and app load report no console errors.
+The full Lectern group run and PowerPoint batch 4 remain pending. Reports:
+`~/corpora/results/lectern-preservation-2026-10-09/membership-*`.
+
+### Comments and opaque frames: current edit limits
 
 | Edit | Current behavior / remaining work |
 |---|---|
-| Insert, delete or reorder slides in sections/custom shows | Original lists remain; membership and stable-identity updates need integration |
 | Change or delete a commented slide | Comment parts are carried; complete legacy/modern comment ownership rules remain pending |
 | Move, resize, edit or ungroup converted SmartArt/OLE/new-chart content | The displayed conversion is saved; original-frame ownership and geometry merging remain pending |
 | Change a non-media shape's shadow, fill or picture treatment | Regenerate modeled properties; unknown sibling effects still need per-property preservation |

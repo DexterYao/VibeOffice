@@ -1757,13 +1757,14 @@
 
     /* ---- slides ---- */
     const sldIds = kids(kid(presX, 'sldIdLst'), 'sldId');
-    const slidePaths = sldIds.map((s) => presRels[rid(s)]).filter(Boolean).map((r) => r.target);
+    const slideRefs = sldIds.map(el => ({ el, path: presRels[rid(el)]?.target })).filter(s => s.path);
     const pathToId = new Map();
     const LAYOUT_MAP = { title: 'title', titleOnly: 'titleOnly', tx: 'text', twoColTx: 'twoText', blank: 'blank', objOnly: 'contentOnly', obj: 'content', twoObj: 'twoContent', fourObj: 'fourContent', txAndObj: 'textContent', objAndTx: 'contentText', txAndTwoObj: 'textTwoContent', twoObjAndTx: 'twoContentText', tbl: 'table', chart: 'chart', txOverObj: 'textOverContent', objOverTx: 'contentOverText', vertTx: 'vertText', vertTitleAndTx: 'vertTitleText', objAndTwoObj: 'contentTwoContent', twoObjAndObj: 'twoContentContent', secHead: 'titleOnly', twoTxTwoObj: 'twoContent', objTx: 'textContent', picTx: 'textContent', txAndChart: 'textContent', chartAndTx: 'contentText', txAndClipArt: 'textContent', clipArtAndTx: 'contentText', txAndMedia: 'textContent', mediaAndTx: 'contentText', dgm: 'content', txOverObj2: 'textOverContent' };
     let n = 0;
-    for (const sp of slidePaths) {
+    for (const sourceSlide of slideRefs) {
+      const sp = sourceSlide.path;
       n++;
-      if (opts.progress) opts.progress(n, slidePaths.length);
+      if (opts.progress) opts.progress(n, slideRefs.length);
       const sx = await xml(sp);
       if (!sx) { if (file(sp)) damaged.push(sp); continue; }
       try {
@@ -1832,7 +1833,7 @@
       slide.trans = transitionFrom(sx) || slide.trans;
       /* animations */
       try { slide.anims = timingFrom(kid(sx, 'timing'), slide); } catch (e) { console.warn('timing skipped', e); slide.anims = []; }
-      if (original(sp)) L.preserve.slide(slide, original(sp).tree, pkg, sp, at(sldIds[n - 1], 'id'), sx);
+      if (original(sp)) L.preserve.slide(slide, original(sp).tree, pkg, sp, at(sourceSlide.el, 'id'), sx);
       if (lay && design.keep) design.keep.layouts[slide.layout + (slide.lkey ? '|' + slide.lkey : '')] = lay.path;
       if (nr && slide.keep) slide.keep.notes = { part: nr.target, text: slide.notes };
       pathToId.set(sp, slide.id);
@@ -1871,6 +1872,7 @@
     for (const sh of clearPics) { const v = await L.media.withTransparent(sh.media, sh.img.clear, 3); if (v) sh.img.view = v; }
     L.preserve.seal(pres);
     pres.keep = { values: L.preserve.values(pres), media: Object.fromEntries(Array.from(mediaCache, ([part, id]) => [id, part])) };
+    L.preserve.readSlideLists(pres);
     pres.ooxmlFormat = L.opc.variant(pres.pkg, 'pptx');
     return pres;
   }

@@ -246,6 +246,14 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   is ready at `~/Downloads/lossless-check/office-batch-3/CHECKLIST.md`: all 15 pass package/SDK and
   LibreOffice, with reviewed differences against `f584dd6`. **Excel acceptance is pending.**
   Reports: `~/corpora/results/ledger-group-2026-10-09/`. Lectern preparation is next.
+- Lectern sections and custom shows now follow slide insertion, copies, moves and deletion while
+  retaining original slide IDs and empty sections. New slides join the destination section; custom
+  shows retain their independent order and repeated entries. Empty shows are removed with a notice,
+  and a selected removed show switches to all slides. All 18 relevant decks retain 32 sections and
+  8 shows with unchanged expanded XML; eight edit cases / 26 states pass package/SDK. Two LibreOffice
+  samples plus four history states have expected slide counts. All 115 unit tests pass. PowerPoint
+  acceptance is pending in batch 4; these changes use the presentation merge/identity patterns
+  accepted in batch 1 and do not depend on the pending Excel-specific patterns. Next: slide comments.
 
 ## Review of 6d24c43..275406e (2026-10-08)
 Followed well: bounded Office batches with previous-writer comparison, checker rules for the WordArt

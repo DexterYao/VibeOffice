@@ -499,6 +499,10 @@
     return slide;
   };
 
+  M.insertSlides = function (pres, at, slides) {
+    L.preserve?.joinSection(pres, pres.slides, at, slides);
+    pres.slides.splice(at, 0, ...slides);
+  };
   M.design = (pres, slide) => (slide && pres.designs[slide.design]) || Object.values(pres.designs)[0];
 
   /** Re-apply a layout: keep existing content, move it into the new frames, add/remove empty placeholders. */

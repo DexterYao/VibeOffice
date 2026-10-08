@@ -237,6 +237,11 @@ counts with `pdfinfo`. Unedited saves must keep the page count; edit scenarios c
 
 ### Lectern media preservation
 
+`node tools/lectern/test/membership.mjs OUTPUT_DIR` uses pinned presentation inputs for section and
+custom-show insertion, copy, move, deletion, large IDs, empty sections, undo/redo and actual suite
+draft recovery (`VO_CORPORA` overrides `~/corpora`). It retains every saved state and a draft screenshot.
+Use its `results.jsonl` with `tools/ooxml/validate.py` for package/SDK and LibreOffice comparison.
+
 `node tools/lectern/test/media.mjs FILE_OR_LIST OUTDIR` opens authored video/audio decks in Chromium.
 It saves unedited, moves/resizes, changes shadow and crop, duplicates, deletes, replaces, duplicates
 the slide, recovers an actual suite draft and copies through keyboard/native clipboard events into

@@ -862,7 +862,7 @@
     const notesMasterRid = presRels.add(RT('notesMaster'), 'notesMasters/notesMaster1.xml');
 
     /* slides */
-    const sldIds = [];
+    const sldIds = []; writer.slideIds = new Map();
     allSlides.forEach((s, i) => {
       const n = i + 1;
       const part = slideParts[i];
@@ -939,6 +939,7 @@
       overrides.push(['/' + part, CT.slide]);
       const originalSlide = s.keep?.part === part && s.keep?.source === pres.pkg?.id;
       sldIds.push({ id: originalSlide && s.keep.sldId ? s.keep.sldId : writer.ids.fresh('presentation', 'sldId'), rid: presRels.add(RT('slide'), K.relative('ppt/presentation.xml', part)) });
+      writer.slideIds.set(s.id, sldIds[sldIds.length - 1].id);
     });
     /* charts, and the parts an unedited imported chart brings with it (workbook, style, colours, theme override) */
     let embN = 0;
