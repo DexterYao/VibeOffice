@@ -152,5 +152,12 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   unchanged page/slide counts. The comparison against writer `ffc6814` has only explained differences.
   57 unit tests pass and all four pages load. The user subsequently reported all 15 passed in Office.
 - Reports and exact inputs: `~/corpora/results/next-plan-head-2026-10-08/`.
-- Next: finish full runs and documentation cleanup, then start the Quire remainder (step 5).
-  Office batch 1 permits that step; later feature groups still need their own acceptance batches.
+- Full runs completed on frozen writer `cf1b313`: 14,091 driver attempts and 30,909 package/SDK
+  validation rows, including edit/history/draft states. App docs now have one current save table and
+  edit-behavior tables; historical sections are archived with the reports. Preservation contracts
+  moved from AGENTS.md to docs/suite.md.
+- Strict-to-Transitional output and initial measured regressions are fixed in `bc3a04e`. A correction
+  pass over Quire's 206 newly diagnosed saves clears 177; 29 findings remain for the Quire group.
+- Next: Quire drawing-property merges, row/cell alternatives and watermark preservation, resolving
+  the remaining validation findings as part of that group, followed by its full rerun and Office
+  batch 2. Office batch 1 permits the step; later groups still need their own acceptance batches.

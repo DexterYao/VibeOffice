@@ -2,6 +2,8 @@ using System.Text.Json;
 using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Validation;
+using DocumentFormat.OpenXml.Wordprocessing;
+using System.Text.RegularExpressions;
 
 // JSONL, one result for every argument. --baseline ORIGINAL SAVED compares diagnostic identities.
 OpenXmlPackage Open(string path) => Path.GetExtension(path).ToLowerInvariant() switch {
@@ -10,10 +12,20 @@ OpenXmlPackage Open(string path) => Path.GetExtension(path).ToLowerInvariant() s
     ".pptx" or ".pptm" or ".ppsx" or ".ppsm" or ".potx" or ".potm" => PresentationDocument.Open(path, false),
     _ => throw new ArgumentException("Unsupported Office file variant: " + path),
 };
+Diagnostic Describe(ValidationErrorInfo error) {
+    var path = error.Path?.XPath ?? "";
+    var style = error.Node as Style ?? error.Node?.Ancestors<Style>().FirstOrDefault();
+    // Styles keep their identity even when built-in definitions are inserted or
+    // reordered. Compare the same source property, not its old list position.
+    var stable = style?.StyleId?.Value is string id
+        ? Regex.Replace(path, @"(/[^/:]+:style)\[\d+\]", m => m.Groups[1].Value + "[@styleId=" + JsonSerializer.Serialize(id) + "]")
+        : null;
+    return new Diagnostic(error.Id, error.Part?.Uri.ToString() ?? "", path, error.ErrorType.ToString(), error.Description, stable);
+}
 List<Diagnostic> Validate(string path) {
     using var doc = Open(path);
     return new OpenXmlValidator(FileFormatVersions.Office2019) { MaxNumberOfErrors = 0 }.Validate(doc)
-        .Select(e => new Diagnostic(e.Id, e.Part?.Uri.ToString() ?? "", e.Path?.XPath ?? "", e.ErrorType.ToString(), e.Description))
+        .Select(Describe)
         .OrderBy(e => e.Part).ThenBy(e => e.Path).ThenBy(e => e.Id).ToList();
 }
 var json = new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase };
@@ -66,6 +78,6 @@ foreach (var file in files) {
 }
 return failed ? 1 : 0;
 
-record Diagnostic(string Id, string Part, string Path, string Type, string Description) {
-    [System.Text.Json.Serialization.JsonIgnore] public string Key => JsonSerializer.Serialize(new[] { Part, Path, Id });
+record Diagnostic(string Id, string Part, string Path, string Type, string Description, string? StablePath) {
+    [System.Text.Json.Serialization.JsonIgnore] public string Key => JsonSerializer.Serialize(new[] { Part, StablePath ?? Path, Id });
 }

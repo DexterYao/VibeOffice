@@ -115,282 +115,118 @@ Checks (tools in docs/testing.md):
 
 ## What a save keeps, converts and drops
 
-Quire regenerates document content from its model and carries original package dependencies alongside
-it. Package preservation, content-control boundaries, run/paragraph properties, permission ranges,
-page backgrounds and opaque drawing frames are implemented. Drawing-property edits and some
-compatibility-wrapper positions remain unfinished. The Compatibility Checker reports recorded
-losses before a user save; coverage of the remaining conversion paths is incomplete.
+Quire keeps package dependencies, control boundaries, text properties and opaque object XML beside
+its editable model. Save and drafts retain DOCX/DOCM/DOTX/DOTM and encryption. The Compatibility
+Checker reports recorded conversions before a user download; coverage of all remaining conversions
+is still in progress.
 
-### Package preservation (2026-10-08)
+The pinned 2,902-file full run uses writer `cf1b313`: **2,873 save/reopen and draft-recovery attempts
+complete**, with **29 failures** in each scenario. Text edit/save/undo/redo completes in **2,277**,
+with **592 exclusions and 33 failures**. The run exposed missing-image-type and damaged-package
+regressions fixed in `bc3a04e`; 12 affected/locked-control inputs subsequently complete **28 operations**
+and explicitly exclude **8**. Their comparable saved states introduce no additional diagnostics.
 
-Save, Save As and draft recovery support `.docx`, `.docm`, `.dotx` and `.dotm`, including encryption.
-The main-part content type determines the imported variant. Macros remain in macro-enabled saves;
-choosing a macro-free type reports their removal before download. Cancelling keeps the current file
-identity and does not acknowledge the loss.
+The full package/SDK comparison reports **2,622 OK and 280 failed**; **206** files add diagnostics.
+A correction pass over those 206 files clears **177**, leaving **29** for the next Quire group.
+Corrections include paragraph order and document-wide XML-store relationships for header/footer
+controls. Style diagnostics now follow the original style ID when the list order changes. The 29
+remaining files are not counted as passing; this is not a claim that the Quire step is complete.
 
-The pinned 2,902-file run saves and reopens **2,880**, with the same **22 failures** as the baseline.
-Package/SDK comparison reports **2,792 OK and 110 failed**, up from 2,768 OK. Failed originals and
-remaining content-writer diagnostics are counted, not accepted as passes. The independent package
-audit checks original bytes, content types and relationship identities:
+The feature inventory compares **2,858 readable pairs**, with **44 failed attempts**. It retains
+**776,195 of 776,857 counted words**; **2,805 documents** keep every counted word. Data-bound values,
+malformed input, unreferenced stories and unsupported markup remain exceptions.
 
-| Package feature | Preserved relationships |
-|---|---:|
-| Custom XML stores / their property parts | 965 / 965 each |
-| Custom document properties, including empty bags and original types/pids | 353 / 353 |
-| Attached templates | 102 / 102 |
-| Referenced embedded fonts | 20 / 20 |
-| VBA projects | 17 / 17 |
-| Glossary | 193 / 195 |
-| People / comment identity parts | 95 / 95; 15 / 15 |
-| Sensitivity labels | 1 / 1 |
+| Status | Feature | Current measured result / limit |
+|---|---|---|
+| Kept | Package metadata, custom XML and templates | 965/965 custom-XML relationships and property dependencies; 352/352 typed custom-property bags, 102/102 template links, 17/17 VBA and 1/1 label relationships |
+| Kept, with source exceptions | Glossary, embedded fonts and identity metadata | 193/195 glossary relationships (two missing original dependencies), 20/20 referenced fonts, 95/95 people and 15/15 comment-identity relationships; 3 orphan font parts are not reattached |
+| Kept, with a remaining exception | Content controls | 2,675/2,676 wrappers; inline, block, row and cell controls retain properties and scalar bindings |
+| Kept | OLE, SmartArt, charts and embedded documents | 516/516 OLE/object inventory nodes, 39/39 SmartArt data parts, 133/133 chart parts and 4/4 altChunk blocks; geometry edits retain payloads |
+| Kept | Text effects, pictures in page backgrounds and drawing properties while untouched | 205/205 Word 2010 effect entries, 62/62 backgrounds, 1,053/1,053 text boxes and 1,802/1,802 DrawingML shape entries |
+| Kept, with range/story exceptions | Comments, notes, bookmarks and permissions | 1,404/1,421 comments, 674/684 footnotes, 57/57 endnotes, 4,870/4,965 bookmarks and 50/54 permission ranges |
+| Kept, with remaining losses | Revisions, fields, pictures and tables | 1,385/1,427 insertions/deletions, 1,084/1,103 formatting revisions, 2,590/2,711 fields, 1,218/1,235 pictures and 1,603/1,604 tables |
+| Converted when edited | Unsupported contents inside an opaque frame; typed/complex controls | Edited or ungrouped converted content uses the model representation; incompatible typed-control edits unbind and report the conversion |
+| Mostly converted | Smart tags and inline custom-XML markup | 18/519 original wrappers remain; their text is represented as ordinary content |
+| Pending | Per-property drawing edits, row/cell alternatives and watermarks | Editing a drawing property still converts its frame; table-row/cell compatibility wrappers and the watermark path need integration |
 
-The two glossary exceptions have missing source dependencies. Orphaned parts with no incoming
-relationship (including three font files) are not reattached; drops are recorded. Settings retain
-unowned children, font-table entries retain embedding metadata, and existing comment paragraph IDs
-and special footnote/endnote entries survive. Bookmark, permission and retained drawing identities
-survive too; copies receive new identities with their references remapped together.
+Package counts verify bytes, types, rIds and targets; unreferenced parts have separate loss entries.
+The user accepted the bound-text, formatted-effects, resized-SmartArt, pasted-OLE, macro and namespace
+samples in Office batch 1. All 15 suite batch files open in LibreOffice with unchanged counts. Strict
+conversion passes **67 documents / 268 emitted states** against original package/SDK diagnostics and
+keeps its notice through draft recovery; Office review of that conversion belongs to a later batch.
+Reports and historical figures: `~/corpora/results/next-plan-head-2026-10-08/` and
+`~/corpora/results/strict-transitional-2026-10-08/`.
 
-Reports: `~/corpora/results/package-preservation-2026-10-08/`. Word samples are in
-`~/Downloads/lossless-check/quire/package/`; Office acceptance is pending. The 24 Markdown fixtures
-still save byte for byte unchanged, and each scripted edit stays within its edited block.
+### Content controls: edit behavior
 
-### Content controls (2026-10-08, focused increment)
-
-Inline controls use zero-length `sdts`/`sdte` items. Block, row and cell controls keep boundaries in
-`pPr`/`tblPr`, `trPr` and `tcPr`. Their original properties, namespaces, identities and dependencies
-wrap regenerated editable content on save. Nested boundaries survive history; incomplete pasted
-selections keep their text without introducing dangling control or bookmark markers.
-
-| Edit | Preservation behavior |
+| Edit | Save behavior |
 |---|---|
-| Text inside plain/rich controls | Keep the control; update scalar custom XML XPath targets, including attributes |
-| Date/list value command or checkbox click | Keep the typed properties and update the bound value |
-| Typing inside a date/list/checkbox control | Convert to unbound text and report it before save |
-| Formatting | Keep control properties; content locks prevent changes |
-| Enter in a control covering a whole paragraph | Promote its boundaries to a block control with the same identity |
-| Enter inside a control covering part of a paragraph | Separate unbound controls; report the conversion |
+| Text inside plain/rich controls | Keep the wrapper; update scalar custom-XML XPath targets, including attributes |
+| Date/list value command or checkbox click | Keep typed properties and update the bound value |
+| Ordinary typing inside a date/list/checkbox control | Convert to unbound text and report it |
+| Formatting | Keep control properties; content locks prevent forbidden changes |
+| Enter in a whole-paragraph control | Promote boundaries to a block control with the same identity |
+| Enter in a partial-paragraph control | Split into unbound controls and report the conversion |
 | Join across a multi-paragraph control boundary | Convert the affected wrapper to ordinary content and report it |
-| Partial boundary deletion | Remove the pair and report it; deletion/content locks roll back forbidden edits |
-| Copy/paste | Fresh control/bookmark identities; carry XML stores and glossary dependencies; copied stores get distinct identities in another document |
-| Undo/redo and drafts | Restore wrappers, binding updates and pending conversions |
+| Delete one boundary | Balance the remaining content and report conversion; deletion/content locks roll back the whole forbidden transaction |
+| Copy/paste | Remap complete control/bookmark identities; carry XML stores and glossary dependencies; foreign copies receive separate store identities |
+| Undo/redo and drafts | Restore boundaries, binding updates and pending conversions |
 
-The context menu has **Content Control Value…** for dates, lists and checkboxes. Complex XML/Flat OPC
-bindings remain intact while untouched; editing them unbinds the control and reports that conversion.
-Copying a built-in document-property binding to another document also unbinds it and reports it.
-The object increment below also retains opaque drawings inside these wrappers.
+The context menu offers **Content Control Value…** for dates, lists and checkboxes. Complex XML/Flat
+OPC bindings remain intact while untouched; editing them unbinds and reports the conversion. Copying
+a built-in document-property binding into another document also unbinds it and reports it.
 
-Focused measurement: **8/8 authored files** retain all **16/16 controls**, including row and cell
-wrappers, with no new package or Open XML SDK diagnostics. Three authored edit fixtures pass **25
-browser assertions** for scalar binding updates, typed values, undo, copying and draft recovery;
-their **15 saved states** have no new package/SDK diagnostics. Six model tests cover locks, boundaries,
-copy identity and history. One edited binding sample opens in LibreOffice with the original page
-count. This is a focused increment; the full corpus and Markdown corpus were not rerun.
+### Text properties, ranges and backgrounds: edit behavior
 
-Reports: `~/corpora/results/quire-controls-2026-10-08/`. Review copies:
-`~/Downloads/lossless-check/quire/content-controls/`. Word acceptance remains pending.
-
-### Text and paragraph properties, ranges and backgrounds (2026-10-08)
-
-Run and paragraph properties retain their original children and attributes, including Word 2010
-glow, reflection, shadow, 3-D text and typography extensions. This applies to direct formatting,
-styles, paragraph marks and numbering-level properties. Compatibility alternatives inside these
-properties are captured before the reader selects a branch. Drawing effects survive in retained
-frames; replacing individual drawing properties remains a separate, unfinished step.
-
-| Edit | Preservation behavior |
+| Edit | Save behavior |
 |---|---|
-| Type text or change an unrelated property | Keep the original property XML and its dependencies |
-| Change font, colour, shadow, spacing or another modeled property | Replace only that property; retain other extensions and attributes |
-| Clear all formatting | Remove the direct formatting, including its retained extensions |
-| Copy a bookmark or permission range | Remap both endpoints together; incomplete copies omit the markers |
-| Delete one range endpoint | Omit the remaining endpoint on save and report the incomplete range |
-| Set a page colour | Replace the original background; other edits retain its fill/picture |
-| Undo/redo or same-format drafts | Preserve property fragments and range metadata through the model snapshots/writer |
+| Type or change an unrelated property | Keep the original property XML, compatibility alternatives and dependencies |
+| Change font, colour, shadow, spacing or another modeled property | Replace that property; retain unrelated extensions and attributes in schema order |
+| Clear all formatting | Remove direct formatting, including retained extensions |
+| Copy a bookmark/permission range | Remap both endpoints; incomplete copies omit the markers |
+| Delete one range endpoint | Omit the incomplete pair on save and report it |
+| Set a page colour | Replace the original background; other edits keep its fill/picture |
+| Undo/redo or drafts | Restore property fragments and range metadata |
 
-Six authored save fixtures retain **153/153 tracked XML elements** (140 Word 2010 effect/typography
-elements, 12 bookmark/permission endpoints and one picture background), with identical ordered
-document text and no new package/SDK diagnostics. One formatting edit, its undo and redo retain
-all 21 tracked elements and pass the same diagnostics comparison. The edit exposed and fixed an
-ordering error when adding bold before retained Word 2010 effects. Three focused model tests cover
-property replacement, compatibility alternatives, range copying and undo. Existing control and OPC
-tests also pass (35 total). The edited file opened in LibreOffice at one page before/after; that
-LibreOffice check preceded the final XML-order correction. All three apps load without console
-errors; only the existing font requests leave localhost. No full corpus rerun was made.
+### Opaque objects and compatibility alternatives: edit behavior
 
-Reports: `~/corpora/results/quire-properties-2026-10-08/`. Word review copies:
-`~/Downloads/lossless-check/quire/properties/`. Office acceptance remains pending.
-
-### Opaque objects and compatibility alternatives (2026-10-08)
-
-Original DrawingML/VML frames, OLE objects, ActiveX controls, SmartArt and embedded-document
-(`altChunk`) blocks travel with their model objects and dependency parts. Embedded documents and
-objects without a usable preview show a placeholder. Compatibility choices and fallbacks are
-captured before normalisation, including choices producing no displayed content; a wrapper that
-produces several items is emitted once. VML shapes, shared shape types and control names receive
-matching fresh identities on copy. Foreign paste carries preview bytes as well as the original
-payload, and remaps SmartArt's implicit drawing link through a private data part when required.
-
-| Edit | Preservation behavior |
+| Edit | Save behavior |
 |---|---|
-| Edit surrounding document text | Keep the original object XML and dependency bytes |
-| Move, resize, rotate or flip one object | Update its anchor/transform, including both compatibility branches |
-| Resize a SmartArt preview group | Keep diagram data; accept either scaled children or changed outer extent |
-| Edit/ungroup converted contents or replace the picture | Write the editable conversion and report it |
-| Duplicate or paste into another document | Carry dependencies/previews and remap identities together |
-| Delete an object or part of a multi-item compatibility choice | Never restore deleted content; remove the frame or convert surviving items and report it |
-| Undo and drafts | Restore retained frames and dependency references |
+| Edit surrounding text | Keep the original DrawingML/VML, OLE, ActiveX, SmartArt or altChunk fragment and dependencies |
+| Move, resize, rotate or flip one object | Update its anchor/transform in both compatibility branches |
+| Resize a SmartArt preview group | Keep diagram data with scaled children or a changed outer extent |
+| Edit or ungroup converted contents; replace a picture | Write the model representation and report conversion |
+| Change a drawing property, wrapping or anchor reference mode | Currently convert the frame; per-property merging is pending |
+| Duplicate or paste into another document | Carry preview and payload bytes; remap definitions and references together, including SmartArt's implicit drawing link |
+| Delete all or part of a multi-member compatibility wrapper | Never resurrect deleted content; convert surviving members and report it when the wrapper is incomplete |
+| Undo and drafts | Restore frame/dependency identities |
 
-Limits: editing a drawing property currently converts its whole frame; per-property effect/crop
-merging is still pending. Changing wrapping or anchor reference mode also converts the frame.
-Moving one of several drawings owned by a single compatibility wrapper converts that wrapper.
-Run, inline and block alternatives are handled; alternatives around table rows/cells and the
-existing watermark conversion path still need integration.
+Embedded documents and objects without a usable preview display a placeholder. Run, inline and block
+alternatives are captured before normalization and emitted once. Moving one of several drawings
+owned by a single wrapper currently converts that wrapper; row/cell alternatives remain pending.
 
-Six authored save fixtures retain **18/18 tracked elements**: four compatibility wrappers, eight
-3-D effect nodes, two SmartArt frames, two controls, one OLE object and one embedded-document block.
-All **15/15 diagram/ActiveX/embedded-object payload parts** are byte-identical. The six final saves
-have no new package/SDK diagnostics. SmartArt geometry, duplicate and deletion edits plus undo/redo
-pass in nine saved states; ActiveX duplicate/undo/redo pass after fixing duplicate VML type IDs and
-control names. Two foreign-clipboard fixtures exercise conversion, undo and drafts; all ten output
-states have no new package/SDK diagnostics. Existing duplicate shape IDs in an original diagram
-remain unchanged. Three object model tests and 26 shared OPC tests pass. These are focused checks,
-not a new full-corpus result. A pasted OLE sample opens in LibreOffice at one page before/after;
-all three apps load without console errors and the embedded-document placeholder was inspected.
+### Package and file identity: edit behavior
 
-Reports, including the initial failures and corrected copies:
-`~/corpora/results/quire-objects-2026-10-08/`. Word review copies:
-`~/Downloads/lossless-check/quire/objects/`. Office acceptance remains pending.
-
-### Historical feature baseline
-
-The following larger-corpus figures predate package preservation. `tools/quire/test/loss-audit.py`
-compared 2,778 test documents with saved copies, feature by feature and word by word
-(`python3 tools/quire/test/loss-audit.py originals/ saved/ out.json`, standard library only).
-
-**Kept.** The text: 2,724 documents keep every word, and over the whole set 666,082 of 666,941 words
-survive (the 859 missing sit in 54 documents, most of them deliberately malformed test files, comments
-or footnotes that nothing in the text refers to, and text inside data-bound content controls). Styles,
-lists, tables, sections and columns, headers and footers, footnotes and endnotes, comments with their
-replies, tracked changes, fields, bookmarks, hyperlinks, pictures, text boxes, drawing shapes, equations,
-charts, page borders, line numbers, legacy form fields, ruby text, custom document properties and
-editing restrictions are all written back.
-
-**Converted.** Embedded objects (Excel, Visio, PDF and other OLE packages, 81 documents) are saved as
-their preview pictures, so they can no longer be opened for editing; SmartArt becomes grouped shapes
-with its text (22); content controls are removed and their contents kept as ordinary text (296), which
-also ends any binding to document data; smart tags and custom XML markup become plain text (48);
-`HYPERLINK` fields become ordinary hyperlinks.
-
-**Dropped.**
-
-| What | Documents in the test set |
-| --- | --- |
-| Custom XML data parts (document-management metadata, content-control bindings) | 573 |
-| Sensitivity labels in the newer `docMetadata/LabelInfo.xml` form (labels kept as `MSIP_Label` custom properties survive: 11 of 11) | 3 |
-| Building blocks and AutoText stored in the document (glossary) | 129 |
-| Link to the attached template | 77 |
-| Page background with a picture or fill effect (coloured backgrounds are kept; 45 white ones are left out, which changes nothing) | 3 of 68 |
-| Word 2010 text effects (glow, outline, shadow, ligatures) | 35 |
-| Embedded fonts | 10 |
-| Embedded HTML/RTF documents (`altChunk`) — their content is not shown, so it is lost on save | 4 |
-| Permission ranges for restricted editing | 3 |
-| VBA macros (a `.docm` is saved without its project) | — |
-
-### Pinned lossless-save baseline (2026-10-07)
-
-The reproducible three-source corpus in `tools/corpora.sh` was measured against application revision
-`5abafdc`, before preservation changes. Of 2,902 inputs, 2,880 completed open → save → reopen,
-22 failed and 0 were explicitly excluded. Completion is not a fidelity result. The independent
-feature inventory compared 2,868 readable pairs; malformed/encrypted originals and missing
-outputs remain in its accounting. This corpus differs from the earlier compatibility corpus above.
-
-| Feature | Files containing it | Original inventory items | Saved inventory items | Text edit: kept / original |
-|---|---:|---:|---:|---:|
-| content controls | 379 | 2,696 | 0 | 0 / 2,594 |
-| custom XML data parts | 646 | 966 | 0 | 0 / 814 |
-| embedded OLE objects | 82 | 544 | 0 | 0 / 434 |
-| VBA macros | 17 | 17 | 0 | 0 / 15 |
-
-The text-edit inventory covers 2,236 readable saved pairs; files without editable text and failed
-operations stay in the driver report, so its denominator differs from the unedited inventory.
-
-Package checks plus the Office 2019 SDK comparison reported 2,768 attempts without new
-automated diagnostics and 134 failures (including originals that could not be validated);
-0 driver exclusions remain separate. These checks do not certify Office acceptance. Commands,
-comparison policies and failure accounting are in [testing.md](testing.md#lossless-same-format-save-reproducible-baseline).
-
-The text-edit/save/undo/redo baseline completed in 2,248 files, excluded 592 without a suitable
-editable paragraph and failed in 62. Forty failures expose circular textbox-owner references in
-JSON history snapshots; 22 are read failures.
-
-The history prerequisite is now fixed: textbox owners are runtime-only back-references, and
-original chart bytes live in the shared chart cache instead of JSON snapshots. All 40 previously
-failing files complete text edit → save → undo → save → redo → save. Their undo packages match
-the pre-edit baseline part for part, except generated core-property timestamps in one file.
-The 40 edited outputs have no new package/SDK diagnostics compared with the pre-edit saves and
-all open in LibreOffice. A chart regression also checks all four original chart parts byte for
-byte across six states (open, edit, undo, redo, copy and snapshot restore). Samples are in
-`~/Downloads/lossless-check/quire/chart-history/` and `textbox-history/`.
-
-All 10 feature samples converted in LibreOffice with unchanged page counts. The full corpus
-has not yet been rendered in LibreOffice. The baseline reports are retained outside git in
-`~/corpora/results/lossless-baseline-2026-10-07/`; Office samples are in
-`~/Downloads/lossless-check/baseline/`.
-
-### Shared preservation core (2026-10-08)
-
-The shared XML/OPC core now captures original AlternateContent before Quire normalises it. The writer
-does not yet emit these records, so the feature-loss numbers above still apply. The same 2,902 inputs
-again produced 2,880 successful open/save/reopen attempts and 22 failures. Compared with the earlier
-saved outputs, 2,875 package/SDK comparisons completed with no new diagnostics; 5 earlier outputs
-could not be SDK-validated and 22 had no saved output. Ten LibreOffice samples kept their page counts
-relative to the earlier saves. Markdown remained byte-identical for all 24 unchanged files, with edits
-confined to the edited block in all 24. Reports: `~/corpora/results/opc-core-2026-10-08/`.
+| Edit | Save behavior |
+|---|---|
+| Change settings, custom properties or font use | Merge owned properties; retain unrelated settings, property types/pids and referenced embedding metadata |
+| Save as a macro-free variant | Report removed VBA before download; cancellation keeps the original filename/type and acknowledgements |
+| Recover an encrypted or macro-enabled draft | Keep its main-part variant, password and pending loss entries |
+| Save an invalid original dependency or orphaned part | Report unavailable/unreferenced content instead of silently claiming it was retained |
 
 ## Compatibility testing
 
-Quire was checked against 2,808 `.docx` files that other people wrote, not files made for it:
+The reproducible OOXML run uses the pinned LibreOffice, Apache POI and Open XML SDK inputs from
+`tools/corpora.sh`. Quire runs in Chromium through CDP; independent package checks, SDK diagnostics
+and LibreOffice compare the saved file with its original. Page counts, Word's saved page-break markers
+and reference PDFs help diagnose layout. Missing fonts, tight wrapping around irregular pictures,
+vertical text and complex data bindings remain known differences. RC4-encrypted legacy binary files
+are outside the supported OOXML encryption path.
 
-| Source | Files |
-| --- | --- |
-| LibreOffice import/export regression documents | 1,703 |
-| Open XML SDK test documents | 378 |
-| docx-templates and docxtemplater fixtures | 279 |
-| docx4j | 141 |
-| Apache POI | 124 |
-| pandoc | 87 |
-| Apache Tika | 67 |
-| Real documents from public repositories (theses, thesis templates, CVs, letters) | 30 |
-
-Each file was opened in headless Chromium by the same code that ships here, laid out page by page,
-saved back to `.docx`, and compared with three outside references:
-
-- **Word itself.** When Word saves a file it records how many pages it had (`docProps/app.xml`).
-  2,207 files carry that number.
-- **LibreOffice 24.2**, converting the original file to PDF.
-- **The round trip**: the file Quire saved, opened again by LibreOffice.
-
-| Check | Result |
-| --- | --- |
-| Files opened | 2,799 of 2,808. The other nine are broken on purpose (fuzzing cases, truncated or damaged packages, two OpenDocument files renamed `.docx`, a 5,000-level nested table deeper than the browser's XML parser allows, and one encrypted test file whose password is not published) |
-| Files saved without error | 2,799 of 2,799 |
-| Page count equal to Word's | 2,059 of 2,207 (93.3%); within one page: 98.2%. LibreOffice on the same files: 92.9% and 97.6% |
-| Page count equal to LibreOffice's | 2,593 of 2,765 (93.8%); within one page: 98.8% |
-| Saved file opens in LibreOffice | Every file whose original LibreOffice can open (eight newer test files fail in LibreOffice 24.2 before and after) |
-| Text kept through the round trip (word-level recall ≥ 98%) | 96.7% of comparable files; page count unchanged in 98.6% |
-| Password-protected files | 9 of 10 test files open with their published passwords; files Quire encrypts open in LibreOffice with the right password and are refused with a wrong one |
-| Opening time | median 25 ms, 90th percentile 73 ms, slowest 6.3 s (a 182-page table-heavy file) |
-
-Scripted editing (typing, bold, a new paragraph, inserting a table, undo and redo, then save and reopen)
-was also run on the real documents; every change survived the save and showed up when LibreOffice
-opened the result.
-
-Page counts are a blunt instrument, so the misses were also studied page by page against Word's own
-page-break markers (`w:lastRenderedPageBreak`) and LibreOffice's PDF. The rules listed under
-*Rendering notes* came out of that work. What is still known to differ: documents set in Palatino-like
-fonts that are not installed (the substitute has slightly different widths), text wrapped tightly around
-irregular picture outlines, vertical (East Asian) text direction, content-control bindings whose value is
-rich text, and RC4-encrypted files from Office 97–2003.
+Markdown checks remain separate: **24/24 unchanged documents save byte for byte**, edits stay inside
+the edited block in **24/24**, and CommonMark/GFM specifications pass **652/652 and 22/22** cases.
+Commands and comparison policies are in [testing.md](testing.md); earlier broad-corpus layout and
+compatibility results are archived with the run history rather than mixed into current save numbers.
 
 ## Source layout
 

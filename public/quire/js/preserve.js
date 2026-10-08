@@ -764,7 +764,9 @@
     }
     try {
       for (const dependency of c.related || []) if (dependency.source !== ctx.writer.pkg?.id) ctx.writer.keepRel(ctx.mainPart, dependency);
-      if (c.binding?.part && !propertyStores.has(c.binding.storeID)) ctx.writer.keepRel(ctx.part, { source: c.binding.source, owner: c.shell.part, type: RT('customXml'), part: c.binding.part, target: K.relative(c.shell.part, c.binding.part) });
+      // Data bindings refer to a document-wide store ID. Headers and footers
+      // cannot own CustomXmlPart relationships; attach the store to the main part.
+      if (c.binding?.part && !propertyStores.has(c.binding.storeID)) ctx.writer.keepRel(ctx.mainPart, { source: c.binding.source, owner: c.shell.part, type: RT('customXml'), part: c.binding.part, target: K.relative(c.shell.part, c.binding.part) });
       return ctx.writer.emit(K.slice(c.shell, xml), ctx.part).replace(SLOT, () => content);
     }
     catch (error) { controlLoss(ctx.doc, c, 'the original properties could not be retained: ' + error.message, ctx.writer); return content; }
