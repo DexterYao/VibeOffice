@@ -392,8 +392,8 @@
       case 'bs': { const k = 's' + it.id; if (ctx.bmSeen.has(k)) return ''; ctx.bmSeen.add(k); return L.preserve.markerXML(it, ctx) ?? `<w:bookmarkStart w:id="${ctx.bmId(it.id)}" w:name="${X(it.name || '_bm' + it.id)}"/>`; }
       case 'be': { const k = 'e' + it.id; if (ctx.bmSeen.has(k)) return ''; ctx.bmSeen.add(k); return L.preserve.markerXML(it, ctx) ?? `<w:bookmarkEnd w:id="${ctx.bmId(it.id)}"/>`; }
       case 'perm': return L.preserve.markerXML(it, ctx) || '';
-      case 'cs': return ctx.cmtOk(it.id) ? `<w:commentRangeStart w:id="${ctx.cmtId(it.id)}"/>` : '';
-      case 'ce': return ctx.cmtOk(it.id) ? `<w:commentRangeEnd w:id="${ctx.cmtId(it.id)}"/>` + runWrap({ style: 'CommentReference' }, `<w:commentReference w:id="${ctx.cmtId(it.id)}"/>`, ctx) : '';
+      case 'cs': return ctx.cmtOk(it.id) && !it.point ? `<w:commentRangeStart w:id="${ctx.cmtId(it.id)}"/>` : '';
+      case 'ce': return ctx.cmtOk(it.id) ? (it.point ? '' : `<w:commentRangeEnd w:id="${ctx.cmtId(it.id)}"/>`) + runWrap({ style: 'CommentReference' }, `<w:commentReference w:id="${ctx.cmtId(it.id)}"/>`, ctx) : '';
       case 'fn': case 'en': {
         const kind = it.t === 'fn' ? 'footnote' : 'endnote';
         if (it.self) return runWrap(Object.assign({ style: it.t === 'fn' ? 'FootnoteReference' : 'EndnoteReference' }, cleanRPr(r)), `<w:${kind}Ref/>`, ctx);
@@ -479,7 +479,8 @@
     let eff = '';
     if (it.gray) eff += '<a:grayscl/>';
     if (it.bw) eff += '<a:biLevel thresh="50000"/>';
-    if (it.bright || it.contrast) eff += `<a:lum${it.bright ? ` bright="${Math.round(it.bright * 100000)}"` : ''}${it.contrast ? ` contrast="${Math.round(it.contrast * 100000)}"` : ''}/>`;
+    const bright = it.washout ? 0.7 : it.bright, contrast = it.washout ? -0.75 : it.contrast;
+    if (bright || contrast) eff += `<a:lum${bright ? ` bright="${Math.round(bright * 100000)}"` : ''}${contrast ? ` contrast="${Math.round(contrast * 100000)}"` : ''}/>`;
     if (it.alpha != null && it.alpha < 1) eff += `<a:alphaModFix amt="${Math.round(it.alpha * 100000)}"/>`;
     const blip = rid ? `<a:blip r:embed="${rid}"${eff ? `>${eff}</a:blip>` : '/>'}` : '<a:blip/>';
     const ln = it.border && it.border.val && it.border.val !== 'nil' ? `<a:ln w="${emu(it.border.sz || 0.75)}"><a:solidFill>${clr('#' + hex(it.border.color === 'auto' ? '000000' : it.border.color))}</a:solidFill></a:ln>` : '';
@@ -605,12 +606,13 @@
   }
   function tableXML(t, ctx) {
     const map = L.R.tblMap(t);
-    let x = `<w:tbl><w:tblPr>${tblPrXML(Object.assign({}, t.tblPr, { w: t.tblPr.w || { type: 'auto', v: 0 } }), { full: true })}</w:tblPr><w:tblGrid>${t.grid.map((g) => `<w:gridCol w:w="${tw(g)}"/>`).join('')}</w:tblGrid>`;
-    x += L.preserve.controlSequence(t.rows, row => row.trPr, row => {
+    const pr = L.preserve.propertyXML('tblPr', t.tblPr, tblPrXML(Object.assign({}, t.tblPr, { w: t.tblPr.w || { type: 'auto', v: 0 } }), { full: true }), ctx);
+    let x = `<w:tbl>${pr}<w:tblGrid>${t.grid.map((g) => `<w:gridCol w:w="${tw(g)}"/>`).join('')}</w:tblGrid>`;
+    x += L.preserve.controlSequence(t.rows, row => row.trPr, row => L.preserve.tableMemberXML(row, ctx, () => {
       const ri = t.rows.indexOf(row);
       const trp = trPrXML(row.trPr, ctx);
       let rowXML = `<w:tr>${trp ? `<w:trPr>${trp}</w:trPr>` : ''}`;
-      rowXML += L.preserve.controlSequence(row.cells, cell => cell.tcPr, cell => {
+      rowXML += L.preserve.controlSequence(row.cells, cell => cell.tcPr, cell => L.preserve.tableMemberXML(cell, ctx, () => {
         const ci = row.cells.indexOf(cell);
         const m = map[ri][ci];
         const w = cell.tcPr.w != null ? cell.tcPr.w : t.grid.slice(m.c0, m.c0 + m.span).reduce((a, b) => a + b, 0);
@@ -618,9 +620,9 @@
         let inner = blocksXML(blocks, ctx);
         if (!blocks.length || blocks[blocks.length - 1].t !== 'p') inner += '<w:p/>';
         return `<w:tc><w:tcPr>${tcPrXML(cell.tcPr, w)}</w:tcPr>${inner}</w:tc>`;
-      }, ctx);
+      }), ctx);
       return rowXML + '</w:tr>';
-    }, ctx);
+    }), ctx);
     return x + '</w:tbl>';
   }
   function blocksXML(blocks, ctx) {
@@ -799,10 +801,12 @@
   /** VML text/picture watermark for headers */
   function watermarkXML(wm, ctx) {
     if (!wm) return '';
+    const typeId = '_x0000_t' + ctx.writer.ids.fresh(ctx.part, 'vmlType:_x0000_t');
+    const shapeId = '_x0000_s' + ctx.writer.ids.fresh(ctx.part, 'vml:_x0000_s');
     if (wm.type === 'text' && wm.text) {
       const sz = wm.size && wm.size > 1 ? wm.size : 1;
       const w = Math.max(100, Math.min(500, (wm.text.length * (wm.size || 40)) * 0.55)), h = Math.max(40, (wm.size || 60) * 1.1);
-      return `<w:r><w:rPr><w:noProof/></w:rPr><w:pict><v:shapetype id="_x0000_t136" coordsize="21600,21600" o:spt="136" adj="10800" path="m@7,l@8,m@5,21600l@6,21600e"><v:formulas><v:f eqn="sum #0 0 10800"/><v:f eqn="prod #0 2 1"/><v:f eqn="sum 21600 0 @1"/><v:f eqn="sum 0 0 @2"/><v:f eqn="sum 21600 0 @3"/><v:f eqn="if @0 @3 0"/><v:f eqn="if @0 21600 @1"/><v:f eqn="if @0 0 @2"/><v:f eqn="if @0 @4 21600"/><v:f eqn="mid @5 @6"/><v:f eqn="mid @8 @5"/><v:f eqn="mid @7 @8"/><v:f eqn="mid @6 @7"/><v:f eqn="sum @6 0 @5"/></v:formulas><v:path textpathok="t" o:connecttype="custom" o:connectlocs="@9,0;@10,10800;@11,21600;@12,10800" o:connectangles="270,180,90,0"/><v:textpath on="t" fitshape="t"/><o:lock v:ext="edit" text="t" shapetype="t"/></v:shapetype><v:shape id="PowerPlusWaterMarkObject${ctx.docPrId()}" o:spid="_x0000_s2049" type="#_x0000_t136" style="position:absolute;margin-left:0;margin-top:0;width:${L.round(w, 1)}pt;height:${L.round(h, 1)}pt;${wm.layout === 'horizontal' ? '' : 'rotation:315;'}z-index:-251657216;mso-position-horizontal:center;mso-position-horizontal-relative:margin;mso-position-vertical:center;mso-position-vertical-relative:margin" o:allowincell="f" fillcolor="#${wm.color || 'C0C0C0'}" stroked="f"><v:fill opacity="${wm.semi === false ? '1' : '.5'}"/><v:textpath style="font-family:&quot;${X(wm.font || 'Times New Roman')}&quot;;font-size:${Math.round(sz)}pt" string="${X(wm.text)}"/><w10:wrap anchorx="margin" anchory="margin"/></v:shape></w:pict></w:r>`;
+      return `<w:r><w:rPr><w:noProof/></w:rPr><w:pict><v:shapetype id="${typeId}" coordsize="21600,21600" o:spt="136" adj="10800" path="m@7,l@8,m@5,21600l@6,21600e"><v:formulas><v:f eqn="sum #0 0 10800"/><v:f eqn="prod #0 2 1"/><v:f eqn="sum 21600 0 @1"/><v:f eqn="sum 0 0 @2"/><v:f eqn="sum 21600 0 @3"/><v:f eqn="if @0 @3 0"/><v:f eqn="if @0 21600 @1"/><v:f eqn="if @0 0 @2"/><v:f eqn="if @0 @4 21600"/><v:f eqn="mid @5 @6"/><v:f eqn="mid @8 @5"/><v:f eqn="mid @7 @8"/><v:f eqn="mid @6 @7"/><v:f eqn="sum @6 0 @5"/></v:formulas><v:path textpathok="t" o:connecttype="custom" o:connectlocs="@9,0;@10,10800;@11,21600;@12,10800" o:connectangles="270,180,90,0"/><v:textpath on="t" fitshape="t"/><o:lock v:ext="edit" text="t" shapetype="t"/></v:shapetype><v:shape id="PowerPlusWaterMarkObject${ctx.docPrId()}" o:spid="${shapeId}" type="#${typeId}" style="position:absolute;margin-left:0;margin-top:0;width:${L.round(w, 1)}pt;height:${L.round(h, 1)}pt;${wm.layout === 'horizontal' ? '' : 'rotation:315;'}z-index:-251657216;mso-position-horizontal:center;mso-position-horizontal-relative:margin;mso-position-vertical:center;mso-position-vertical-relative:margin" o:allowincell="f" fillcolor="#${wm.color || 'C0C0C0'}" stroked="f"><v:fill opacity="${wm.semi === false ? '1' : '.5'}"/><v:textpath style="font-family:&quot;${X(wm.font || 'Times New Roman')}&quot;;font-size:${Math.round(sz)}pt" string="${X(wm.text)}"/><w10:wrap anchorx="margin" anchory="margin"/></v:shape></w:pict></w:r>`;
     }
     if (wm.type === 'picture' && wm.media) {
       const rid = ctx.media(wm.media);
@@ -810,7 +814,7 @@
       const m = L.media.get(wm.media);
       const w = wm.w || 300, h = wm.h || 200;
       void m;
-      return `<w:r><w:rPr><w:noProof/></w:rPr><w:pict><v:shapetype id="_x0000_t75" coordsize="21600,21600" o:spt="75" o:preferrelative="t" path="m@4@5l@4@11@9@11@9@5xe" filled="f" stroked="f"><v:stroke joinstyle="miter"/><v:formulas><v:f eqn="if lineDrawn pixelLineWidth 0"/><v:f eqn="sum @0 1 0"/><v:f eqn="sum 0 0 @1"/><v:f eqn="prod @2 1 2"/><v:f eqn="prod @3 21600 pixelWidth"/><v:f eqn="prod @3 21600 pixelHeight"/><v:f eqn="sum @0 0 1"/><v:f eqn="prod @6 1 2"/><v:f eqn="prod @7 21600 pixelWidth"/><v:f eqn="sum @8 21600 0"/><v:f eqn="prod @7 21600 pixelHeight"/><v:f eqn="sum @10 21600 0"/></v:formulas><v:path o:extrusionok="f" gradientshapeok="t" o:connecttype="rect"/><o:lock v:ext="edit" aspectratio="t"/></v:shapetype><v:shape id="WordPictureWatermark${ctx.docPrId()}" o:spid="_x0000_s2050" type="#_x0000_t75" style="position:absolute;margin-left:0;margin-top:0;width:${L.round(w, 1)}pt;height:${L.round(h, 1)}pt;z-index:-251656192;mso-position-horizontal:center;mso-position-horizontal-relative:margin;mso-position-vertical:center;mso-position-vertical-relative:margin" o:allowincell="f"><v:imagedata r:id="${rid}" o:title="" gain="19661f" blacklevel="22938f"/><w10:wrap anchorx="margin" anchory="margin"/></v:shape></w:pict></w:r>`;
+      return `<w:r><w:rPr><w:noProof/></w:rPr><w:pict><v:shapetype id="${typeId}" coordsize="21600,21600" o:spt="75" o:preferrelative="t" path="m@4@5l@4@11@9@11@9@5xe" filled="f" stroked="f"><v:stroke joinstyle="miter"/><v:formulas><v:f eqn="if lineDrawn pixelLineWidth 0"/><v:f eqn="sum @0 1 0"/><v:f eqn="sum 0 0 @1"/><v:f eqn="prod @2 1 2"/><v:f eqn="prod @3 21600 pixelWidth"/><v:f eqn="prod @3 21600 pixelHeight"/><v:f eqn="sum @0 0 1"/><v:f eqn="prod @6 1 2"/><v:f eqn="prod @7 21600 pixelWidth"/><v:f eqn="sum @8 21600 0"/><v:f eqn="prod @7 21600 pixelHeight"/><v:f eqn="sum @10 21600 0"/></v:formulas><v:path o:extrusionok="f" gradientshapeok="t" o:connecttype="rect"/><o:lock v:ext="edit" aspectratio="t"/></v:shapetype><v:shape id="WordPictureWatermark${ctx.docPrId()}" o:spid="${shapeId}" type="#${typeId}" style="position:absolute;margin-left:0;margin-top:0;width:${L.round(w, 1)}pt;height:${L.round(h, 1)}pt;z-index:-251656192;mso-position-horizontal:center;mso-position-horizontal-relative:margin;mso-position-vertical:center;mso-position-vertical-relative:margin" o:allowincell="f"><v:imagedata r:id="${rid}" o:title="" gain="19661f" blacklevel="22938f"/><w10:wrap anchorx="margin" anchory="margin"/></v:shape></w:pict></w:r>`;
     }
     return '';
   }
@@ -849,7 +853,6 @@
     const ranges = L.preserve.prepareRanges(doc);
     const objects = L.preserve.prepareObjects(doc, pack.writer);
     /* --- context shared by every story --- */
-    let revN = 0;
     const bmIds = new Map();
     const mediaMap = new Map();
     let mediaN = 0;
@@ -864,7 +867,8 @@
     const usedPaths = new Set();
     const mkCtx = (rels, main) => ({
       rels, main, doc, ranges, objects, writer: pack.writer, part: rels.owner, mainPart: pack.part('word/document.xml'),
-      rev: () => ++revN,
+      drawingXML,
+      rev: () => pack.writer.ids.fresh('document', 'revision'),
       docPrId: () => pack.writer.ids.fresh('document', 'docPr'),
       bmSeen: new Set(),
       bmId: (id) => { const k = rels.owner + ':' + id; if (!bmIds.has(k)) bmIds.set(k, pack.writer.ids.fresh(rels.owner, 'bookmark')); return bmIds.get(k); },
@@ -913,7 +917,7 @@
     const hfParts = [];
     /* the watermark lives in the default header of every section */
     const wmHeaders = new Set();
-    if (doc.watermark && (doc.watermark.text || doc.watermark.media)) {
+    if (doc.watermark && !L.preserve.keepWatermark(doc) && (doc.watermark.text || doc.watermark.media)) {
       const secs = D.sections(doc);
       for (const s of secs) {
         if (!s.sect.refs) s.sect.refs = { hdr: {}, ftr: {} };

@@ -127,10 +127,13 @@ regressions fixed in `bc3a04e`; 12 affected/locked-control inputs subsequently c
 and explicitly exclude **8**. Their comparable saved states introduce no additional diagnostics.
 
 The full package/SDK comparison reports **2,622 OK and 280 failed**; **206** files add diagnostics.
-A correction pass over those 206 files clears **177**, leaving **29** for the next Quire group.
-Corrections include paragraph order and document-wide XML-store relationships for header/footer
-controls. Style diagnostics now follow the original style ID when the list order changes. The 29
-remaining files are not counted as passing; this is not a claim that the Quire step is complete.
+A correction pass over those 206 files cleared **177**; the drawing/table/watermark group resolves
+**26 of the remaining 29**. Three malformed inputs still expand invalid run properties when their
+runs are split (`tdf115212`, `tdf91095`, `tdf57589_hashColor`); these remain failed comparisons.
+Corrections cover paragraph order, document-wide binding relationships, revision-ID collisions,
+point-comment ranges and redundant VML type definitions. Diagnostic comparison follows style IDs
+and unchanged property content when positions move, while retaining occurrence counts. The full
+Quire rerun and Office batch 2 are pending; these focused results do not replace the full totals.
 
 The feature inventory compares **2,858 readable pairs**, with **44 failed attempts**. It retains
 **776,195 of 776,857 counted words**; **2,805 documents** keep every counted word. Data-bound values,
@@ -147,7 +150,7 @@ malformed input, unreferenced stories and unsupported markup remain exceptions.
 | Kept, with remaining losses | Revisions, fields, pictures and tables | 1,385/1,427 insertions/deletions, 1,084/1,103 formatting revisions, 2,590/2,711 fields, 1,218/1,235 pictures and 1,603/1,604 tables |
 | Converted when edited | Unsupported contents inside an opaque frame; typed/complex controls | Edited or ungrouped converted content uses the model representation; incompatible typed-control edits unbind and report the conversion |
 | Mostly converted | Smart tags and inline custom-XML markup | 18/519 original wrappers remain; their text is represented as ordinary content |
-| Pending | Per-property drawing edits, row/cell alternatives and watermarks | Editing a drawing property still converts its frame; table-row/cell compatibility wrappers and the watermark path need integration |
+| Kept; Office review pending | Per-property drawing edits, row/cell alternatives and watermarks | 48 focused save/edit/history/draft states pass package/SDK comparison; full corpus update pending |
 
 Package counts verify bytes, types, rIds and targets; unreferenced parts have separate loss entries.
 The user accepted the bound-text, formatted-effects, resized-SmartArt, pasted-OLE, macro and namespace
@@ -196,14 +199,25 @@ a built-in document-property binding into another document also unbinds it and r
 | Move, resize, rotate or flip one object | Update its anchor/transform in both compatibility branches |
 | Resize a SmartArt preview group | Keep diagram data with scaled children or a changed outer extent |
 | Edit or ungroup converted contents; replace a picture | Write the model representation and report conversion |
-| Change a drawing property, wrapping or anchor reference mode | Currently convert the frame; per-property merging is pending |
+| Change picture crop, border, brightness/contrast, grayscale or opacity | Replace that property; retain recolouring, effects, blip extensions and sibling properties |
+| Change shape fill, line, shadow or text-box layout | Merge the owning properties in schema order; a shadow edit keeps glow, reflection, soft edges and 3-D siblings |
+| Change DrawingML wrapping or anchor reference mode | Merge anchor properties; changing inline/floating status retains the original graphic and identities |
+| Change a complex VML fill, VML geometry/text layout, or a shadow in an effect graph | Convert the affected frame and report it |
 | Duplicate or paste into another document | Carry preview and payload bytes; remap definitions and references together, including SmartArt's implicit drawing link |
 | Delete all or part of a multi-member compatibility wrapper | Never resurrect deleted content; convert surviving members and report it when the wrapper is incomplete |
 | Undo and drafts | Restore frame/dependency identities |
 
-Embedded documents and objects without a usable preview display a placeholder. Run, inline and block
-alternatives are captured before normalization and emitted once. Moving one of several drawings
-owned by a single wrapper currently converts that wrapper; row/cell alternatives remain pending.
+Embedded documents and objects without a usable preview display a placeholder. Run, inline, block,
+row and cell alternatives are captured before normalization and emitted once. Empty table choices
+remain attached to adjacent members, retaining their fallback without adding a visible row or cell.
+Moving one of several drawings owned by a single wrapper currently converts that wrapper.
+
+Original text/picture watermarks stay in their own header/footer locations with their XML and
+relationships. Editing the watermark replaces those originals; removing it omits them. Undo restores
+the originals, and drafts retain the current state. Eight focused cases cover drawing properties,
+row/cell alternatives (including empty choices) and watermarks: **62 checks and 48 emitted states**
+pass, with no added package/SDK diagnostics. The two watermark inputs retain all six original VML
+watermark elements byte for byte before editing. Office review of these changes is still pending.
 
 ### Package and file identity: edit behavior
 
@@ -240,6 +254,7 @@ compatibility results are archived with the run history rather than mixed into c
 | `js/render.js`, `js/layout.js` | Paragraph/run rendering, pagination, headers/footers, footnotes, columns, floats |
 | `js/editor.js` | contentEditable bridge: selection mapping, typing, IME, clipboard, keyboard |
 | `js/preserve.js` | Package ownership/merges; controls and XML bindings; property/range preservation; opaque frames, compatibility alternatives and clipboard dependencies |
+| `js/preserve-drawing.js` | Property-level DrawingML/VML merges, including compatibility choices, picture effects and anchor edits |
 | `js/docx-read.js`, `js/docx-write.js`, `../common/dml.js` | `.docx` import/export, DrawingML/VML shapes, charts, themes |
 | `js/rtf.js`, `js/htmlio.js` | RTF and HTML import/export |
 | `js/markdown.js`, `js/mdio.js` | Markdown reader (CommonMark + GitHub extensions, with source lines; also loads in Node) and Markdown/`.zip` import and export |

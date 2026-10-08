@@ -345,6 +345,7 @@
     else if ((isP && name === 'spid') || ['stCxn', 'endCxn'].includes(tag) && name === 'id') kind = 'shape';
     else if (isP && name === 'grpId' && ['cTn', 'bldP', 'bldDgm', 'bldOleChart', 'bldGraphic'].includes(tag)) { kind = 'build'; definition = tag !== 'cTn'; }
     else if (isW && name === 'id' && /^(bookmark|perm)(Start|End)$/.test(tag)) { kind = tag.startsWith('bookmark') ? 'bookmark' : 'permission'; definition = tag.endsWith('Start'); }
+    else if (isW && name === 'id' && /^(ins|del|moveFrom|moveTo|\w+PrChange|numberingChange|cellIns|cellDel|cellMerge)$/.test(tag)) { kind = 'revision'; scope = 'document'; definition = true; }
     else if (isP && name === 'id' && ['sldId', 'sldMasterId', 'sldLayoutId'].includes(tag)) { kind = tag; scope = 'presentation'; definition = true; }
     else if (isS && name === 'sheetId') { kind = 'sheet'; scope = 'workbook'; definition = tag === 'sheet'; }
     else if (isS && name === 'cacheId') { kind = 'cache'; scope = 'workbook'; definition = tag === 'pivotCache'; }

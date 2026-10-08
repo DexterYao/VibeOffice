@@ -74,7 +74,7 @@
     // Capture before compatibility choices are normalised. A property fragment
     // belongs to this element, even when the element itself is inside a choice.
     const nodes = Array.from(root.getElementsByTagName('*'));
-    for (const el of nodes) if (wordNS(el.namespaceURI) && ['rPr', 'pPr', 'drawing', 'pict', 'object', 'control', 'altChunk', 'contentPart'].includes(el.localName)) originalProperties.set(el, K.raw(el));
+    for (const el of nodes) if (wordNS(el.namespaceURI) && ['rPr', 'pPr', 'tbl', 'tblPr', 'drawing', 'pict', 'object', 'control', 'altChunk', 'contentPart'].includes(el.localName)) originalProperties.set(el, K.raw(el));
     // Leave an anchor when compatibility normalisation selects an empty branch.
     // captureAC still reads the immutable source text, without this sentinel.
     for (const el of nodes) if (el.namespaceURI === N.mc && ['Choice', 'Fallback'].includes(el.localName) && !el.children.length) el.appendChild(el.ownerDocument.createElementNS('urn:vibeoffice:keep', 'keep'));
@@ -88,6 +88,7 @@
   P.propertyFields = Object.freeze({
     rPr: { rStyle: ['style'], rFonts: ['font', 'fontEA', 'fontCS', 'hint'], b: ['b'], bCs: ['bCs'], i: ['i'], iCs: ['iCs'], caps: ['caps'], smallCaps: ['smallCaps'], strike: ['strike'], dstrike: ['dstrike'], outline: ['outline'], shadow: ['shadow'], emboss: ['emboss'], imprint: ['imprint'], noProof: ['noProof'], vanish: ['hidden'], webHidden: ['webHidden'], color: ['color'], spacing: ['spacing'], w: ['w'], kern: ['kern'], position: ['pos'], sz: ['sz'], szCs: ['szCs', 'sz'], highlight: ['hl'], u: ['u', 'uColor'], effect: ['effect'], bdr: ['border'], shd: ['shd'], vertAlign: ['vert'], rtl: ['rtl'], cs: ['cs'], em: ['em'], lang: ['lang', 'langEA'], specVanish: ['specVanish'], rPrChange: ['chg'] },
     pPr: { pStyle: ['style'], keepNext: ['keepNext'], keepLines: ['keepLines'], pageBreakBefore: ['pageBreakBefore'], framePr: ['frame', 'dropCap'], widowControl: ['widow'], numPr: ['num'], suppressLineNumbers: ['noLineNum'], pBdr: ['borders'], shd: ['shd'], tabs: ['tabs'], suppressAutoHyphens: ['noHyphen'], bidi: ['bidi'], snapToGrid: ['noSnap'], spacing: ['sp'], ind: ['ind'], contextualSpacing: ['contextual'], mirrorIndents: ['mirrorInd'], jc: ['jc'], textDirection: ['textDir'], textAlignment: ['textAlign'], outlineLvl: ['outline'], pPrChange: ['chg'] },
+    tblPr: { tblStyle: ['style'], tblpPr: ['float'], bidiVisual: ['bidi'], tblStyleRowBandSize: ['rowBand'], tblStyleColBandSize: ['colBand'], tblW: ['w'], jc: ['jc'], tblCellSpacing: ['spacing'], tblInd: ['ind'], tblBorders: ['borders'], shd: ['shd'], tblLayout: ['layout'], tblCellMar: ['cellMar'], tblLook: ['look'], tblCaption: ['caption'], tblDescription: ['desc'] },
   });
   const propertyKeys = (kind, el) => wordNS(el.namespaceURI) ? P.propertyFields[kind][el.localName] : kind === 'rPr' && /word\/2010\/wordml$/.test(el.namespaceURI || '') ? ({ shadow: ['shadow'], textFill: ['color'], textOutline: ['outline'] }[el.localName]) : undefined;
   const propertyValues = (model, keys) => JSON.stringify(keys.map(k => model[k] ?? null), (k, v) => k === 'x' && v?.fragment ? undefined : v);
@@ -117,7 +118,7 @@
         if (always || keys && kept.values[name] !== propertyValues(model, keys)) replacements[name] = fresh.filter(c => expanded(c) === name).map(K.raw);
       }
       if (outer) for (const c of fresh) if (!mark(c) && !present.has(expanded(c))) replacements[expanded(c)] = fresh.filter(e => expanded(e) === expanded(c)).map(K.raw);
-      return K.merge(xml, replacements, kind === 'rPr' ? 'w:CT_RPr' : 'w:CT_PPr');
+      return K.merge(xml, replacements, { rPr: 'w:CT_RPr', pPr: 'w:CT_PPr', tblPr: 'w:CT_TblPr' }[kind]);
     };
     try {
       let xml = merge(kept.fragment.xml, true);
@@ -170,17 +171,19 @@
      can own several items or blocks; all of them must survive before their
      original wrapper can be emitted once. Bytes remain in the package graph. */
   const drawingTypes = new Set(['img', 'shape', 'group', 'chart']);
-  const opaqueStore = object => object.t === 'p' ? object.pPr : object.t === 'tbl' ? object.tblPr : (object.keep || (object.keep = {}));
+  const opaqueStore = (object, create = false) => object.t === 'p' ? object.pPr : object.t === 'tbl' ? object.tblPr : object.cells ? object.trPr : object.tcPr || object.keep || (create ? (object.keep = {}) : null);
   const geometry = it => ({ w: it.w, h: it.h, rot: it.rot || 0, flipH: !!it.flipH, flipV: !!it.flipV,
     x: it.float?.posH?.off, y: it.float?.posV?.off });
   const geometryKeys = new Set(['w', 'h', 'x', 'y', 'rot', 'flipH', 'flipV']);
-  P.objectSignature = function (object, scope, scaled = true) {
+  P.objectSignature = function (object, scope, scaled = true, properties = []) {
+    if (scope === 'empty') return '';
     function value(v, key, parent, root = false) {
       if (v == null || typeof v !== 'object') return v;
       if (Array.isArray(v)) return v.map(c => value(c, '', v));
       const drawing = drawingTypes.has(v.t), out = {};
       for (const k of Object.keys(v).sort()) {
-        if (['keep', 'ac', 'opaque', 'id', 'key', 'paras'].includes(k) || k.startsWith('_') || k === 'x' && v[k]?.fragment) continue;
+        if (root && properties.includes(k)) continue;
+        if (['keep', 'ac', 'acBefore', 'acAfter', 'opaque', 'id', 'key', 'paras'].includes(k) || k.startsWith('_') || k === 'x' && v[k]?.fragment) continue;
         if (drawing && geometryKeys.has(k)) continue;
         if ((v.opaquePlaceholder || v.zero || root && v.t === 'p' && v.pPr?.opaque) && ['rPr', 'pPr'].includes(k)) continue;
         if (root && scope === 'run' && k === 'rPr') continue;
@@ -209,6 +212,7 @@
     visit(object); return out;
   };
   const objectKey = record => JSON.stringify([record.fragment.source, record.fragment.part, record.fragment.record || record.key, record.fragment.copy || '']);
+  const typeKey = (fragment, id) => JSON.stringify([fragment.source, fragment.part, id.kind, id.id]);
   P.registerObject = function (fragment, doc, label, scope = 'run') {
     const key = fragment.record || D.nid();
     const record = { key, fragment, label, scope, count: 1, index: 0 };
@@ -245,7 +249,7 @@
       const copy = 'vml-type:' + crypto.randomUUID();
       for (const id of fragment.ids) if (id.kind.startsWith('vmlType') && addedTypes.has((id.prefix || '').replace(/^#/, '') + id.id)) id.copy = copy;
     }
-    opaqueStore(object).opaque = P.registerObject(fragment, doc, label || object.name || object.alt || 'Drawing');
+    opaqueStore(object, true).opaque = P.registerObject(fragment, doc, label || object.name || object.alt || 'Drawing');
     return object;
   };
   P.opaqueBlock = function (el, ctx, doc, label) {
@@ -269,22 +273,35 @@
         for (const { el, members } of groups.values()) {
           const record = P.registerObject(K.fragment(el, { pkg: doc.pkg, part: ctx.part }), doc, 'Compatibility content', scope);
           if (scope === 'inline') record.wrapper = L.clone(rPr || {});
-          members.forEach((o, index) => { opaqueStore(o).ac = { ...record, index, count: members.length }; });
+          members.forEach((o, index) => { opaqueStore(o, true).ac = { ...record, index, count: members.length }; });
         }
       },
     };
+  };
+  P.emptyAlternates = function (entries, models, ctx, doc) {
+    for (const { el, index } of entries) {
+      const next = models.slice(index).find(Boolean), previous = models.slice(0, index).findLast(Boolean);
+      const owner = next || previous;
+      if (!owner) continue; // An entirely empty table is retained as an opaque block.
+      const store = opaqueStore(owner, true), key = next ? 'acBefore' : 'acAfter';
+      (store[key] || (store[key] = [])).push(P.registerObject(K.fragment(el, { pkg: doc.pkg, part: ctx.part }), doc, 'Compatibility content', 'empty'));
+    }
+  };
+  P.tableMemberXML = function (object, ctx, generate) {
+    const store = opaqueStore(object), emit = name => (store?.[name] || []).map(record => P.objectXML(object, name, ctx, record) || '').join('');
+    return emit('acBefore') + (P.objectXML(object, 'ac', ctx) ?? generate()) + emit('acAfter');
   };
   const objectRecords = doc => {
     const out = [], visited = new Set();
     const visit = (object, container, index) => {
       if (!object || typeof object !== 'object' || visited.has(object)) return;
       visited.add(object);
-      if (object.t) for (const name of ['ac', 'opaque']) {
-        const record = (object.t === 'p' ? object.pPr : object.t === 'tbl' ? object.tblPr : object.keep)?.[name];
-        if (record) out.push({ object, name, record, container, index });
+      if (object.t || object.cells || object.tcPr) for (const name of ['ac', 'opaque', 'acBefore', 'acAfter']) {
+        const records = opaqueStore(object)?.[name];
+        for (const record of [records].flat().filter(Boolean)) out.push({ object, name, record, container, index });
       }
       if (Array.isArray(object)) object.forEach((o, i) => visit(o, object, i));
-      else for (const [k, v] of Object.entries(object)) if (!['keep', 'ac', 'opaque', 'x', 'paras'].includes(k) && !k.startsWith('_')) visit(v);
+      else for (const [k, v] of Object.entries(object)) if (!['keep', 'ac', 'acBefore', 'acAfter', 'opaque', 'x', 'paras'].includes(k) && !k.startsWith('_')) visit(v);
     };
     for (const story of D.stories(doc)) visit(story.blocks);
     return out;
@@ -293,14 +310,18 @@
     const groups = new Map();
     for (const entry of objectRecords(doc)) {
       const { object, record } = entry, key = objectKey(record);
-      record.signature = P.objectSignature(object, record.scope); record.absoluteSignature = P.objectSignature(object, record.scope, false); record.boxes = objectBoxes(object);
+      record.drawing = record.count === 1 && P.drawingProperties?.(object, record.fragment);
+      const properties = Object.keys(record.drawing || {});
+      record.signature = P.objectSignature(object, record.scope, true, properties); record.absoluteSignature = P.objectSignature(object, record.scope, false, properties); record.boxes = record.scope === 'empty' ? [] : objectBoxes(object);
       const previews = new Map();
       const collect = o => {
         if (!o || typeof o !== 'object') return;
+        if (o.watermark) record.watermark = true;
         if (o.media && doc.pkg && doc.keep.media?.[o.media]) previews.set(o.media, { id: o.media, source: doc.pkg.id, part: doc.keep.media[o.media] });
         for (const [k, v] of Object.entries(o)) if (!['keep', 'ac', 'opaque', 'x', 'paras'].includes(k) && !k.startsWith('_')) collect(v);
       };
-      collect(object); if (previews.size) record.previews = [...previews.values()];
+      if (record.scope !== 'empty') collect(object);
+      if (previews.size) record.previews = [...previews.values()];
       if (!groups.has(key)) groups.set(key, []); groups.get(key).push(record);
     }
     // Field normalisation may remove instruction markers while keeping results.
@@ -341,20 +362,29 @@
     }
     for (const group of groups.values()) {
       const records = group.entries.map(e => e.record);
-      group.intact = records.length === records[0].count && new Set(records.map(r => r.index)).size === records.length && group.entries.every(e => e.record.signature === P.objectSignature(e.object, e.record.scope) || e.record.absoluteSignature === P.objectSignature(e.object, e.record.scope, false));
+      group.intact = records.length === records[0].count && new Set(records.map(r => r.index)).size === records.length && group.entries.every(e => e.record.signature === P.objectSignature(e.object, e.record.scope, true, Object.keys(e.record.drawing || {})) || e.record.absoluteSignature === P.objectSignature(e.object, e.record.scope, false, Object.keys(e.record.drawing || {})));
       group.intact = group.intact && group.entries.every((e, i) => e.record.index === i && e.container === group.entries[0].container && e.index === group.entries[0].index + i);
-      group.boxes = group.entries.flatMap(e => objectBoxes(e.object));
+      if (records.some(r => r.watermark) && !P.keepWatermark(doc)) group.intact = false;
+      group.boxes = group.entries.flatMap(e => e.record.scope === 'empty' ? [] : objectBoxes(e.object));
       const previous = group.entries.flatMap(e => e.record.boxes || []);
       group.moved = !same(previous, group.boxes);
       if (group.moved && group.boxes.length !== 1) group.intact = false;
       if (group.moved && group.boxes.length === 1) group.boxChange = Object.fromEntries(Object.entries(group.boxes[0]).filter(([k, v]) => !same(v, previous[0]?.[k])));
     }
     for (const old of doc.keep?.objects || []) if (!seen.has(old.key)) writer.loss({ id: 'object:' + old.key, what: old.label + ' was removed.', where: old.part, action: 'drop' });
+    groups.vmlTypes = new Set();
+    for (const group of groups.values()) if (group.intact) for (const { record: { fragment } } of group.entries) {
+      if (fragment.copy) continue;
+      for (const id of fragment.ids) if (id.definition && id.kind.startsWith('vmlType') && !id.copy) groups.vmlTypes.add(typeKey(fragment, id));
+    }
     return groups;
   };
-  P.objectXML = function (object, name, ctx) {
-    const record = (object.t === 'p' ? object.pPr : object.t === 'tbl' ? object.tblPr : object.keep)?.[name];
+  P.objectXML = function (object, name, ctx, record = opaqueStore(object)?.[name]) {
     if (!record) return null;
+    if (object.watermark && !P.keepWatermark(ctx.doc)) {
+      ctx.writer.loss({ id: 'object:' + record.key, what: 'The watermark was ' + (ctx.doc.watermark ? 'replaced.' : 'removed.'), where: ctx.part, action: ctx.doc.watermark ? 'conversion' : 'drop' });
+      return '';
+    }
     const group = ctx.objects.get(objectKey(record));
     if (!group?.intact) {
       ctx.writer.loss({ id: 'object:' + record.key + ':' + (record.fragment.copy || ''), what: record.label + ': editing its converted content replaced the original markup.', where: ctx.part, action: 'conversion' });
@@ -363,6 +393,18 @@
     if (group.emitted) return '';
     try {
       let fragment = record.fragment;
+      if (!fragment.copy && fragment.source === ctx.writer.pkg?.id && fragment.part === ctx.part) {
+        const shared = new Set(fragment.ids.filter(id => id.copy && id.kind.startsWith('vmlType') && ctx.objects.vmlTypes.has(typeKey(fragment, id))).map(id => typeKey(fragment, id)));
+        if (shared.size) {
+          const tree = K.parse(fragment.xml), patches = [];
+          for (const el of [tree, ...tree.getElementsByTagName('*')]) if (el.localName === 'shapetype') {
+            const index = /^\u0001id:(\d+)\u0001$/.exec(attr(el, 'id') || '')?.[1];
+            if (index != null && shared.has(typeKey(fragment, fragment.ids[+index]))) patches.push({ ...location(el), value: '' });
+          }
+          fragment = K.slice(fragment, K.patch(fragment.xml, patches));
+          fragment.ids = fragment.ids.map(id => shared.has(typeKey(fragment, id)) ? { ...id, copy: undefined } : id);
+        }
+      }
       const diagrams = new Map();
       for (const rel of record.related || []) {
         const id = ctx.writer.keepRel(ctx.part, rel);
@@ -393,13 +435,15 @@
           return dep.source === source && dep.part === part ? ctx.writer.rels(ctx.part).add(dep.type, K.relative(ctx.part, dest), false) : token;
         }));
       }
-      const xml = ctx.writer.emit(fragment, ctx.part, group.moved ? { box: group.boxChange } : {});
+      let xml = ctx.writer.emit(fragment, ctx.part, group.moved ? { box: group.boxChange } : {});
+      if (record.drawing) xml = P.mergeDrawing(xml, object, record.drawing, ctx);
       group.emitted = true; return xml;
     } catch (error) {
       ctx.writer.loss({ id: 'object:' + record.key, what: record.label + ' could not be retained: ' + error.message, where: ctx.part, action: 'conversion' });
       group.intact = false; return null;
     }
   };
+  P.keepWatermark = doc => !!doc.keep?.values && Object.hasOwn(doc.keep.values, 'watermark') && same(doc.watermark, doc.keep.values.watermark);
 
   /* Content controls are boundaries, not text. The shell owns its properties and
      dependencies; the editor continues to own the paragraphs/runs inside it. */

@@ -657,7 +657,11 @@
 
     /* ---- story parsing ---- */
     let fid = 0;
-    function storyCtx(partPath, relMap, story) { return { part: partPath, rels: relMap, story, stores, vmlTypes, fstack: [], dropFids: new Set(), cmtOpen: new Set(), pendingBm: [], hyper: new Map() }; }
+    const commentRanges = new Map();
+    function storyCtx(partPath, relMap, story) {
+      if (!commentRanges.has(partPath)) commentRanges.set(partPath, new Set(Array.from(xmlCache.get(partPath)?.getElementsByTagName('*') || []).filter(e => ['commentRangeStart', 'commentRangeEnd'].includes(e.localName)).map(e => at(e, 'id'))));
+      return { part: partPath, rels: relMap, story, stores, vmlTypes, fstack: [], dropFids: new Set(), cmtOpen: new Set(), cmtRanges: commentRanges.get(partPath), pendingBm: [], hyper: new Map() };
+    }
 
     function parseBlocks(el, ctx, out) {
       out = out || [];
@@ -891,8 +895,9 @@
           case 'commentReference': {
             const id = at(c, 'id');
             /* comments without a range get an empty range at the reference */
-            const hasStart = p.runs.some((x) => x.t === 'cs' && x.id === id) || (ctx.cmtOpen && ctx.cmtOpen.has(id));
-            if (!hasStart) { p.runs.push(D.item('cs', { id })); p.runs.push(D.item('ce', { id })); }
+            // A reference may precede its real range. Point comments have virtual
+            // editor boundaries, but must not add duplicate OOXML range IDs.
+            if (!ctx.cmtRanges.has(id)) { p.runs.push(D.item('cs', { id, point: true })); p.runs.push(D.item('ce', { id, point: true })); }
             break;
           }
           case 'drawing': { const it = parseDrawing(c, ctx, base); push(L.preserve.keepObject(it, c, ctx, doc, it?.diagram ? 'SmartArt' : it?.alt || 'Drawing')); break; }
@@ -1007,20 +1012,23 @@
     }
     function parseTbl(el, ctx) {
       const tp = tblPr(kid(el, 'tblPr'));
+      L.preserve.properties(tp, kid(el, 'tblPr'), 'tblPr', { pkg: doc.pkg, part: ctx.part });
       const grid = kids(kid(el, 'tblGrid'), 'gridCol').map((g) => tw(at(g, 'w')));
       const rows = [];
+      const rowAlternates = L.preserve.readAlternates(el, rows, ctx, doc, 'row');
       const rowEls = [];
-      const rowControls = [], rowModels = new Map();
-      const collectRows = (parent) => { for (const c of parent.children) { if (c.localName === 'tr') rowEls.push(c); else if (c.localName === 'sdt') { const sc = kid(c, 'sdtContent'); if (sc) { const n = rowEls.length; collectRows(sc); rowControls.push({ control: L.preserve.control(c, ctx, doc), elements: rowEls.slice(n) }); } } else if (c.localName === 'customXml' || c.localName === 'ins' || c.localName === 'del') collectRows(c); } };
+      const rowControls = [], rowModels = new Map(), emptyRows = [];
+      const collectRows = (parent) => { for (const c of parent.children) { if (c.localName === 'tr') rowEls.push(c); else if (c.localName === 'sdt') { const sc = kid(c, 'sdtContent'); if (sc) { const n = rowEls.length; collectRows(sc); rowControls.push({ control: L.preserve.control(c, ctx, doc), elements: rowEls.slice(n) }); } } else if (c.localName === 'customXml' || c.localName === 'ins' || c.localName === 'del') collectRows(c); else if (c.namespaceURI === 'urn:vibeoffice:keep' && L.opc.alternate(c) && L.opc.alternate(c) !== L.opc.alternate(el)) emptyRows.push({ el: c, index: rowEls.length }); } };
       collectRows(el);
       for (const tr of rowEls) {
         const rp = trPr(kid(tr, 'trPr'));
         const ex = kid(tr, 'tblPrEx');
         const cells = [];
+        const cellAlternates = L.preserve.readAlternates(tr, cells, ctx, doc, 'cell');
         const cellEls = [];
-        const cellControls = [], cellModels = new Map();
+        const cellControls = [], cellModels = new Map(), emptyCells = [];
         const cellBound = new Map(); /* cell-level content controls bound to a data store */
-        const collectCells = (parent) => { for (const c of parent.children) { if (c.localName === 'tc') cellEls.push(c); else if (c.localName === 'sdt') { const sc = kid(c, 'sdtContent'); if (sc) { const n0 = cellEls.length; collectCells(sc); const bv = boundText(kid(c, 'sdtPr')); if (bv != null && cellEls.length === n0 + 1) cellBound.set(cellEls[n0], bv); cellControls.push({ control: L.preserve.control(c, ctx, doc), elements: cellEls.slice(n0) }); } } else if (c.localName === 'customXml') collectCells(c); } };
+        const collectCells = (parent) => { for (const c of parent.children) { if (c.localName === 'tc') cellEls.push(c); else if (c.localName === 'sdt') { const sc = kid(c, 'sdtContent'); if (sc) { const n0 = cellEls.length; collectCells(sc); const bv = boundText(kid(c, 'sdtPr')); if (bv != null && cellEls.length === n0 + 1) cellBound.set(cellEls[n0], bv); cellControls.push({ control: L.preserve.control(c, ctx, doc), elements: cellEls.slice(n0) }); } } else if (c.localName === 'customXml') collectCells(c); else if (c.namespaceURI === 'urn:vibeoffice:keep' && L.opc.alternate(c) && L.opc.alternate(c) !== L.opc.alternate(tr)) emptyCells.push({ el: c, index: cellEls.length }); } };
         collectCells(tr);
         for (const tc of cellEls) {
           const cp = tcPr(kid(tc, 'tcPr'));
@@ -1029,7 +1037,9 @@
           if (!blocks.length || blocks[blocks.length - 1].t !== 'p') { const sp = D.para(); if (blocks.length) sp.synth = true; blocks.push(sp); }
           cells.push({ id: D.nid(), tcPr: cp, blocks });
           cellModels.set(tc, cells.at(-1));
+          cellAlternates.add(tc, cells.length - 1);
         }
+        cellAlternates.finish();
         /* legacy horizontal merges → gridSpan */
         for (let i = cells.length - 1; i > 0; i--) {
           if (cells[i].tcPr.hMerge === 'continue') {
@@ -1041,14 +1051,19 @@
         }
         for (const c of cells) delete c.tcPr.hMerge;
         for (const c of cellControls) L.preserve.markControl(c.elements.map(e => cellModels.get(e)).filter(c => cells.includes(c)), 'tcPr', c.control);
+        if (!cells.length && emptyCells.length) return L.preserve.opaqueBlock(el, ctx, doc, 'Compatibility table');
         if (!cells.length) continue;
+        L.preserve.emptyAlternates(emptyCells, cellEls.map(e => cellModels.get(e)).map(c => cells.includes(c) ? c : null), ctx, doc);
         const row = { id: D.nid(), trPr: rp, cells };
         if (ex) { const xp = tblPr(ex); if (xp.borders) row.exBorders = xp.borders; }
         rows.push(row);
         rowModels.set(tr, row);
+        rowAlternates.add(tr, rows.length - 1);
       }
+      rowAlternates.finish();
       for (const c of rowControls) L.preserve.markControl(c.elements.map(e => rowModels.get(e)).filter(Boolean), 'trPr', c.control);
-      if (!rows.length) return null;
+      if (!rows.length) return emptyRows.length ? L.preserve.opaqueBlock(el, ctx, doc, 'Compatibility table') : null;
+      L.preserve.emptyAlternates(emptyRows, rowEls.map(e => rowModels.get(e)), ctx, doc);
       /* grid sanity: compute from cell widths when missing or inconsistent */
       const nCols = Math.max(...rows.map((r) => (r.trPr.gridBefore || 0) + r.cells.reduce((s, c) => s + (c.tcPr.span || 1), 0) + (r.trPr.gridAfter || 0)));
       let g = grid.slice();
@@ -1515,6 +1530,8 @@
         if (ct || cb || cl || cr) it.crop = { t: frac(ct), b: frac(cb), l: frac(cl), r: frac(cr) };
         if (X.bool(at(im, 'grayscale'))) it.gray = true;
         if (X.bool(at(im, 'bilevel'))) it.bw = true;
+        if (at(im, 'blacklevel')) it.bright = frac(at(im, 'blacklevel'));
+        if (at(im, 'gain')) it.contrast = frac(at(im, 'gain')) - 1;
         if (at(s, 'alt')) it.alt = at(s, 'alt');
       } else {
         let geom = { rect: 'rect', roundrect: 'roundRect', oval: 'ellipse', line: 'line', arc: 'arc' }[s.localName] || 'rect';
@@ -1616,14 +1633,14 @@
         if (tp) {
           const ts = styleMap(at(tp, 'style'));
           doc.watermark = { type: 'text', text: at(tp, 'string') || '', font: (ts['font-family'] || 'Calibri').replace(/["']/g, ''), size: ts['font-size'] ? cssLen(ts['font-size']) : 0, color: (vColor(at(s, 'fillcolor')) || '#C0C0C0').replace('#', ''), semi: !!desc(s, 'fill') && /\.5|50/.test(at(desc(s, 'fill'), 'opacity') || ''), layout: /rotation:\s*315|rotation:-45/.test(at(s, 'style') || '') ? 'diagonal' : 'horizontal' };
-          return null;
+          return D.item('raw', { zero: true, watermark: true }, base);
         }
         const im = desc(s, 'imagedata');
         if (im) {
           const r = rid(im, 'id');
           const rel = r && ctx.rels[r];
           doc.watermark = { type: 'picture', media: rel ? mediaCache.get(rel.target) : null, w, h, washout: true };
-          return null;
+          return D.item('raw', { zero: true, watermark: true }, base);
         }
       }
       let it;
@@ -1779,7 +1796,7 @@
     if (/template/.test(mainCT)) doc.isTemplate = true;
     if (/macroEnabled/.test(mainCT)) doc.hasMacros = true;
     doc.ooxmlFormat = L.opc.variant(doc.pkg, doc.isTemplate ? 'dotx' : 'docx');
-    doc.keep.values = Object.fromEntries(['settings', 'theme', 'props', 'custom'].map(k => [k, JSON.parse(JSON.stringify(doc[k]))]));
+    doc.keep.values = Object.fromEntries(['settings', 'theme', 'props', 'custom', 'watermark'].map(k => [k, JSON.parse(JSON.stringify(doc[k]))]));
 
     /* numbering instances referenced but undefined → plain paragraphs */
     D.walk(doc.main, (b) => { if (b.t === 'p' && b.pPr.num && b.pPr.num.id && b.pPr.num.id !== '0' && !doc.numbering.nums[b.pPr.num.id]) delete b.pPr.num; });

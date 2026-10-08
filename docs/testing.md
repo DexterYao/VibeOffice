@@ -180,7 +180,11 @@ dotnet tools/ooxml/oxval/bin/Release/net8.0/oxval.dll --baseline original.docm s
 The validator is pinned to SDK 3.1.1, targets Office 2019, handles all document/macro/template/slideshow
 extensions and reports uncapped diagnostics by part, XPath and diagnostic ID. `--baseline` reports new
 diagnostic identities, not merely a change in count. Style diagnostics use `styleId` rather than an
-unstable style-list index; the actual XPath remains in the report. Package diagnostics normalize Strict/
+unstable style-list index. Unmatched diagnostics can also match identical namespace-expanded node
+content within the same part; each original occurrence is consumed once, so duplicating an invalid
+property still adds a diagnostic. The actual XPath and content fingerprint remain in the report.
+`--comparison-self-test` checks movement, duplication, changed content and changed errors.
+Package diagnostics normalize Strict/
 Transitional namespace aliases and compare duplicate IDs by scope, identity and multiplicity.
 `--stdin-pairs` accepts JSON lines containing
 `original` and `saved` paths for a warm batch process.
@@ -235,6 +239,10 @@ replacement, alternatives, range/object identity and history. `node tools/quire/
 ~/corpora/word OUTDIR` edits authored bound-text, date and checkbox controls, emitting before/edit/undo/
 copy/draft/recovered files. `node tools/quire/test/objects.mjs ~/corpora/word OUTDIR` transfers authored
 OLE/SmartArt objects between browser tabs, edits converted content, undoes it and recovers a draft.
+`node tools/quire/test/drawing-properties.mjs ~/corpora/word OUTDIR` checks authored picture/shape
+properties and watermarks, plus generated row/cell alternatives with populated and empty choices.
+It writes originals and every edit/history/draft state, checking that deletion cannot restore hidden
+table content and that original watermark elements remain byte-identical before editing.
 Use the resulting JSONL state rows with `validate.py`; it validates every emitted state.
 
 Current results belong in the app docs. Preserve complete run commands, hashes, previous-writer

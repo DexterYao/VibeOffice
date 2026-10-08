@@ -158,6 +158,10 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   moved from AGENTS.md to docs/suite.md.
 - Strict-to-Transitional output and initial measured regressions are fixed in `bc3a04e`. A correction
   pass over Quire's 206 newly diagnosed saves clears 177; 29 findings remain for the Quire group.
-- Next: Quire drawing-property merges, row/cell alternatives and watermark preservation, resolving
-  the remaining validation findings as part of that group, followed by its full rerun and Office
-  batch 2. Office batch 1 permits the step; later groups still need their own acceptance batches.
+- Quire drawing-property merges, row/cell alternatives (including empty choices), and original
+  watermarks are implemented. Eight focused cases pass 62 checks and 48 package/SDK comparisons;
+  65 unit tests pass. Revision/comment identity and VML type fixes clear 26 of the 29 validation
+  findings. Three malformed-input cases still expand invalid source run properties and remain
+  explicit exceptions, not passes. Reports: `~/corpora/results/quire-remainder-2026-10-08/`.
+- Next: full Quire rerun and Office batch 2. Office batch 1 permits the step; later groups still
+  need their own acceptance batches.

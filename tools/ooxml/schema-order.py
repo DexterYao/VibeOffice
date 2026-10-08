@@ -17,7 +17,8 @@ import zipfile
 XS = '{http://www.w3.org/2001/XMLSchema}'
 SELECT = {
     'w': ['CT_RPr', 'CT_PPr', 'CT_SectPr', 'CT_Settings', 'CT_TblPr', 'CT_TcPr', 'CT_TrPr'],
-    'a': ['CT_ShapeProperties', 'CT_EffectList', 'CT_TextBodyProperties', 'CT_TextParagraphProperties', 'CT_TextCharacterProperties', 'CT_Blip'],
+    'a': ['CT_ShapeProperties', 'CT_EffectList', 'CT_TextBodyProperties', 'CT_TextParagraphProperties', 'CT_TextCharacterProperties', 'CT_Blip', 'CT_BlipFillProperties', 'CT_NonVisualDrawingProps'],
+    'wp': ['CT_Anchor', 'CT_Inline'],
     'p': ['CT_Presentation', 'CT_PresentationProperties', 'CT_ViewProperties', 'CT_Slide', 'CT_CommonSlideData', 'CT_SlideLayout', 'CT_NotesMaster', 'CT_NotesSlide', 'CT_SlideMaster'],
     's': ['CT_Stylesheet', 'CT_Worksheet', 'CT_Workbook', 'CT_Table', 'CT_PivotCacheDefinition'],
 }
@@ -25,6 +26,7 @@ NAMESPACES = {
     'w': 'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
     'w14': 'http://schemas.microsoft.com/office/word/2010/wordml',
     'a': 'http://schemas.openxmlformats.org/drawingml/2006/main',
+    'wp': 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing',
     'p': 'http://schemas.openxmlformats.org/presentationml/2006/main',
     's': 'http://schemas.openxmlformats.org/spreadsheetml/2006/main',
 }
@@ -98,6 +100,8 @@ def main():
             if tag == 'maxInclusive': bound['max'] = value
             if tag == 'maxExclusive': bound['max'] = value - 1
         limits[kind] = bound
+    # Word's tracked-change IDs use the SDK's Int32Value (CT_TrackChange@id).
+    limits['revision'] = {'min': 0, 'max': 2147483647}
     # every preset shape's adjustment values, in order, with their defaults (presetShapeDefinitions.xml)
     data1 = part1.read_bytes()
     with zipfile.ZipFile(io.BytesIO(data1)) as outer, zipfile.ZipFile(io.BytesIO(outer.read('OfficeOpenXML-DrawingMLGeometries.zip'))) as g:

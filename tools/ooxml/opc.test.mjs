@@ -18,6 +18,16 @@ const text = data => typeof data === 'string' ? data : new TextDecoder().decode(
 const kid = (el, name) => el.children.find(c => c.localName === name);
 const children = xml => K.parse(xml).children.map(e => e.localName);
 
+test('new revision IDs avoid preserved changes and copied changes get distinct IDs', async () => {
+  const source = `<w:rPr xmlns:w="${N.w}"><w:rPrChange w:id="2147483647" w:author="Author"><w:rPr/></w:rPrChange></w:rPr>`;
+  const p = await pkg({ 'word/document.xml': source }), w = new K.Writer(p);
+  const fragment = K.fragment(p.xml('word/document.xml'), { pkg: p, part: 'word/document.xml' });
+  const id = w.ids.fresh('document', 'revision');
+  assert.equal(id, '1');
+  assert.match(w.emit(fragment, 'word/document.xml'), /w:id="2147483647"/);
+  assert.match(w.emit(K.duplicate(fragment), 'word/document.xml'), /w:id="2"/);
+});
+
 test('baseline bytes are immutable; the graph retains full types, sharing, cycles and external URLs', async () => {
   const p = await pkg({ 'a.xml': '<a/>', 'b.xml': '<b/>', 'shared.bin': new Uint8Array([3, 4]),
     '_rels/.rels': rels(rel('rId40', N.rel + '/officeDocument', 'a.xml')),
