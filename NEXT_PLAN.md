@@ -209,7 +209,14 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   explicitly converted to Transitional. Nine focused cases produce 26 passing saved states;
   cross-workbook clipboard, undo/redo and two real draft states also pass. Two edited samples open
   in LibreOffice with unchanged counts. All 93 unit tests pass and four pages load. The full Ledger
-  run and Excel batch 3 remain pending. Next: slicers and timelines, then extensions and query tables.
+  run and Excel batch 3 remain pending.
+- Ledger slicers and timelines now retain their frames, view/cache parts and sheet/workbook links.
+  Three supplemental public workbooks are pinned separately through `tools/corpora.sh DIR ledger-features`:
+  7/7 views remain and all 12 definition/cache parts are byte-identical. Seven focused cases and
+  19 package/SDK states cover moves, copies, shared pivots, source deletion, conversion and undo;
+  two actual browser draft states also pass. Two edited samples and timeline undo/redo open in
+  LibreOffice. All 100 unit tests pass and four pages load. Excel batch 3 and full Ledger measurement
+  remain pending. Next: data-bar/unknown extensions and query tables.
 
 ## Review of 6d24c43..275406e (2026-10-08)
 Followed well: bounded Office batches with previous-writer comparison, checker rules for the WordArt

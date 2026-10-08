@@ -185,6 +185,11 @@ checks the real Paste Special, undo/redo and suite draft/recovery hooks on a thr
 `objects.test.js` uses `OBJECT_RESULTS=DIR` to retain controls/OLE/VML edit states from the same corpus.
 `node tools/ledger/test/objects-ui.mjs INPUT.xlsx OUTPUT` checks object paste into another workbook,
 undo/redo and actual draft recovery, including the dependent payload bytes.
+`sh tools/corpora.sh ~/corpora ledger-features` fetches three supplemental slicer/timeline workbooks
+at fixed commits and SHA-256 hashes without changing the main corpus manifest. `slicers.test.js`
+uses them (`LEDGER_FEATURES` overrides their directory); `SLICER_RESULTS=DIR` retains edit states.
+`node tools/ledger/test/slicers-ui.mjs INPUT.xlsx OUTPUT` exercises real drawing copy/paste, undo/redo
+and draft recovery. The supplemental sources and hashes are recorded in `ledger-features/manifest.json`.
 
 Build the SDK validator and install the independent workbook reader in a test environment:
 

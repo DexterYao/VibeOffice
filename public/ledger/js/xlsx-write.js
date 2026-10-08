@@ -683,10 +683,10 @@
       return name;
     };
     /* table ids unique across the workbook */
-    let tid = 0;
-    for (const t of wb.tables) { if (!(t.id > tid)) t.id = tid + 1; tid = Math.max(tid, t.id); }
+    let tid = Math.max(0, ...wb.tables.map(t => t.id || 0));
     const usedT = new Set();
-    for (const t of wb.tables) { while (usedT.has(t.id)) t.id = ++tid; usedT.add(t.id); }
+    for (const t of wb.tables) { if (!(t.id > 0) || usedT.has(t.id)) t.id = ++tid; usedT.add(t.id); }
+    const slicers = L.slicers.begin(wb, pack);
     const sheetEntries = [];
     for (let si = 0; si < wb.sheets.length; si++) {
       const sh = wb.sheets[si];
@@ -789,13 +789,13 @@
       if (tables.length) {
         const ids = tables.map((t) => {
           const tp = `xl/tables/table${++nTable}.xml`;
-          pack.bind(tp, t.ooxmlPart);
+          pack.bind(tp, t.ooxmlCopy ? undefined : t.ooxmlPart);
           add(tp, tableXml(t, wb), CT.table);
           return rels.add('table', '../tables/' + tp.split('/').pop());
         });
         out.push(`<tableParts count="${ids.length}">` + ids.map((id) => `<tablePart r:id="${id}"/>`).join('') + '</tableParts>');
       }
-      out.push(sparklineXml(sh, wb));
+      out.push(L.slicers.sheet(sh, sparklineXml(sh, wb), slicers, pack.part(part)));
       out.push('</worksheet>');
       add(part, out.join(''), CT.sheet);
       if (rels.list.length) add(relsPath(part), rels.xml());
@@ -816,6 +816,8 @@
       for (const d of list) {
         let id = objects.ids.get(d) || (d.id > 0 && !usedIds.has(d.id) ? d.id : nextId++);
         usedIds.add(id);
+        const keptSlicer = L.slicers.frame(d, slicers, drels.owner, id);
+        if (keptSlicer !== null) { x += keptSlicer; continue; }
         const a = d.anchor;
         const sz = anchorSize(sh, a);
         let open, close = '<xdr:clientData' + (d.unlocked ? ' fLocksWithSheet="0"' : '') + (d.noPrint ? ' fPrintsWithSheet="0"' : '') + '/>';
@@ -972,6 +974,7 @@
     ct += '</Types>';
     files.unshift({ name: '[Content_Types].xml', data: ct });
     L.pivots.write(wb, pack);
+    L.slicers.write(slicers);
     L.threads.write(wb, pack);
     for (const file of files) pack.put(file.name, file.data, overrides.get('/' + file.name) || defaults.get(file.name.split('.').pop()));
     const result = pack.finish();

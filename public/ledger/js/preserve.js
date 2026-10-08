@@ -116,7 +116,7 @@
     const consumed = new Set([RT('officeDocument'), ...P.parts.map(p => p[1]),
       RT('dialogsheet'), 'http://schemas.microsoft.com/office/2006/relationships/xlMacrosheet', 'http://schemas.microsoft.com/office/2006/relationships/xlIntlMacrosheet',
       ...['worksheet', 'chartsheet', 'externalLink', 'drawing', 'image', 'chart', 'hyperlink', 'comments', 'vmlDrawing', 'table', 'control', 'ctrlProp', 'oleObject', 'customProperty'].map(RT)]);
-    const output = K.output(pkg, { doc: wb, format, consumes: (base, rel, type) => consumed.has(type) ||
+    const output = K.output(pkg, { doc: wb, format, consumes: (base, rel, type) => consumed.has(type) || L.slicers.consumes(type) ||
       type === 'http://schemas.microsoft.com/office/2017/10/relationships/threadedComment' ||
       (type === RT('pivotTable') && wb.extra.pivots?.tables.some(t => t.part === rel.part)),
       convert: base => base === 'xl/theme/theme1.xml' ? L.xlsxWrite.themeXml(wb) : null,
@@ -166,6 +166,7 @@
         } else set('bookViews', generatedChild('bookViews'));
       }
       xml = K.merge(xml, replacements, 's:CT_Workbook');
+      xml = L.slicers.workbook(fragment, xml, writer);
     } else if (base === 'docProps/custom.xml') {
       const named = props => Object.fromEntries((props?.custom || []).map(p => [p.name, { type: p.type, value: p.value }]));
       xml = K.customProperties(xml, generated, named(wb.props), named(old.props));

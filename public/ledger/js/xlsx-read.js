@@ -976,6 +976,7 @@
     // display branch, so nested equations and effects keep Choice/Fallback.
     const originalShapes = new WeakMap(el.getElementsByTagName('*').filter(e => /^(sp|grpSp|cxnSp|pic)$/.test(e.localName)).map(e => [e, XML.serialize(e)]));
     const owned = new Set((sh.extra.objectGroups || []).flatMap(g => g.ids));
+    const slicers = L.slicers.captureDrawing(el, sh, part);
     resolveAC(el, true);
     const rels = await pkg.rels(part);
     for (const a of el.children) {
@@ -986,8 +987,10 @@
       else if (kind === 'oneCellAnchor') { anchor.from = anchorPt(kid(a, 'from')); const ex = kid(a, 'ext'); anchor.w = num(ex, 'cx', 0) / EMU; anchor.h = num(ex, 'cy', 0) / EMU; }
       else { const p = kid(a, 'pos'), ex = kid(a, 'ext'); anchor.x = num(p, 'x', 0) / EMU; anchor.y = num(p, 'y', 0) / EMU; anchor.w = num(ex, 'cx', 0) / EMU; anchor.h = num(ex, 'cy', 0) / EMU; }
       const obj = a.children.find((c) => /^(pic|graphicFrame|sp|grpSp|cxnSp|contentPart)$/.test(c.localName));
-      if (!obj) continue;
-      const d = await readDrawingObject(pkg, obj, rels, ctx, sh);
+      const record = slicers.get(a);
+      if (!obj && !record) continue;
+      let d = obj && await readDrawingObject(pkg, obj, rels, ctx, sh);
+      if (!d && record) d = { kind: 'shape', text: record.names.join(', '), geom: 'rect' };
       if (!d) continue;
       if (d.kind === 'shape' && originalShapes.has(obj)) d.xml = originalShapes.get(obj);
       d.anchor = anchor;
@@ -997,6 +1000,7 @@
       const cd = kid(a, 'clientData');
       if (cd && at(cd, 'fLocksWithSheet') === '0') d.unlocked = true;
       if (cd && at(cd, 'fPrintsWithSheet') === '0') d.noPrint = true;
+      if (record) L.slicers.attach(d, record);
       sh.drawings.push(d);
     }
   }
@@ -1239,6 +1243,7 @@
     if (wb.sheets[wb.active].state !== 'visible') wb.active = Math.max(0, wb.sheets.findIndex((s) => s.state === 'visible'));
     wb.extra.keepValues = L.preserve.values(wb);
     L.pivots.read(wb);
+    L.slicers.read(wb);
     wb.extra.styleBaseline = { xf: st.xf.slice(), list: JSON.parse(JSON.stringify(wb.styles.list)), dxfs: JSON.parse(JSON.stringify(wb.dxfs)) };
     for (const sh of wb.sheets) if (sh.kind === 'macrosheet' || sh.kind === 'dialogsheet') sh.extra.opaqueBaseline = L.preserve.sheetContent(sh);
     return wb;

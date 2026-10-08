@@ -111,6 +111,7 @@
       if (!t.drop && (!sheet(wb, t.sheet) || c?.drop)) t.drop = !sheet(wb, t.sheet) ? 'The worksheet containing the pivot table was deleted.' : c.drop;
     }
   }
+  P.current = wb => { const p = clone(state(wb)); validate(wb, p); return p; };
   P.end = function (wb, before) {
     if (!before) return;
     validate(wb);
@@ -227,7 +228,7 @@
     const retained = new Set(p.tables.filter(t => !t.drop).map(t => t.cache));
     w.pivotOmitted = new Set();
     for (const c of p.caches) {
-      c.omit = !retained.has(c.id) && p.tables.some(t => t.cache === c.id);
+      c.omit = !!c.drop || !retained.has(c.id) && p.tables.some(t => t.cache === c.id);
       if (c.omit) { w.pivotOmitted.add(c.id); w.omit(c.part, c.drop || 'The cache has no remaining pivot tables.'); continue; }
       let xml = pkg.text(c.part), tree = K.parse(xml), edits = [], cs = kid(tree, 'cacheSource');
       const elements = c.kind === 'worksheet' ? kids(cs, 'worksheetSource') : kids(kid(kid(cs, 'consolidation'), 'rangeSets'), 'rangeSet');

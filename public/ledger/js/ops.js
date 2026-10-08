@@ -1034,7 +1034,7 @@
       /* tables get new names */
       for (const t of wb.tables.filter((t) => t.sheet === sh)) {
         let tn = t.name.replace(/\d+$/, ''), i = 1; let nm; do { nm = tn + i++; } while (wb.findTable(nm));
-        wb.tables.push(Object.assign({}, t, { sheet: copy, name: nm, dname: nm, id: wb.tables.length + 1, ref: Object.assign({}, t.ref), columns: t.columns.map((c) => Object.assign({}, c)) }));
+        wb.tables.push(Object.assign({}, t, { sheet: copy, name: nm, dname: nm, ooxmlCopy: true, id: Math.max(0, ...wb.tables.map(t => t.id || 0)) + 1, ref: Object.assign({}, t.ref), columns: t.columns.map((c) => Object.assign({}, c)) }));
       }
       const tablesAfter = wb.tables.slice();
       L.pivots?.copySheet(wb, sh, copy);

@@ -81,6 +81,7 @@
   X.copy = d => {
     const value = clone(d);
     if (value.objectKeep) value.objectKeep.copy = uid();
+    L.slicers.copy(value);
     return value;
   };
   X.copySheet = (from, to) => {
@@ -88,6 +89,7 @@
     if (from.extra.objectGroups) to.extra.objectGroups = clone(from.extra.objectGroups);
     const copy = uid();
     for (const d of to.drawings) if (d.objectKeep) d.objectKeep = { ...d.objectKeep, copy };
+    for (const d of to.drawings) L.slicers.copy(d, to);
   };
   X.begin = function (sh, pack, owner) {
     const ids = new Map(), used = new Set(), w = pack.writer;
