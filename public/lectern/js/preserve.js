@@ -87,7 +87,7 @@
   P.designValues = design => JSON.stringify(Object.fromEntries(Object.entries(design).filter(([key]) => key !== 'keep')));
   P.begin = function (pres, format) {
     const pkg = pres.pkg;
-    const consumed = new Set([RT('officeDocument'), ...P.parts.map(p => p[1]), ...['slide', 'slideMaster', 'slideLayout', 'notesSlide', 'theme', 'image', 'chart', 'hyperlink'].map(RT)]);
+    const consumed = new Set([RT('officeDocument'), ...P.parts.map(p => p[1]), ...L.comments.types, ...['slide', 'slideMaster', 'slideLayout', 'notesSlide', 'theme', 'image', 'chart', 'hyperlink'].map(RT)]);
     const output = K.output(pkg, { doc: pres, format, contentType: P.mediaType,
       consumes: (base, rel, type) => consumed.has(type),
       convert: (base, source, data) => /^ppt\/(theme\/|notesMasters\/|notesSlides\/|viewProps\.xml$|tableStyles\.xml$)/.test(base) ? data : null,
@@ -201,6 +201,7 @@
   P.slide = function (slide, original, pkg, part, sldId, working) {
     const tree = kid(kid(original, 'cSld'), 'spTree'), cnv = kid(kid(tree, 'nvGrpSpPr'), 'cNvPr');
     slide.keep = { source: pkg.id, part, sldId, rootId: cnv?.getAttribute('id') || '1' };
+    L.comments.read(slide, original, pkg, part);
     const media = []; L.model.walk(slide.shapes, s => { if (s.keep?.media) media.push(s); return true; });
     const timing = kid(original, 'timing');
     if (timing && (media.length || find(timing, 'sndTgt'))) {
@@ -248,7 +249,7 @@
     return K.serialize(clone);
   }
   P.nonVisual = function (shape, ctx, generated) {
-    if (!ctx.writer || !shape.keep?.sound) return generated;
+    if (!ctx.writer || !(shape.keep?.sound || shape.keep?.commentAnchor)) return generated;
     const absent = missing(shape.keep.identity);
     if (absent) {
       ctx.writer.loss({ id: 'action-sound:' + shape.id, what: 'The action sound refers to a part missing from the original file.', where: shape.name + ': ' + (absent.part || absent.id), action: 'drop' });
@@ -259,7 +260,7 @@
       const g = K.parse('<root xmlns:p="' + N.p + '" xmlns:a="' + N.a + '" xmlns:r="' + N.rel + '">' + generated + '</root>');
       xml = metadata(xml, shape, shape.keep.metadata, find(g, 'cNvPr'));
     }
-    return xml;
+    return L.comments.shapeIdentity(shape, ctx, xml);
   };
   P.emitShape = function (shape, ctx, generated) {
     const keep = shape.keep?.media;
@@ -270,6 +271,7 @@
     }
     let xml = ctx.writer.emit(keep.frame, ctx.part);
     if (!xml) return '';
+    xml = L.comments.shapeIdentity(shape, ctx, xml);
     if (ctx.inGroup || keep.box !== value(shape, GEOMETRY)) xml = K.setBox(xml, Object.fromEntries(GEOMETRY.map(k => [k, shape[k] || 0])));
     const changed = key => keep.properties[key] !== JSON.stringify(shape[key] ?? null);
     if (!PROPERTIES.some(changed)) return xml;
@@ -360,7 +362,7 @@
     return xml;
   };
   P.clipboard = function (item) {
-    const refs = [], visit = value => {
+    const refs = L.comments.references(item), visit = value => {
       if (!value || typeof value !== 'object') return;
       if (typeof value.xml === 'string' && Array.isArray(value.deps)) {
         for (const dep of value.deps) if (!dep.external && dep.part) refs.push({ source: dep.source, part: dep.part });

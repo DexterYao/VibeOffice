@@ -16,6 +16,9 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 
 **Not done:** Lectern object-level remainder and final suite measurement/loss reporting.
 
+Lectern sections/custom shows and comments are implemented and measured; PowerPoint acceptance
+will be requested together in batch 4 after the remaining Lectern features.
+
 **Slide-6 repair: fixed** (60c26b4, confirmed in PowerPoint). Read "Office acceptance" in AGENTS.md
 first: two bugs in the shared save code passed every automated check (master and layout sharing an
 ID; partial preset adjustment lists).

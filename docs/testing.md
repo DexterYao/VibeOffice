@@ -213,13 +213,15 @@ python3 -m venv /tmp/vo-ooxml-venv
 dotnet tools/ooxml/oxval/bin/Release/net8.0/oxval.dll --baseline original.docm saved.docm
 ```
 
-The validator is pinned to SDK 3.1.1, targets Office 2019, handles all document/macro/template/slideshow
+The validator is pinned to SDK 3.1.1, defaults to Office 2019, handles all document/macro/template/slideshow
 extensions and reports uncapped diagnostics by part, XPath and diagnostic ID. `--baseline` reports new
 diagnostic identities, not merely a change in count. Style diagnostics use `styleId` rather than an
 unstable style-list index. Unmatched diagnostics can also match identical namespace-expanded node
 content within the same part; each original occurrence is consumed once, so duplicating an invalid
 property still adds a diagnostic. The actual XPath and content fingerprint remain in the report.
 `--comparison-self-test` checks movement, duplication, changed content and changed errors.
+Use `--version Microsoft365` before other arguments to validate modern presentation comments;
+Office 2019 does not validate those newer parts. The batch wrapper accepts `--sdk-version Microsoft365`.
 Package diagnostics normalize Strict/
 Transitional namespace aliases and compare duplicate IDs by scope, identity and multiplicity.
 `--stdin-pairs` accepts JSON lines containing
@@ -236,6 +238,13 @@ counts with `pdfinfo`. Unedited saves must keep the page count; edit scenarios c
 `expectedPages` or `expectedSlides`. LibreOffice and the validator cannot certify acceptance by Office itself.
 
 ### Lectern media preservation
+
+`python3 tools/lectern/test/comment-fixtures.py FIXTURE_DIR` creates a documented schema-authored
+modern thread/task/anchor sample on a pinned public deck; it is not an Office-authored input.
+`node tools/lectern/test/comments.mjs OUTPUT_DIR FIXTURE_DIR [SCENARIO_REGEX]` checks original
+comment bytes, slide/shape ownership, author/index and GUID references, detached clipboard packages,
+Strict copies, undo/redo and suite drafts. Validate its `results.jsonl` using the Microsoft365 target.
+The scenario filter retains other recorded cases so corrections need not repeat unaffected work.
 
 `node tools/lectern/test/membership.mjs OUTPUT_DIR` uses pinned presentation inputs for section and
 custom-show insertion, copy, move, deletion, large IDs, empty sections, undo/redo and actual suite

@@ -863,9 +863,13 @@
 
     /* slides */
     const sldIds = []; writer.slideIds = new Map();
+    const commentState = L.comments.begin(pres, pack);
     allSlides.forEach((s, i) => {
       const n = i + 1;
       const part = slideParts[i];
+      const originalSlide = s.keep?.part === part && s.keep?.source === pres.pkg?.id;
+      const slideId = originalSlide && s.keep.sldId ? s.keep.sldId : writer.ids.fresh('presentation', 'sldId');
+      writer.slideIds.set(s.id, slideId);
       const d = pres.designs[s.design] || pres.designs[designIds[0]];
       const sRels = pack.rels(part);
       const lk = s.design + '|' + s.layout + (s.lkey ? '|' + s.lkey : '');
@@ -896,6 +900,7 @@
         addChart: (xml, parts) => { chartN++; charts.push({ n: chartN, xml, parts }); return chartN; },
       };
       L.model.walk(s.shapes, shape => { ctx.nextId(shape.id); return true; });
+      const comments = L.comments.slide(commentState, s, ctx);
       let tree = s.shapes.map((sh) => shapeXML(sh, ctx, d)).join('');
       /* header & footer placeholders */
       const hf = Object.assign({}, pres.hf || {}, s.hf || {});
@@ -917,7 +922,7 @@
       const attrs = [];
       if (s.hidden) attrs.push('show="0"');
       if (s.hideMaster) attrs.push('showMasterSp="0"');
-      const xml = HEAD + `<p:sld ${NSDECL}${attrs.length ? ' ' + attrs.join(' ') : ''}><p:cSld>${s.bg ? bgXML(s.bg, ctx, d) : ''}<p:spTree>${GRP.replace('id="1"', 'id="' + rootId + '"')}${tree}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>${transition}${timing}</p:sld>`;
+      const xml = HEAD + `<p:sld ${NSDECL}${attrs.length ? ' ' + attrs.join(' ') : ''}><p:cSld>${s.bg ? bgXML(s.bg, ctx, d) : ''}<p:spTree>${GRP.replace('id="1"', 'id="' + rootId + '"')}${tree}</p:spTree>${comments.creation}</p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>${transition}${timing}${comments.ext}</p:sld>`;
       if (s.notes && s.notes.trim() || s.keep?.notes) {
         if (s.keep?.copy && s.keep.notes?.text === s.notes && pres.pkg?.has(s.keep.notes.part)) {
           const target = pack.part(`ppt/notesSlides/notesSlide${n}.xml`);
@@ -937,10 +942,9 @@
       add(part, xml);
       add(K.relsPath(part), sRels.xml());
       overrides.push(['/' + part, CT.slide]);
-      const originalSlide = s.keep?.part === part && s.keep?.source === pres.pkg?.id;
-      sldIds.push({ id: originalSlide && s.keep.sldId ? s.keep.sldId : writer.ids.fresh('presentation', 'sldId'), rid: presRels.add(RT('slide'), K.relative('ppt/presentation.xml', part)) });
-      writer.slideIds.set(s.id, sldIds[sldIds.length - 1].id);
+      sldIds.push({ id: slideId, rid: presRels.add(RT('slide'), K.relative('ppt/presentation.xml', part)) });
     });
+    L.comments.finish(commentState);
     /* charts, and the parts an unedited imported chart brings with it (workbook, style, colours, theme override) */
     let embN = 0;
     const PART_CT = { xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', xlsm: 'application/vnd.ms-excel.sheet.macroEnabled.12', xlsb: 'application/vnd.ms-excel.sheet.binary.macroEnabled.main', xls: 'application/vnd.ms-excel', bin: 'application/vnd.openxmlformats-officedocument.oleObject', xml: 'application/xml', png: 'image/png', jpeg: 'image/jpeg', jpg: 'image/jpeg', gif: 'image/gif', emf: 'image/x-emf', wmf: 'image/x-wmf' };

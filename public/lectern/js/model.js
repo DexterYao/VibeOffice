@@ -676,7 +676,11 @@
     c.id = L.uid('sl');
     if (c.keep) c.keep.copy = c.id;
     const map = {};
-    const re = (x) => { const n = L.uid('s'); map[x.id] = n; x.id = n; if (x.kids) x.kids.forEach(re); };
+    const re = (x) => {
+      const n = L.uid('s'); map[x.id] = n;
+      if (x.keep?.commentAnchor?.owner === x.id) x.keep.commentAnchor.owner = n;
+      x.id = n; if (x.kids) x.kids.forEach(re);
+    };
     c.shapes.forEach(re);
     c.anims = (c.anims || []).map((a) => Object.assign({}, a, { id: L.uid('a'), sid: map[a.sid] || a.sid }));
     if (c.keep?.anims) c.keep.anims = L.preserve.anims(c);

@@ -27,6 +27,7 @@ The app is `public/lectern/` (`python3 tools/serve.py`, then http://127.0.0.1:87
 | `js/panes.js` | Slides/Outline tab, notes, sorter, notes page, print preview, task panes |
 | `js/slideshow.js` | Full-screen show, 58 transitions, 50+ entrance/emphasis/exit/motion-path effects, pen, rehearse timings |
 | `js/preserve.js` | Package ownership and settings merges; model-attached media, playback, property invalidation and clipboard dependencies |
+| `js/comments.js` | Legacy/modern comment ownership, author dependencies, copied identities and anchors |
 | `js/pptx-read.js` | PresentationML import (themes, masters, layouts, placeholders, table styles, charts, SmartArt, custom geometry, animations; repairs damaged packages) |
 | `js/pptx-write.js` | PresentationML export (validated against the OOXML schema) |
 | `js/commands.js` | Every menu/toolbar command |
@@ -107,7 +108,7 @@ relationship counts do not establish that an unsupported frame remains attached 
 | Kept | Package metadata and fonts | 111/111 custom-XML, 67/67 XML-property, 33/33 tag, 70/70 custom-property, 12/12 font, 7/7 VBA and 1/1 label relationships |
 | Kept | Notes and handout dependencies | 932/932 notes-master references, 97/97 handout masters and 29/29 comment-author relationships; unedited notes keep header/footer text |
 | Kept; PowerPoint edit acceptance pending | Sections and custom shows | All 18 relevant decks retain 32/32 sections and 8/8 custom shows with unchanged expanded XML. Eight focused edit cases / 26 saved states pass package/SDK comparison |
-| Kept as records; edit rules pending | Comments | 20/20 comment inventory items; slide-copy/deletion ownership remains unfinished |
+| Kept; PowerPoint edit acceptance pending | Comments | The 30 relevant decks retain 39/39 comment/author parts: 37 byte-identical, two Strict parts converted to Transitional. Copy/delete/paste ownership and modern anchors are implemented |
 | Kept, with remaining losses | Animation and transitions | 639/642 general effects, 112/112 transitions and 29/43 auto-advance timings |
 | Kept for used designs; unused designs incomplete | Masters and layouts | 864/896 masters and 7,209/7,249 named layouts; all layouts of retained used masters survive |
 | Converted to displayed groups/pictures | SmartArt, OLE and newer charts | 0/184 SmartArt frames, 0/71 OLE frames and 0/4 chartEx frames; their 184 diagram relationships, 51 OLE relationships and 4 chartEx parts remain in the package, which alone does not preserve editability |
@@ -171,11 +172,31 @@ slide counts. All 115 unit tests pass; the browser edit driver and app load repo
 The full Lectern group run and PowerPoint batch 4 remain pending. Reports:
 `~/corpora/results/lectern-preservation-2026-10-09/membership-*`.
 
-### Comments and opaque frames: current edit limits
+### Comments: edit behavior
+
+| Edit | Save behavior |
+|---|---|
+| Text elsewhere, slide move or shape geometry | Keep comments, replies, authors and task metadata; retain unchanged comment parts byte for byte |
+| Copy a slide or paste a slide from another document | Independent comment parts and identities; remap authors, per-author indices, reply links, slide/shape anchors and creation identities together |
+| Duplicate only a shape | Existing comments remain on the original shape |
+| Delete a commented shape or edit its anchored text | Keep the thread attached to the slide; report the anchor conversion |
+| Delete a slide | Remove its comment parts; retain parts owned by other slides and copied comments |
+| Undo/redo or recover a draft | Restore ownership and dependencies; retain pending notices |
+
+All 30 public comment/author inputs save and reopen; package/SDK comparison passes for 29, with one
+original ZIP CRC failure explicitly retained as a failed comparison. Twelve focused cases / 38
+saved states pass package/SDK comparison and cover
+legacy and Strict copies, modern replies/tasks, shape and text anchors, detached clipboard transfer,
+undo/redo and actual drafts. The modern fixture is schema-authored because the pinned corpus has
+modern authors but no modern comment threads; it passes the SDK's Microsoft365 target.
+Two edited samples and four history states open in LibreOffice with expected slide counts.
+PowerPoint acceptance remains pending in batch 4. Reports:
+`~/corpora/results/lectern-preservation-2026-10-09/comments-*`.
+
+### Opaque frames: current edit limits
 
 | Edit | Current behavior / remaining work |
 |---|---|
-| Change or delete a commented slide | Comment parts are carried; complete legacy/modern comment ownership rules remain pending |
 | Move, resize, edit or ungroup converted SmartArt/OLE/new-chart content | The displayed conversion is saved; original-frame ownership and geometry merging remain pending |
 | Change a non-media shape's shadow, fill or picture treatment | Regenerate modeled properties; unknown sibling effects still need per-property preservation |
 | Copy shape tags or unsupported file/program actions | Dependency and reference remapping still needs integration |
