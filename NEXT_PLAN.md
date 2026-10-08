@@ -152,13 +152,14 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
 ## Current execution
 
 - Final suite: **14,091 driver attempts** and **30,919 package/SDK rows** across the pinned sets.
-  Of the validation rows, 29,310 pass, 701 fail and 908 are excluded. There are no added package
-  issues. New SDK diagnostics remain confined to six previously documented malformed Word inputs;
-  they are failed comparisons, never passes. No new Excel or PowerPoint SDK diagnostics appear.
+  With the final focused Word correction, 29,341 validation rows pass, 670 fail and 908 are excluded.
+  There are no added package issues or SDK diagnostics. The original reports retain the 31 Word
+  regression states; their corrections are recorded separately, alongside failed and excluded inputs.
 - Quire: save/draft each 2,880 OK and 22 failed; text 2,281 OK, 22 failed, 599 excluded. Its 19,028
-  validation rows have 18,025 OK, 404 failed and 599 excluded. Feature counts remain at the documented
-  final levels; the independent inventory retains 776,207/776,869 counted words. Malformed formatting,
-  stale bound values, orphan stories and unsupported markup remain explicit exceptions.
+  validation rows have 18,056 OK, 373 failed and 599 excluded. Feature counts remain at the documented
+  final levels; the independent inventory retains 776,207/776,869 counted words. The formatting repair
+  passes 36 regression states and the 74-file affected subset without new diagnostics. Stale bound
+  values, orphan stories and unsupported/malformed content remain explicit exceptions.
 - Ledger: save/draft each 935 OK, 11 failed, 5 excluded; text 933 OK, 11 failed, 7 excluded. Its 6,589
   validation rows have 6,371 OK, 201 failed and 17 excluded. Independent comparison covers 889 saves
   and 887 edits; one timed-out large workbook reuses its earlier passing checks after all 18 current
@@ -172,7 +173,7 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   whose corrected/current parts differ only by the save timestamp. PowerPoint: 169, including retained
   and Strict-converted vocabulary, scoped MC, frame transforms and content-type forms. Reports
   distinguish convention differences from confirmed defects.
-- All 120 unit tests pass; all four pages load with no console errors (known font requests remain).
+- All 124 unit tests pass; all four pages load with no console errors (known font requests remain).
   Markdown stays at 652/652 CommonMark, 22/22 GFM and 24/24 exact saves with confined edits.
   The three-app Compatibility Checker has 21 passing save/cancel/draft/acknowledgement checks;
   five public conversion cases produce nine passing SDK/LibreOffice states.
@@ -184,7 +185,8 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   pending, not inferred from those checks. Full-corpus LibreOffice rendering has not been completed.
 
 Current reports: `~/corpora/results/final-suite-2026-10-09/` and
-`~/corpora/results/lectern-group-2026-10-09/`. Exact inputs, frozen writer revisions, initial failures,
+`~/corpora/results/lectern-group-2026-10-09/`; the final Word correction and combined report are in
+`~/corpora/results/quire-property-repair-2026-10-09/`. Exact inputs, frozen writer revisions, initial failures,
 correction overlays, hashes and older progress notes stay with those reports. The next action is to
 record the two Office results, fix any reported repair and only then sign off the plan.
 
