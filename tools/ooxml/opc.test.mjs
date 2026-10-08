@@ -18,6 +18,27 @@ const text = data => typeof data === 'string' ? data : new TextDecoder().decode(
 const kid = (el, name) => el.children.find(c => c.localName === name);
 const children = xml => K.parse(xml).children.map(e => e.localName);
 
+test('feature notices describe actual assembled losses, survive drafts, and clear on a preserving save', async () => {
+  const original = `<w:document xmlns:w="${N.w}"><w:body><w:smartTag><w:p><w:r><w:t>Retained text</w:t></w:r></w:p></w:smartTag></w:body></w:document>`;
+  const converted = `<w:document xmlns:w="${N.w}"><w:body><w:p><w:r><w:t>Retained text</w:t></w:r></w:p></w:body></w:document>`;
+  const source = await pkg({ 'doc.xml': original }), doc = {};
+  const options = { accepts: el => el.namespaceURI === N.w, classify: el => el.namespaceURI === N.w && el.localName === 'smartTag' ? 'tags' : null, labels: { tags: 'Smart tags were converted to ordinary content' } };
+  const output = xml => {
+    const pack = K.output(source, { doc, audit: w => K.reportFeatures(w, options) });
+    pack.bind('doc.xml', 'doc.xml'); pack.put('doc.xml', xml, 'application/xml');
+    assert.equal(K.pendingLosses(doc).length, 0, 'no notice before the file has been assembled');
+    pack.finish();
+  };
+  output(original); assert.deepEqual(doc.losses, []);
+  output(converted); assert.equal(doc.losses.length, 1);
+  assert.equal(doc.losses[0].where, 'doc.xml');
+  const state = K.lossState(doc), recovered = {};
+  K.recoverLosses(recovered, state); assert.equal(K.pendingLosses(recovered).length, 1);
+  output(original); assert.equal(K.pendingLosses(doc).length, 0, 'cancelled conversion does not poison a preserving save');
+  output(converted); K.acknowledge(doc, doc.losses);
+  assert.equal(K.pendingLosses(doc).length, 0);
+});
+
 test('rewritten parts hoist fragment declarations and Ignorable once, retaining scoped QName meanings', () => {
   const xml = `<w:document xmlns:w="${N.w}" xmlns:mc="${N.mc}" xmlns:x="urn:one" mc:Ignorable="x"><w:p xmlns:w="${N.w}" xmlns:z="urn:new" mc:Ignorable="z"><x:outer xmlns:x="urn:two" mc:Ignorable="x"><x:reset xmlns:x="urn:one"/><z:payload xmlns:z="urn:new"/></x:outer></w:p></w:document>`;
   const result = K.hoistNamespaces(xml), parsed = K.parse(result);

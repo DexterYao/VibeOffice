@@ -136,6 +136,11 @@ The loss ledger distinguishes conversion from deletion and keeps stable entry id
 signatures are removed and reported because a changed package cannot retain their validity. Missing
 dependencies and unavoidable conversions are reported by the writer; draft recovery retains pending
 entries even when the original content has already been converted in the draft.
+`output` runs its app-owned audit after assembling content. `reportFeatures` compares specified
+features in regenerated parts, so retained wrappers do not warn merely because the reader uses a
+simpler model. Chart/drawing regeneration and notes-page formatting conversion report at their
+writer branches. Cancelling a conversion and then saving the original representation clears its
+save-time notice; only a completed download acknowledges current notices.
 
 An Office review batch contains at most 15 files and a checklist. Before handoff, compare the new save
 with the previous writer's save of the same input and explain each difference. Automated validators

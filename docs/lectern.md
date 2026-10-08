@@ -153,6 +153,7 @@ LibreOffice rendering has not been completed. Reports and history:
 |---|---|
 | Edit slide text | Keep unrelated package parts, custom-property types/pids and unedited notes |
 | Duplicate a slide | Copy its notes page and redirect its backlink |
+| Edit notes text | Regenerate the notes page and report its formatting conversion |
 | Leave a design unchanged, unused, or delete its last slide | Retain its original master, every layout and theme |
 | Change colors or fonts | Update only changed color slots or Latin font entries; keep theme effects, other scripts and layouts |
 | Edit a master background, decoration or placeholder frame | Update the owning property; retain unrelated layouts and original shape identities |
@@ -246,6 +247,10 @@ PowerPoint acceptance and the full Lectern group run remain pending. Reports:
 | Edit a modeled animation | Replace the modeled main sequence; retain unrelated interactive/media sequences and consistent build IDs |
 | Delete an animated shape | Remove its targets and build entries without regenerating other effects |
 | Undo/redo or recover a draft | Restore property fragments, tags, timing and pending notices |
+
+Save also reports imported-chart regeneration, converted form controls/text fields and incomplete
+source-part recovery. These notices are recomputed from the prepared file. Cancelling a conversion
+does not leave its notice on a later preserving save.
 
 The 214-deck sweep plus targeted corrections saves/reopens every input; 212 package/SDK comparisons
 pass and two damaged originals remain failed comparisons. Eighteen focused cases / 56 emitted

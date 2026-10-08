@@ -335,6 +335,7 @@
   /* ---------- charts ---------- */
   function chartFrameXML(sh, id, ctx, design) {
     const c = sh.chart || L.chart.sample();
+    if (c.srcId && c.edited) ctx.writer?.loss({ id: 'chart-edit:' + c.srcId, what: 'Editing this chart replaces its original chart-specific formatting and extensions.', where: sh.name || ctx.part, action: 'conversion' });
     /* a chart read from a file and not edited here is written back as it came, with its workbook and styles */
     const src = c.srcId && !c.edited && L.chart.src ? L.chart.src.get(c.srcId) : null;
     const source = src?.source && K.package(src.source);
@@ -980,6 +981,7 @@
           writer.copyPart(pres.pkg, s.keep.notes.part, target, { [s.keep.part]: part });
           sRels.add(RT('notesSlide'), K.relative(part, `ppt/notesSlides/notesSlide${n}.xml`));
         } else {
+        if (s.keep?.notes && s.keep.notes.text !== s.notes) writer.loss({ id: 'notes-edit:' + s.id, what: 'Editing these notes replaces their original notes-page formatting.', where: s.keep.notes.part, action: 'conversion' });
         pack.bind(`ppt/notesSlides/notesSlide${n}.xml`, s.keep?.notes?.part, s.keep?.notes?.text === s.notes ? 'opaque' : 'regenerated');
         const nRels = pack.rels(`ppt/notesSlides/notesSlide${n}.xml`);
         nRels.add(RT('notesMaster'), '../notesMasters/notesMaster1.xml');

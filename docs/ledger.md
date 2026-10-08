@@ -198,7 +198,7 @@ LibreOffice, with explained changes against the previous writer; **Excel accepta
 |---|---|
 | Edit cells around an unedited raw shape | Keep its original XML, compatibility alternatives and relationships |
 | Move a drawing | Update its worksheet anchor |
-| Edit chart contents or a converted shape | Regenerate the modeled content; general per-property preservation remains pending |
+| Edit chart contents or a converted shape | Regenerate the modeled content with a Compatibility Checker notice; general per-property preservation remains pending |
 | Copy/duplicate or delete | Controls and OLE follow the ownership rules below; other opaque-frame ownership remains part of the remaining Ledger work |
 
 ### Pivots, threads, controls and extensions: current edit limits

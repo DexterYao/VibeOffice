@@ -460,6 +460,32 @@
     doc.acknowledgedLosses = Array.from(new Set([...(doc.acknowledgedLosses || []), ...(state.acknowledged || [])]));
   };
 
+  // App-owned exceptions are measured on the assembled output, not guessed at
+  // open time. This also covers a fragment that was kept by one path but
+  // converted by another. Opaque parts already have their own carry/drop ledger.
+  K.reportFeatures = function (writer, { accepts, classify, labels }) {
+    if (!writer.pkg) return;
+    const count = root => {
+      const values = new Map();
+      if (root) walk(root, el => { const key = classify(el); if (key) values.set(key, (values.get(key) || 0) + 1); });
+      return values;
+    };
+    for (const [key, mode] of writer.classes) {
+      const [source, part] = JSON.parse(key);
+      if (source !== writer.pkg.id || mode === 'opaque' || !/\.xml$/i.test(part)) continue;
+      let before;
+      try { before = writer.pkg.xml(part); } catch (_) { continue; } // damaged-part recovery reports its own conversion
+      if (!before || !accepts(before)) continue;
+      const original = count(before);
+      if (!original.size) continue;
+      const data = writer.parts.get(writer.mapping.get(key)), after = data == null ? new Map() : count(K.parse(typeof data === 'string' ? data : XML.decode(data)));
+      for (const [feature, total] of original) {
+        const missing = total - (after.get(feature) || 0);
+        if (missing > 0) writer.loss({ id: 'content:' + part + ':' + feature, what: labels[feature] + ' (' + missing + ').', where: part, action: 'conversion' });
+      }
+    }
+  };
+
   /** Replace owned children only; preserve every other child and its relative anchor.
    * replacements: expanded element name -> XML string(s), or [] to remove that property.
    * type: generated schema type, e.g. 'a:CT_ShapeProperties'.
@@ -1142,6 +1168,7 @@
           }
         }
       }
+      options.audit?.(writer);
       return writer.finish();
     };
     const use = name => { names.set(name, name); writer.names.add(name.toLowerCase()); return name; };

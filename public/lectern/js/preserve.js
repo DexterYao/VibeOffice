@@ -91,13 +91,22 @@
     const output = K.output(pkg, { doc: pres, format, contentType: P.mediaType,
       consumes: (base, rel, type) => consumed.has(type) || L.frames.consumes(pres, base, rel),
       convert: (base, source, data) => /^ppt\/(theme\/|notesMasters\/|notesSlides\/|viewProps\.xml$|tableStyles\.xml$)/.test(base) ? data : null,
-      merge: (base, source, data, writer) => P.mergePackage(pres, base, source, data, writer) });
+      merge: (base, source, data, writer) => P.mergePackage(pres, base, source, data, writer), audit: P.reportLosses });
     output.bind('ppt/presentation.xml', pkg?.main, 'merged');
     for (const [base, type, mode, root] of P.parts) {
       const rel = pkg?.rels(root ? '' : pkg.main).find(r => K.relationshipType(r.type) === type && !r.external);
       output.bind(base, rel?.part, mode);
     }
     return output;
+  };
+  P.reportLosses = writer => {
+    K.reportFeatures(writer, {
+      accepts: el => ['sld', 'notes', 'sldMaster', 'sldLayout'].includes(el.localName) && [N.p, 'http://purl.oclc.org/ooxml/presentationml/main'].includes(el.namespaceURI),
+      classify: el => ['http://purl.oclc.org/ooxml/presentationml/main', N.p].includes(el.namespaceURI) && el.localName === 'control' ? 'controls' :
+        ['http://purl.oclc.org/ooxml/drawingml/main', N.a].includes(el.namespaceURI) && el.localName === 'fld' ? 'fields' : null,
+      labels: { controls: 'Some original form controls were converted to previews or removed', fields: 'Some original text fields were converted to ordinary text' },
+    });
+    if (writer.doc.repaired?.parts?.length) writer.loss({ id: 'read:damaged', what: 'Some damaged source parts could not be fully read and may be incomplete in this save.', where: writer.doc.repaired.parts.join(', '), action: 'conversion' });
   };
   P.mergePackage = function (pres, base, source, generated, writer) {
     const fragment = K.fragment(writer.pkg.xml(source), { pkg: writer.pkg, part: source });

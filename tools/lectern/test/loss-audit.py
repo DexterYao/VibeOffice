@@ -5,7 +5,7 @@ import json, os, re, sys, zipfile, collections
 
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'ooxml'))
-from audit import Audit
+from audit import Audit, xml_text
 audit = Audit()
 
 corpus, saved, outp = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -15,9 +15,9 @@ def load(path):
     files = {}
     for n in z.namelist():
         if n.endswith('.xml') or n.endswith('.rels'):
-            try: files[n] = z.read(n).decode('utf8', 'replace')
+            try: files[n] = xml_text(z.read(n))
             except Exception: raise
-    return z.namelist(), files
+    return [n for n in z.namelist() if not n.endswith('/')], files
 
 def rel_targets(files, prefix):
     """relationship type tails from .rels files whose source part matches prefix"""
@@ -68,11 +68,11 @@ COUNTED = {'animations (effects)', 'slide transitions', 'auto-advance timings', 
 def words(names, f, original):
     """words of the slides, their SmartArt and the speaker notes, taken per paragraph (a:p)"""
     pats = [r'ppt/slides/slide\d+\.xml$', r'ppt/notesSlides/notesSlide\d+\.xml$']
-    if original:
-        # SmartArt text lives in the diagram drawing (or, without one, the data model); Lectern saves it as shapes
-        pats.append(r'ppt/diagrams/drawing\d+\.xml$')
-        drawn = {re.sub(r'drawing', 'data', n) for n in names if re.match(r'ppt/diagrams/drawing\d+\.xml$', n) and len(f.get(n, '')) > 600}
-        pats.append('|'.join(re.escape(n) + '$' for n in names if re.match(r'ppt/diagrams/data\d+\.xml$', n) and n not in drawn) or r'^$')
+    # Retained SmartArt text still lives in the diagram drawing (or data model)
+    # on both sides. Converted SmartArt contributes its slide shapes instead.
+    pats.append(r'ppt/diagrams/drawing\d+\.xml$')
+    drawn = {re.sub(r'drawing', 'data', n) for n in names if re.match(r'ppt/diagrams/drawing\d+\.xml$', n) and len(f.get(n, '')) > 600}
+    pats.append('|'.join(re.escape(n) + '$' for n in names if re.match(r'ppt/diagrams/data\d+\.xml$', n) and n not in drawn) or r'^$')
     c = collections.Counter()
     for n, x in f.items():
         if not any(re.match(p, n) for p in pats): continue

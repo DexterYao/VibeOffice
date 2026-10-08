@@ -164,10 +164,13 @@ malformed input, unreferenced stories and unsupported markup remain exceptions.
 | Kept, with range/story exceptions | Comments, notes, bookmarks and permissions | 1,404/1,421 comments, 674/684 footnotes, 57/57 endnotes, 4,870/4,965 bookmarks and 50/54 permission ranges |
 | Kept, with remaining losses | Revisions, fields, pictures and tables | 1,385/1,427 insertions/deletions, 1,085/1,103 formatting revisions, 2,590/2,711 fields, 1,239/1,242 pictures and 1,605/1,606 tables |
 | Converted when edited | Unsupported contents inside an opaque frame; typed/complex controls | Edited or ungrouped converted content uses the model representation; incompatible typed-control edits unbind and report the conversion |
-| Mostly converted | Smart tags and inline custom-XML markup | 18/519 original wrappers remain; their text is represented as ordinary content |
+| Mostly converted, with a notice | Smart tags and inline custom-XML markup | 18/519 original wrappers remain; their text is represented as ordinary content |
 | Kept; Office accepted | Per-property drawing edits, row/cell alternatives and watermarks | 62 focused checks and 48 save/edit/history/draft states pass; full corpus completed; 14 original batch-2 files pass Office and the comment repair has a confirmed correction |
 
 Package counts verify bytes, types, rIds and targets; unreferenced parts have separate loss entries.
+The prepared-save audit reports missing wrappers, fields, move/revision markup, controls, bookmarks,
+permissions and notes/comments. Editing an imported chart records its formatting conversion.
+UTF-16 XML parts use the shared decoder. Final suite measurements for these reporting changes are pending.
 The raw carry audit reports 2,795 exact passes and 107 findings: 38 failed driver/package reads,
 67 approved Strict conversions and two incomplete glossary graphs. An independent namespace-aware
 comparison confirms that the converted graphs retain their other content and targets. All 2,653

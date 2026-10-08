@@ -200,7 +200,7 @@
       w.rels(owner).add(t.rel?.type || authors[t.n], K.relative(owner, target), false, t.rel?.id);
     }
     // A source part is dropped only when none of its original owners survives.
-    const live = new Set(pres.slides.filter(s => s.keep?.source === pres.pkg?.id && !s.keep.copy).flatMap(s => (s.keep.comments || []).map(r => r.part)));
+    const live = new Set(pres.slides.filter(s => s.keep?.source && s.keep.source === pres.pkg?.id && !s.keep.copy).flatMap(s => (s.keep.comments || []).map(r => r.part)));
     for (const name of pres.pkg?.names || []) for (const r of pres.pkg.rels(name).filter(r => kind(r) >= 0 && !r.external)) {
       if (!live.has(r.part)) w.omit(r.part, 'The slide containing these comments was deleted.');
     }
