@@ -303,7 +303,10 @@ and pending-loss recovery checks.
 selected package features, including dependency bytes, content types, original rIds and intended
 targets. It stops at model-owned boundaries and does not treat a preserved pivot part as proof that
 pivot editing works. Driver failures and malformed originals remain explicit failed/excluded rows.
-Corpus writers select the source main-part variant, including inputs with a misleading extension.
+Corpus writers select the source main-part variant, including inputs with a misleading extension. The presentation
+inventory parses transition/run-effect elements and text as XML: namespace hoisting, self-closing
+properties and escaped apostrophes must not appear as feature or word loss. Edited SmartArt previews
+are intentional conversions and must be matched with their recorded loss entries.
 
 `python3 tools/ledger/test/pivot-fixtures.py ~/corpora/excel OUTDIR` authors the two pivot source kinds
 absent from the pinned inventory: a defined-name source and a two-area consolidation source. It keeps

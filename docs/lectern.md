@@ -93,17 +93,19 @@ Office review batches are documented in [testing.md](testing.md).
 
 Lectern regenerates slides and keeps package dependencies and unsupported properties beside the model.
 Save and drafts retain all six OOXML variants and encryption. The Compatibility Checker reports
-recorded conversions before a user download; complete coverage depends on the remaining object work.
+conversions from the prepared output before a user download; drafts retain those notices silently.
 
-The pinned 844-file corpus completes **840 save/reopen attempts**, with **3 failures and 1 password
-exclusion**. Text edit/save/undo/redo completes in **551**, excludes **290** without editable text and
-fails in **3**. Draft recovery completes in **840**, with **3 failures and 1 exclusion**. The full run
-uses writer `cf1b313`; package/SDK comparison reports **822 OK, 21 failed and 1 excluded** for saves,
-and no new diagnostics in comparable outputs. Unvalidatable originals are failures, not passes.
+The pinned **844-file** run completes **837 saves and 837 draft recoveries**, with **6 failures and
+1 password exclusion** in each scenario. Text edit/save/undo/redo completes in **548**, excludes
+**290** without editable text and fails in **6**. Across **5,302 emitted or attempted states**, package/SDK
+comparison has **4,914 OK, 96 failed and 292 excluded**, with **no new diagnostics**. Failed originals
+and incomplete recovered decks remain failures. The full writer is `11a9f1e`, with isolated damaged-source
+and timeout corrections through `5247af8`; reports retain every original attempt.
 
-The independent feature inventory compares **827 readable pairs**; **17 attempts fail**. Its text
-inventory retains **57,931 of 58,131 words**: **812 of 827 decks** keep every counted word. Part and
-relationship counts do not establish that an unsupported frame remains attached to its slide.
+The independent inventory compares **827 readable pairs** and records **17 failed comparisons**.
+All **58,022 counted words** and every inventoried feature remain after an unchanged save, including
+**896 masters, 7,265 named layouts, 642 effects, 232 transition branches and 184 SmartArt references**.
+Counts alone do not establish rendering fidelity; the edit checks below verify ownership and dependencies.
 
 | Status | Feature | Current measured result / limit |
 |---|---|---|
@@ -119,9 +121,19 @@ relationship counts do not establish that an unsupported frame remains attached 
 | Kept; PowerPoint edit acceptance pending | Extended visual effects | The property sweep retains all 18 glow, 30 reflection, 16 soft-edge, 36 inner-shadow, 136 scene3d, 123 sp3d and 6 picture-treatment entries; unknown run/paragraph details remain with their properties |
 | Kept; PowerPoint edit acceptance pending | Program/macro actions and shape tags | All 29 action settings and 13 slide/shape tag lists remain in the property sweep; copied tag parts and shape identities are independent |
 
-The custom-XML/tag part inventory is **234/244** even though all selected package relationships pass:
-unreferenced parts and modeled content have separate ownership rules. The Compatibility Checker
-reports losses known to the implemented paths; the remaining conversions are still being covered.
+The custom-XML/tag inventory retains **234/234 parts**, excluding ZIP directory markers. Package
+carry checks pass byte comparison in **818 files**; **9 Strict inputs** deliberately convert retained
+XML and relationship vocabulary. Sixteen malformed/failed inputs and one password exclusion remain
+separate. The edit inventory covers **545 readable pairs**: its only feature reduction is **67 SmartArt
+objects whose preview text the script edits**, each reported as converted. Other inventoried features
+remain. Run-boundary edits and those converted previews account for the word-count differences.
+
+Documented exceptions are damaged or missing source dependencies, signatures invalidated by a save,
+Strict-to-Transitional conversion, edited chart/opaque-frame content, and edited notes-page formatting.
+Form-control or field markup that requires conversion is also reported. Full-corpus LibreOffice
+rendering is not complete; the **15 PowerPoint batch-4 samples** pass package/SDK and LibreOffice with
+expected counts. Their previous-writer differences are reviewed. **PowerPoint acceptance is pending**
+at `~/Downloads/lossless-check/office-batch-4/CHECKLIST.md`.
 
 The user accepted the PPTM video, VBA and authors/handout samples in Office batch 1. The slide-6
 repair is fixed and confirmed in PowerPoint: presets write complete adjustment lists and masters
@@ -130,10 +142,8 @@ counts. Strict conversion passes **85 presentations / 340 emitted states** again
 package/SDK diagnostics; the Strict presentation sample passed Office batch 2. Rewritten parts now
 hoist fragment namespace declarations and `mc:Ignorable` to the root. The fresh namespace sample
 passes PowerPoint, package/SDK and LibreOffice with unchanged slide count. Opaque parts retain their
-bytes. Full-corpus
-LibreOffice rendering has not been completed. Reports and history:
-`~/corpora/results/next-plan-head-2026-10-08/` and
-`~/corpora/results/strict-transitional-2026-10-08/`.
+bytes. Current reports, convention signatures, correction history and exceptions are in
+`~/corpora/results/lectern-group-2026-10-09/`; earlier runs remain archived separately.
 
 ### Media: edit behavior
 
@@ -168,7 +178,7 @@ two originals with missing dependencies remain failed comparisons. Eleven focuse
 states pass package/SDK checks and cover geometry, theme changes, styles, independent copies,
 last-slide deletion, new layouts, undo/redo and actual drafts. Three edited samples open in LibreOffice with
 expected slide counts. All 118 unit tests pass and four pages load without console errors.
-PowerPoint batch 4 and the full Lectern group run remain pending. Reports:
+PowerPoint batch 4 acceptance remains pending. Reports:
 `~/corpora/results/lectern-preservation-2026-10-09/designs-*`.
 
 ### Sections and custom shows: edit behavior
@@ -186,7 +196,7 @@ The 18-deck sweep and all 26 edit/history/draft states introduce no package/SDK 
 Large slide IDs and empty sections are covered by a public one-slide deck with ten sections.
 Two edited samples and four history states open in LibreOffice with the expected inserted/deleted
 slide counts. All 115 unit tests pass; the browser edit driver and app load report no console errors.
-The full Lectern group run and PowerPoint batch 4 remain pending. Reports:
+The full group measurement is above; PowerPoint batch 4 acceptance remains pending. Reports:
 `~/corpora/results/lectern-preservation-2026-10-09/membership-*`.
 
 ### Comments: edit behavior
@@ -231,7 +241,7 @@ Of 959 diagram, embedding, ink and model dependency parts, 928 are byte-identica
 conversions, three remove missing optional cache references, and 18 are unreferenced orphan parts
 in one damaged source. Five edited samples open in LibreOffice with expected slide counts.
 All 118 unit tests pass and all four pages load without console errors.
-PowerPoint acceptance and the full Lectern group run remain pending. Reports:
+PowerPoint batch 4 acceptance remains pending. Reports:
 `~/corpora/results/lectern-preservation-2026-10-09/frames-*`.
 
 ### Shape properties, tags, actions and timing: edit behavior
@@ -259,8 +269,7 @@ states pass, including text edits, geometry, copies, deletion, detached clipboar
 Four edited samples open in LibreOffice with unchanged counts. UTF-16 package XML is decoded
 correctly, retaining a six-slide template previously read as empty; its save/edit/history states
 also pass SDK and LibreOffice. The corpus driver now compares original, opened and saved slide
-counts. All 118 unit tests pass and four pages load. PowerPoint batch 4 and the full Lectern group
-run remain pending. Reports: `~/corpora/results/lectern-preservation-2026-10-09/properties-*`.
+counts. All 118 unit tests pass and four pages load. PowerPoint batch 4 acceptance remains pending. Reports: `~/corpora/results/lectern-preservation-2026-10-09/properties-*`.
 
 ## Known limits
 

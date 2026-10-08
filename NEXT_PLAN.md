@@ -14,11 +14,12 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 
 **Implemented; Office pending:** Ledger object-level features and the full group measurement.
 
-**Not done:** full Lectern group measurement, PowerPoint acceptance and final suite measurement/loss reporting.
+**Not done:** Excel/PowerPoint acceptance and completion of the final suite measurement.
+Remaining conversion paths now report from the prepared save; focused checker/cancellation/draft checks pass.
 
 Lectern sections/custom shows, comments, opaque frames, designs, tags, actions and effects are
-implemented and measured; PowerPoint acceptance will be requested together in batch 4 after
-the full Lectern run.
+implemented and measured. The full Lectern run is complete; PowerPoint batch 4 is ready and
+acceptance has been requested.
 
 **Slide-6 repair: fixed** (60c26b4, confirmed in PowerPoint). Read "Office acceptance" in AGENTS.md
 first: two bugs in the shared save code passed every automated check (master and layout sharing an
@@ -295,6 +296,21 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   All 118 unit tests pass and four pages load. Reports:
   `~/corpora/results/lectern-preservation-2026-10-09/properties-*`. Next: the full Lectern group run,
   then PowerPoint batch 4; Excel batch 3 acceptance also remains pending.
+
+- The full Lectern group run is complete: 2,532 attempts, with 837 successful saves/drafts and
+  548 successful text edits. Six damaged inputs fail each scenario; the password input and 290
+  unavailable text edits remain excluded. All 5,302 states are accounted for: 4,914 package/SDK
+  comparisons pass, 96 fail on unavailable/damaged originals, 292 are excluded; none adds diagnostics.
+  All 827 readable unchanged pairs retain every inventoried feature and 58,022/58,022 counted words.
+  Text edits convert 67 selected SmartArt previews with notices; other inventoried features remain.
+  Namespace patching now assembles slices once, with 98,574 byte-identical comparisons and 120
+  passing unit tests. Batch preparation caught a new-layout structural ID collision; the correction,
+  edit/undo/redo and final Office sample pass package/SDK and LibreOffice. PowerPoint batch 4 contains
+  15 reviewed copies, all passing those checks: `~/Downloads/lossless-check/office-batch-4/CHECKLIST.md`.
+  **PowerPoint and Excel acceptance remain pending.** The convention scan records 169 signatures,
+  151 absent from the earlier scan; preserved/converted source markup, scoped compatibility rules,
+  graphic-frame transforms and content-type forms are recorded in the run report. Final Word/Excel
+  runs are underway. Reports: `~/corpora/results/lectern-group-2026-10-09/`.
 
 ## Review of 6d24c43..275406e (2026-10-08)
 Followed well: bounded Office batches with previous-writer comparison, checker rules for the WordArt
