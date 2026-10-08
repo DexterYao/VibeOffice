@@ -122,7 +122,10 @@ The user accepted the PPTM video, VBA and authors/handout samples in Office batc
 repair is fixed and confirmed in PowerPoint: presets write complete adjustment lists and masters
 share an identity space with layouts. All 15 suite batch files open in LibreOffice with unchanged
 counts. Strict conversion passes **85 presentations / 340 emitted states** against original
-package/SDK diagnostics; Office review of that conversion belongs to a later batch. Full-corpus
+package/SDK diagnostics; the Strict presentation sample passed Office batch 2. Rewritten parts now
+hoist fragment namespace declarations and `mc:Ignorable` to the root. The fresh namespace sample
+passes PowerPoint, package/SDK and LibreOffice with unchanged slide count. Opaque parts retain their
+bytes. Full-corpus
 LibreOffice rendering has not been completed. Reports and history:
 `~/corpora/results/next-plan-head-2026-10-08/` and
 `~/corpora/results/strict-transitional-2026-10-08/`.

@@ -120,6 +120,12 @@ the original XML before branch selection, and `emit` writes an outer compatibili
 Inherited compatibility attributes are merged by namespace URI and local name, even when an ancestor
 and a fragment use different prefixes. Repeated saves must not add a second `Ignorable` attribute
 under an alias; the fragment keeps its own spelling and the inherited value list.
+Fragments stay self-contained in history and clipboard data. Once a regenerated or merged part is
+assembled, `output.put` hoists missing namespace declarations and the union of `mc:Ignorable` onto
+its root. It removes redundant inner declarations, keeps actual prefix rebindings and default-namespace
+resets, and leaves other compatibility properties scoped as written. Opaque parts bypass this pass
+and keep their bytes. This prevents every preserved paragraph/run property from repeating the full
+document namespace list.
 `duplicate` assigns a shared copy identity to the selected definitions and references; `export` and
 `import` transport their dependency bytes between documents. The writer reserves existing part names,
 relationship IDs and identity spaces before allocating new values. Master and layout IDs share one

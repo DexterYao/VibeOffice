@@ -544,6 +544,76 @@
     }
     return K.patch(xml, edits);
   };
+  // Fragments are self-contained in history/clipboard, but a rewritten part
+  // needs only one set of namespace declarations. Keep real local rebindings:
+  // removing an inner reset after a different ancestor binding changes names.
+  K.hoistNamespaces = function (xml) {
+    const tree = K.parse(xml), rootPos = XML.source.get(tree);
+    const bindings = new Map(), additions = {}, edits = [], ignorable = new Set();
+    const declarations = new Map(), nodes = [];
+    const namespacePrefix = a => a.name === 'xmlns' ? '' : a.prefix === 'xmlns' ? a.localName : null;
+    for (const a of attrs(tree)) {
+      const p = namespacePrefix(a); if (p != null) bindings.set(p, a.value);
+    }
+    walk(tree, el => {
+      nodes.push(el);
+      for (const a of attrs(el)) {
+        const p = namespacePrefix(a); if (!p || p === 'xml') continue;
+        if (!declarations.has(p)) declarations.set(p, new Map());
+        const counts = declarations.get(p); counts.set(a.value, (counts.get(a.value) || 0) + 1);
+      }
+    });
+    const declare = (prefix, uri) => { bindings.set(prefix, uri); additions['xmlns:' + prefix] = uri; return prefix; };
+    for (const [prefix, values] of declarations) if (!bindings.has(prefix)) {
+      const uri = [...values].sort((a, b) => b[1] - a[1])[0][0];
+      declare(prefix, uri);
+    }
+    const ignAttr = attrs(tree).find(a => a.localName === 'Ignorable' && tree.lookupNamespaceURI(a.prefix) === NS.mc);
+    if (ignAttr) for (const p of ignAttr.value.trim().split(/\s+/).filter(Boolean)) ignorable.add(p);
+    const rootPrefix = (wanted, uri) => {
+      if (bindings.get(wanted) === uri) return wanted;
+      for (const [prefix, value] of bindings) if (prefix && value === uri) return prefix;
+      let prefix = wanted || 'ns', i = 1;
+      while (bindings.has(prefix)) prefix = (wanted || 'ns') + '_' + i++;
+      return declare(prefix, uri);
+    };
+    const remove = (el, a) => {
+      const pos = XML.source.get(el), original = pos.attrs.find(p => p.name === a.name);
+      let start = xml.lastIndexOf(a.name, original.start - 2);
+      while (start > pos.start && /\s/.test(xml[start - 1])) start--;
+      edits.push({ start, end: original.end + 1, value: '' });
+    };
+    for (const el of nodes) {
+      if (el === tree) continue;
+      for (const a of attrs(el)) {
+        const prefix = namespacePrefix(a);
+        if (prefix != null && bindings.get(prefix) === a.value) {
+          const inherited = el.parentNode?.lookupNamespaceURI(prefix || null);
+          if (inherited == null || inherited === a.value) remove(el, a);
+        } else if (a.localName === 'Ignorable' && el.lookupNamespaceURI(a.prefix) === NS.mc) {
+          let resolved = true;
+          for (const prefix of a.value.trim().split(/\s+/).filter(Boolean)) {
+            const uri = el.lookupNamespaceURI(prefix);
+            if (uri) ignorable.add(rootPrefix(prefix, uri)); else resolved = false;
+          }
+          if (resolved) remove(el, a);
+        }
+      }
+    }
+    if (ignorable.size) {
+      const name = ignAttr?.name || rootPrefix('mc', NS.mc) + ':Ignorable';
+      if (!ignAttr || ignAttr.value !== [...ignorable].join(' ')) additions[name] = [...ignorable].join(' ');
+    }
+    // Root edits use the same lexical attribute helper as property merges;
+    // children, processing instructions, entities and quote styles stay intact.
+    if (Object.keys(additions).length) {
+      const open = xml.slice(rootPos.start, rootPos.openEnd);
+      const self = open.endsWith('/>'), standalone = self ? open : open + '</' + tree.nodeName + '>';
+      const patched = K.attributes(standalone, additions);
+      edits.push({ start: rootPos.start, end: rootPos.openEnd, value: self ? patched : patched.slice(0, patched.length - tree.nodeName.length - 3) });
+    }
+    return K.patch(xml, edits);
+  };
   const equal = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
   K.properties = function (xml, generated, current, previous, owned) {
     const replacements = {}, old = elements(K.parse(xml)), fresh = elements(K.parse(generated));
@@ -1039,6 +1109,9 @@
         // instructions are outside its root fragment but still belong to it.
         data = K.partXML(pkg.text(original), data);
       }
+      // Opaque parts return above and keep their exact bytes. This also covers
+      // regenerated main parts in all three apps, after every fragment is in place.
+      if (/\.xml$/i.test(base)) data = K.hoistNamespaces(typeof data === 'string' ? data : XML.decode(data));
       writer.put(target, data, type || pkg?.type(original));
     };
     const finish = () => {

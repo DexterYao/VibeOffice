@@ -167,9 +167,12 @@ including 8 saved copies openpyxl cannot read. No blanket lossless claim is made
 
 Package figures compare bytes, content types, original rIds and intended targets. The user accepted
 both Excel files in Office batch 1 (XLSM and custom XML/external links); the namespace sample also
-passed. All 15 suite batch files open in LibreOffice with unchanged counts. Strict conversion passes
+passed, but tested repeated declarations only, not inner `mc:Ignorable`. Batch 2's namespace follow-up
+confirms both the old `calcPr mc:Ignorable` form and the compact save in Excel. Rewritten parts now
+hoist fragment declarations to their root; opaque dependencies remain byte-identical.
+All 15 suite batch files open in LibreOffice with unchanged counts. Strict conversion passes
 all **23 Strict workbooks / 92 emitted states** against original package/SDK diagnostics and keeps
-its notice through draft recovery; Office review of that conversion belongs to a later batch.
+its notice through draft recovery; the Strict Excel sample passed Office batch 2.
 Reports, failed attempts and historical measurements: `~/corpora/results/next-plan-head-2026-10-08/`
 and `~/corpora/results/strict-transitional-2026-10-08/`.
 

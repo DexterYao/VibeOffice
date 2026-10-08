@@ -168,6 +168,15 @@ comparison, not a complete Word layout or Excel calculation oracle. The separate
 their historical feature inventories; their new `accounting` field exposes missing saved files and
 failed comparisons rather than silently excluding them.
 
+`node tools/ooxml/namespace-size.mjs ORIGINALS SAVED OUTPUT [LIMIT=400]` isolates namespace compaction
+on existing Word saves. It reports original/before/after main-part sizes and compacts writer-owned
+parts while keeping opaque dependency bytes. It is a serialization benchmark, not an app round trip;
+use fresh browser saves, package/SDK comparisons and Office samples for integration checks. Run
+`conventions.py` on its output and every full corpus run, recording newly introduced signatures.
+`tools/quire/test/comment-office-copies.py BATCH PREVIOUS_BATCH OUTPUT` recreates the bounded first
+Word comment-repair isolation round. Package checks now reject excess comment references beyond
+their matching definitions; comparison also rejects automatic pre-release thread-namespace promotion.
+
 Build the SDK validator and install the independent workbook reader in a test environment:
 
 ```sh

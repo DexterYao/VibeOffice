@@ -18,6 +18,35 @@ const text = data => typeof data === 'string' ? data : new TextDecoder().decode(
 const kid = (el, name) => el.children.find(c => c.localName === name);
 const children = xml => K.parse(xml).children.map(e => e.localName);
 
+test('rewritten parts hoist fragment declarations and Ignorable once, retaining scoped QName meanings', () => {
+  const xml = `<w:document xmlns:w="${N.w}" xmlns:mc="${N.mc}" xmlns:x="urn:one" mc:Ignorable="x"><w:p xmlns:w="${N.w}" xmlns:z="urn:new" mc:Ignorable="z"><x:outer xmlns:x="urn:two" mc:Ignorable="x"><x:reset xmlns:x="urn:one"/><z:payload xmlns:z="urn:new"/></x:outer></w:p></w:document>`;
+  const result = K.hoistNamespaces(xml), parsed = K.parse(result);
+  assert.equal(result.match(/xmlns:w=/g).length, 1);
+  assert.equal(result.match(/xmlns:z=/g).length, 1);
+  assert.equal(result.match(/:Ignorable=/g).length, 1);
+  assert.equal(parsed.getElementsByTagName('x:outer')[0].namespaceURI, 'urn:two');
+  assert.equal(parsed.getElementsByTagName('x:reset')[0].namespaceURI, 'urn:one');
+  assert.equal(parsed.getElementsByTagName('z:payload')[0].namespaceURI, 'urn:new');
+  const ignored = parsed.getAttributeNS(N.mc, 'Ignorable').split(' ').map(p => parsed.lookupNamespaceURI(p));
+  assert.deepEqual(new Set(ignored), new Set(['urn:one', 'urn:new', 'urn:two']));
+  assert.equal(K.hoistNamespaces(result), result);
+});
+
+test('namespace hoisting preserves default resets, attribute aliases, other MC properties and opaque bytes', async () => {
+  const xml = `<root xmlns="urn:root" xmlns:k="${N.mc}"><a xmlns="urn:child" xmlns:n="urn:new" k:Ignorable="n" k:ProcessContent="n:payload"><b xmlns="urn:root"/><n:payload/></a><unqualified xmlns=""/></root>`;
+  const result = K.hoistNamespaces(xml), parsed = K.parse(result);
+  assert.equal(parsed.children[0].namespaceURI, 'urn:child');
+  assert.equal(parsed.children[0].children[0].namespaceURI, 'urn:root');
+  assert.equal(parsed.children[1].namespaceURI, '');
+  assert.equal(parsed.children[0].getAttributeNS(N.mc, 'ProcessContent'), 'n:payload');
+  assert.equal(parsed.children[0].lookupNamespaceURI('n'), 'urn:new');
+  const source = await pkg({ 'kept.xml': xml });
+  const out = K.output(source); out.bind('kept.xml', 'kept.xml', 'opaque'); out.put('kept.xml', xml);
+  assert.equal(text(out.writer.parts.get('kept.xml')), xml);
+  const fresh = K.output(null); fresh.put('new.xml', xml);
+  assert.equal(text(fresh.writer.parts.get('new.xml')), result);
+});
+
 test('compatibility attributes retain one expanded identity across prefix aliases and repeated saves', () => {
   const source = `<w:document xmlns:w="${N.w}" xmlns:mc="${N.mc}" xmlns:ns1="${N.mc}" xmlns:w14="urn:w14" xmlns:wp14="urn:wp14" mc:Ignorable="w14" mc:ProcessContent="w14:outer"><w:p ns1:Ignorable="wp14" ns1:ProcessContent="wp14:inner"/></w:document>`;
   for (const serialize of [K.raw, K.serialize]) {

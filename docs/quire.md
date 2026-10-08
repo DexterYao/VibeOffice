@@ -143,6 +143,13 @@ reference records a Compatibility Checker entry. The pinned scan finds one saved
 anchors and 55 automatic extension-namespace promotions; the corrected point-comment save and a
 current-format reply control both pass Word. These checks are separate from the frozen full-run totals.
 
+Rewritten parts now hoist fragment namespaces and `mc:Ignorable` to the root. On the same 400-file
+size sample, main XML shrinks from **22,183,474 to 4,770,570 bytes**, against **5,373,347 bytes** in
+the originals. Independent expanded-XML comparisons preserve all content in **1,845 changed parts**;
+there are no new package issues or inner-`mc:Ignorable` convention signatures. The compact Word
+sample passes Word, SDK and LibreOffice. Opaque parts retain their bytes. This is an isolated
+serialization measurement on existing saves, with fresh app saves for Office, not a new full corpus run.
+
 The feature inventory compares **2,864 readable pairs**, with **38 failed attempts**. It retains
 **776,207 of 776,869 counted words**; **2,811 documents** keep every counted word. Data-bound values,
 malformed input, unreferenced stories and unsupported markup remain exceptions.
