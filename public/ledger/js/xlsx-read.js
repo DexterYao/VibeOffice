@@ -968,6 +968,7 @@
     const af = kid(el, 'autoFilter');
     if (af) { t.filter = readAutoFilter(af); if (ctx.markFiltered) ctx.markFiltered(t.filter); }
     ctx.wb.tables.push(t);
+    L.tableKeep.read(t, el);
   }
 
   /* ------------------------------------------------------------ drawings */
@@ -1253,6 +1254,7 @@
     wb.extra.keepValues = L.preserve.values(wb);
     L.pivots.read(wb);
     L.slicers.read(wb);
+    L.tableKeep.readWorkbook(wb);
     wb.extra.styleBaseline = { xf: st.xf.slice(), list: JSON.parse(JSON.stringify(wb.styles.list)), dxfs: JSON.parse(JSON.stringify(wb.dxfs)) };
     for (const sh of wb.sheets) if (sh.kind === 'macrosheet' || sh.kind === 'dialogsheet') sh.extra.opaqueBaseline = L.preserve.sheetContent(sh);
     return wb;

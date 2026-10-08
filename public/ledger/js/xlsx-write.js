@@ -580,7 +580,7 @@
 
   function tableXml(t, wb) {
     const ref = t.ref;
-    const a = { xmlns: NS_MAIN, id: t.id, name: t.dname || t.name, displayName: t.name, ref: rangeName(ref) };
+    const a = { xmlns: NS_MAIN, id: t.id, name: t.dname || t.name, displayName: t.name, ref: rangeName(ref), tableType: t.type };
     if (t.header === false) a.headerRowCount = '0';
     if (t.totals) a.totalsRowCount = '1'; else a.totalsRowShown = '0';
     if (t.comment) a.comment = t.comment;
@@ -590,7 +590,7 @@
       s += autoFilterXml(t.filter || { cols: [] }, afRef);
     }
     s += `<tableColumns count="${t.columns.length}">` + t.columns.map((c, i) => {
-      const ca = { id: i + 1, name: String(c.name).replace(/_x([0-9A-Fa-f]{4})_/g, '_x005F_x$1_').replace(/[\r\n\t]/g, (ch) => '_x' + ch.charCodeAt(0).toString(16).padStart(4, '0') + '_'), totalsRowFunction: t.totals && c.totalsFn && c.totalsFn !== 'none' ? c.totalsFn : undefined, totalsRowLabel: t.totals && c.totalsLabel != null ? c.totalsLabel : undefined, dataDxfId: c.dataDxf };
+      const ca = { id: c.id || i + 1, uniqueName: c.uniqueName, queryTableFieldId: c.queryField, name: String(c.name).replace(/_x([0-9A-Fa-f]{4})_/g, '_x005F_x$1_').replace(/[\r\n\t]/g, (ch) => '_x' + ch.charCodeAt(0).toString(16).padStart(4, '0') + '_'), totalsRowFunction: t.totals && c.totalsFn && c.totalsFn !== 'none' ? c.totalsFn : undefined, totalsRowLabel: t.totals && c.totalsLabel != null ? c.totalsLabel : undefined, dataDxfId: c.dataDxf };
       const inner = (c.calc ? `<calculatedColumnFormula>${esc(c.calc)}</calculatedColumnFormula>` : '') + (t.totals && c.totalsFn === 'custom' && c.totalsFormula ? `<totalsRowFormula>${esc(c.totalsFormula)}</totalsRowFormula>` : '');
       return `<tableColumn${attrs(ca)}${inner ? '>' + inner + '</tableColumn>' : '/>'}`;
     }).join('') + '</tableColumns>';
@@ -601,14 +601,17 @@
   }
   /** header cell text of every table column (unique, non-empty, as Excel requires) */
   function syncTableHeaders(wb, sh) {
-    const out = new Map();
+    const out = new Map(); out.tables = new Map();
     for (const t of wb.tables) {
       if (t.sheet !== sh) continue;
       const ncol = t.ref.c2 - t.ref.c1 + 1;
-      while (t.columns.length < ncol) t.columns.push({ name: 'Column' + (t.columns.length + 1), id: t.columns.length + 1 });
-      if (t.columns.length > ncol) t.columns.length = ncol;
+      const columns = t.columns.slice(0, ncol).map(c => ({ ...c }));
+      let id = Math.max(0, ...columns.map(c => c.id || 0));
+      while (columns.length < ncol) columns.push({ name: 'Column' + (columns.length + 1), id: ++id });
+      out.tables.set(t, columns);
       const used = new Set();
-      t.columns.forEach((col, i) => {
+      columns.forEach((col, i) => {
+        if (L.tableKeep.sameHeader(t, col, i)) { used.add(col.name.toLowerCase()); return; }
         let name = col.name;
         if (t.header !== false) {
           const v = sh.val(t.ref.r1, t.ref.c1 + i);
@@ -719,6 +722,7 @@
     for (const t of wb.tables) { if (!(t.id > 0) || usedT.has(t.id)) t.id = ++tid; usedT.add(t.id); }
     const slicers = L.slicers.begin(wb, pack);
     const extensions = E.begin(wb, pack.writer);
+    L.tableKeep.begin(wb, pack);
     const sheetEntries = [];
     for (let si = 0; si < wb.sheets.length; si++) {
       const sh = wb.sheets[si];
@@ -737,6 +741,7 @@
       pack.bind(part, sh.extra.ooxmlPart);
       const rels = relsFor(part);
       const objects = L.sheetObjects.begin(sh, pack, pack.part(part));
+      L.tableKeep.sheet(sh, pack, pack.part(part));
       if (sh.kind === 'chartsheet') {
         let body = HDR + `<chartsheet xmlns="${NS_MAIN}" xmlns:r="${NS_R}">` + (sh.tabColor ? `<sheetPr>${colorEl('tabColor', sh.tabColor)}</sheetPr>` : '') + `<sheetViews><sheetView${si === wb.active ? ' tabSelected="1"' : ''}${sh.view.zoom && sh.view.zoom !== 100 ? ` zoomScale="${Math.round(sh.view.zoom)}"` : ''}${sh.view.zoomToFit ? ' zoomToFit="1"' : ''} workbookViewId="0"/></sheetViews>`;
         const m = sh.print.margins;
@@ -822,7 +827,8 @@
         const ids = tables.map((t) => {
           const tp = `xl/tables/table${++nTable}.xml`;
           pack.bind(tp, t.ooxmlCopy ? undefined : t.ooxmlPart);
-          add(tp, tableXml(t, wb), CT.table);
+          const view = L.tableKeep.prepare(t, headers.tables.get(t));
+          add(tp, L.tableKeep.xml(view, tableXml(view, wb), pack, pack.part(tp)), CT.table);
           return rels.add('table', '../tables/' + tp.split('/').pop());
         });
         out.push(`<tableParts count="${ids.length}">` + ids.map((id) => `<tablePart r:id="${id}"/>`).join('') + '</tableParts>');

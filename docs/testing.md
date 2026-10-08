@@ -194,6 +194,10 @@ and draft recovery. The supplemental sources and hashes are recorded in `ledger-
 worksheet extension edit/history saves (`EXCEL_CORPUS` overrides `~/corpora/excel`).
 `node tools/ledger/test/extensions-ui.mjs INPUT.xlsx OUTPUT` checks an extended bar through edits,
 sheet copy, undo/redo and actual draft recovery.
+`tables.test.js` uses `QUERY_RESULTS=DIR` for query-table edits, column identities, copies and
+history saves (`EXCEL_CORPUS` overrides `~/corpora/excel`).
+`node tools/ledger/test/tables-ui.mjs INPUT.xlsx OUTPUT` checks inserted query columns, sheet
+copy, scoped names, undo/redo and actual draft recovery.
 
 Build the SDK validator and install the independent workbook reader in a test environment:
 

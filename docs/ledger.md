@@ -164,7 +164,7 @@ including 8 saved copies openpyxl cannot read. No blanket lossless claim is made
 | Kept; Excel edit acceptance pending | Worksheet extensions and newer conditional formatting | The 65-workbook extension sweep retains 100/100 extension entries with unchanged expanded XML: 23/23 extended bars, 53/53 extended rules, 20/20 extended validations, 9/9 sparkline groups and 63/63 unknown entries. Package checks add no issues; SDK comparisons pass in 64, with one malformed original unvalidatable |
 | Kept; Excel edit acceptance pending | Controls, OLE, non-comment VML and sheet custom properties | All 40 relevant workbooks save without new package/SDK errors: 344/344 control references, 26/26 OLE entries, 367/367 non-note VML shapes and 31/31 sheet properties. All 43 VML parts retain their original bytes |
 | Kept; Excel edit acceptance pending | Slicers and timelines | Three pinned supplemental workbooks retain 7/7 views and 12/12 definition/cache parts byte for byte; edits cover shared pivots, table copies, source deletion and drafts. OLAP cases remain unmeasured |
-| Pending / unmeasured | Query-table edit rules | Query-table parts alone do not establish preservation of table fields or refresh behavior |
+| Kept; Excel edit acceptance pending | Query tables and column metadata | Ten public workbooks retain 23/23 query parts and 10/10 connections parts byte for byte, with 20/20 query tables and 68/68 column identities. Six focused cases cover column edits, copies, deletion and history |
 
 Package figures compare bytes, content types, original rIds and intended targets. The user accepted
 both Excel files in Office batch 1 (XLSM and custom XML/external links); the namespace sample also
@@ -205,7 +205,7 @@ and `~/corpora/results/strict-transitional-2026-10-08/`.
 | Move or edit a threaded comment | References follow the note; editing its displayed text converts that thread to an ordinary note with a notice |
 | Edit conditional formatting | Keep extended rule identities and unchanged properties; update base/extended bar links together, and retain unknown worksheet extensions by URI |
 | Save a sheet containing controls, OLE or non-comment VML | Keep their worksheet entries, previews, VML and dependencies together; they remain uneditable |
-| Edit a query table | Modeled table fields are written; query-specific field identity and refresh rules remain pending |
+| Edit a query table | Retain external field identities; added columns are unbound, deleted fields stay excluded from refresh, and copied tables get independent query parts |
 
 ### Pivots: edit behavior
 
@@ -329,6 +329,26 @@ Namespace declarations still move to the part root. A local `mc:Ignorable` list 
 14 affected Mac-authored workbooks in this sweep now pass SDK comparison. These scoped lists do
 not reintroduce the repeated namespace declarations removed by the namespace follow-up.
 
+### Query tables: edit behavior
+
+| Edit | Save behavior |
+|---|---|
+| Edit unrelated cells or save without edits | Keep query and connection parts byte for byte, including refresh settings; retain table/column attributes and original field IDs |
+| Edit a result cell or column heading | Keep the external field identity; write the local value/heading without changing the external query or requesting refresh |
+| Insert/delete columns through a table | Keep retained column IDs, mark new columns as unbound, and record deleted bound fields so a later refresh does not restore them |
+| Insert/delete rows or columns | Shift table, filter and sort ranges together |
+| Copy a table's worksheet | Give the table independent query parts and fresh UIDs; retain field links and duplicate sheet-scoped destination names |
+| Delete a table or its worksheet | Remove its query parts with a Compatibility Checker entry; keep workbook-owned connections |
+| Undo/redo or recover a draft | Restore table membership, columns, scoped names and query changes; saving does not mutate model headings |
+
+Six focused cases produce **20 unique passing package/SDK states**, plus **two actual browser
+draft/recovery states**. Edited and copied samples and three history states open in LibreOffice
+with unchanged page counts. The ten-file query sweep has no new package issues; nine SDK
+comparisons pass and one original (`queryTableExport.xlsx`) has a missing dependency and cannot
+be validated. All **113 unit tests** pass and four pages load without console errors. Ledger does
+not execute a query or enable refresh. Reports: `~/corpora/results/ledger-preservation-2026-10-08/query-*`.
+The full Ledger group run and Excel batch 3 remain pending.
+
 ## Compatibility testing
 
 `tools/corpora.sh` pins the LibreOffice, Apache POI and Open XML SDK inputs used above. The Node and
@@ -368,6 +388,7 @@ support for every formula or external data source.
 | `js/objects.js` | Controls/OLE ownership, linked DrawingML/VML identities, payload copies and note/VML merging |
 | `js/slicers.js` | Slicer/timeline frames, source-cache ownership, sheet/workbook extension links and copied view identities |
 | `js/extensions.js` | Extended rule/validation/sparkline ownership, per-property merges, copied identities and unknown worksheet extension entries |
+| `js/tables.js` | Table/column fragments and identities, query fields and copies, deleted-field retention and structural edits |
 | `../common/core.js`, `../common/zip.js` | Utilities, file saving, PDF writer, ZIP reader/writer |
 | `../common/xml.js`, `../common/opc.js`, `../common/opc-order.js`, `js/xml.js` | Shared XML parser and OOXML preservation core; `js/xml.js` aliases the shared tree as `L.xml`. Original package ownership, settings merges and style/string identities are implemented. |
 | `../common/sha.js`, `../common/crypto.js` | SHA-1/256/384/512 and AES, Office document encryption (standard and agile) |

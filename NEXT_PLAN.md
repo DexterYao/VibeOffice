@@ -225,7 +225,16 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   counts. All 107 unit tests pass and four pages load. Scoped MC processing/preservation attributes
   retain the local Ignorable list required by the SDK; namespace declarations still hoist. This fixes
   the 14 affected Mac-authored workbooks in the sweep. Full Ledger measurement and Excel batch 3
-  remain pending. Next: query tables.
+  remain pending.
+- Ledger query tables now retain table/column metadata and external field identities. New columns
+  are unbound; deleted fields stay excluded from refresh; copied tables get independent query parts.
+  The ten-file sweep keeps 23/23 query parts and 10/10 connections parts byte-identical, with all
+  20 query tables and 68 column identities intact. Package checks add no issues; nine SDK comparisons
+  pass and one original has a missing dependency. Six focused cases / 20 unique states and two
+  browser draft states pass package/SDK; two edited samples and three history states open in
+  LibreOffice with unchanged page counts. All 113 unit tests pass and four pages load. Saving no
+  longer mutates table headings, and copied sheet-scoped names now undo correctly. Next: the full
+  Ledger group run and Excel batch 3, whose Office acceptance remains pending.
 
 ## Review of 6d24c43..275406e (2026-10-08)
 Followed well: bounded Office batches with previous-writer comparison, checker rules for the WordArt

@@ -642,7 +642,8 @@
       autoFilter: sh.autoFilter ? JSON.parse(JSON.stringify(sh.autoFilter)) : null,
       print: JSON.parse(JSON.stringify(sh.print)), maxR: sh.maxR, maxC: sh.maxC,
       view: { freeze: sh.view.freeze ? Object.assign({}, sh.view.freeze) : null, top: Object.assign({}, sh.view.top) },
-      tables: sh.wb.tables.filter((t) => t.sheet === sh).map((t) => ({ t, ref: Object.assign({}, t.ref), columns: t.columns.map((c) => Object.assign({}, c)) })),
+      tableSheet: sh.id, tableOrder: sh.wb.tables.slice(),
+      tables: sh.wb.tables.filter((t) => t.sheet === sh).map((t) => ({ t, ref: Object.assign({}, t.ref), columns: t.columns.map((c) => Object.assign({}, c)), filter: t.filter ? JSON.parse(JSON.stringify(t.filter)) : null, queryOps: t.queryOps?.slice() })),
       names: sh.wb.names.map((n) => Object.assign({}, n, { _ast: undefined })),
       pivotSheet: sh.id, pivots: L.pivots?.snapshot(sh.wb),
     };
@@ -660,7 +661,10 @@
     sh.print = JSON.parse(JSON.stringify(s.print));
     sh.maxR = s.maxR; sh.maxC = s.maxC;
     sh.view.freeze = s.view.freeze ? Object.assign({}, s.view.freeze) : null; sh.view.top = Object.assign({}, s.view.top);
-    for (const x of s.tables) { x.t.ref = Object.assign({}, x.ref); x.t.columns = x.columns.map((c) => Object.assign({}, c)); }
+    if (s.tableSheet === sh.id) {
+      sh.wb.tables = s.tableOrder.slice();
+      for (const x of s.tables) { x.t.ref = Object.assign({}, x.ref); x.t.columns = x.columns.map((c) => Object.assign({}, c)); x.t.filter = x.filter ? JSON.parse(JSON.stringify(x.filter)) : null; x.t.queryOps = x.queryOps?.slice(); }
+    }
     sh.wb.names = s.names.map((n) => Object.assign({}, n));
     if (s.pivotSheet === sh.id) L.pivots?.restore(sh.wb, s.pivots);
     LY.invalidate(sh); LY.touchMerges(sh); sh._cfIdx = null;
@@ -837,7 +841,7 @@
       for (const v of sh.comments.values()) { const g = shiftRange({ r1: v.r, c1: v.c, r2: v.r, c2: v.c }, axis, at, n); if (g) cm.set(M.key(g.r1, g.c1), Object.assign({}, v, { r: g.r1, c: g.c1 })); }
       sh.comments = cm;
       if (sh.autoFilter && sh.autoFilter.ref) { const g = shiftRange(sh.autoFilter.ref, axis, at, n); sh.autoFilter = g ? Object.assign({}, sh.autoFilter, { ref: g }) : null; }
-      for (const t of wb.tables) if (t.sheet === sh) { const g = shiftRange(t.ref, axis, at, n); if (g) t.ref = g; }
+      L.tableKeep.shift(sh, axis, at, n, shiftRange);
       for (const d of sh.drawings) moveAnchor(sh, d, axis, at, n, fixedSizes.get(d));
       if (sh.print.rowBreaks && axis === 'r') sh.print.rowBreaks = sh.print.rowBreaks.map((b) => (b >= at ? b + n : b)).filter((b) => b > 0);
       if (sh.print.colBreaks && axis === 'c') sh.print.colBreaks = sh.print.colBreaks.map((b) => (b >= at ? b + n : b)).filter((b) => b > 0);
@@ -1027,6 +1031,7 @@
   O.copySheet = function (wb, sh, to, name) {
     let copy;
     O.tx(wb, 'Copy Sheet', () => {
+      const oldNames = wb.names.map(n => ({ ...n })), oldOrder = wb.sheets.slice();
       let base = sh.name.replace(/ \(\d+\)$/, ''), k = 2;
       name = name || (() => { let n; do { n = base + ' (' + k++ + ')'; } while (wb.sheetByName(n)); return n.length > 31 ? n.slice(0, 31) : n; })();
       copy = wb.addSheet(name, to);
@@ -1040,18 +1045,24 @@
       copy.drawings = sh.drawings.map((d) => Object.assign({}, d, { anchor: JSON.parse(JSON.stringify(d.anchor)), chart: d.chart ? JSON.parse(JSON.stringify(d.chart)) : d.chart }));
       L.sheetObjects.copySheet(sh, copy);
       if (sh.extra.extensions) copy.extra.extensions = L.opc.duplicate(sh.extra.extensions);
-      wb.names = snap.names.map((n) => Object.assign({}, n));
+      L.tableKeep.copySheet(sh, copy);
+      wb.names = oldNames.map(n => ({ ...n, scope: n.scope == null ? n.scope : wb.sheets.indexOf(oldOrder[n.scope]) }));
       /* sheet-scoped names are duplicated for the copy */
       const idx = wb.sheets.indexOf(copy), srcIdx = wb.sheets.indexOf(sh);
-      for (const n of wb.names.slice()) if (n.scope === srcIdx) wb.names.push(Object.assign({}, n, { scope: idx }));
+      for (const n of wb.names.slice()) if (n.scope === srcIdx) {
+        let ref = n.ref;
+        try { const result = F.renameSheet(F.parse(String(ref).replace(/^=/, '')), sh.name, copy.name); if (result.changed) ref = F.toText(result.ast, { store: true }); } catch (_) { /* keep unparsed names */ }
+        wb.names.push({ ...n, scope: idx, ref, _ast: undefined });
+      }
       /* tables get new names */
       for (const t of wb.tables.filter((t) => t.sheet === sh)) {
         let tn = t.name.replace(/\d+$/, ''), i = 1; let nm; do { nm = tn + i++; } while (wb.findTable(nm));
-        wb.tables.push(Object.assign({}, t, { sheet: copy, name: nm, dname: nm, ooxmlCopy: true, id: Math.max(0, ...wb.tables.map(t => t.id || 0)) + 1, ref: Object.assign({}, t.ref), columns: t.columns.map((c) => Object.assign({}, c)) }));
+        wb.tables.push(L.tableKeep.copy(Object.assign({}, t, { sheet: copy, name: nm, dname: nm, ooxmlCopy: true, id: Math.max(0, ...wb.tables.map(t => t.id || 0)) + 1, ref: Object.assign({}, t.ref), columns: t.columns.map((c) => Object.assign({}, c)), filter: t.filter ? JSON.parse(JSON.stringify(t.filter)) : t.filter }), wb));
       }
       const tablesAfter = wb.tables.slice();
+      const namesAfter = wb.names.map(n => ({ ...n }));
       L.pivots?.copySheet(wb, sh, copy);
-      wb.undo.op(() => { wb.sheets.splice(wb.sheets.indexOf(copy), 1); wb.tables = wb.tables.filter((t) => t.sheet !== copy); }, () => { wb.sheets.splice(idx, 0, copy); wb.tables = tablesAfter; });
+      wb.undo.op(() => { wb.sheets.splice(wb.sheets.indexOf(copy), 1); wb.tables = wb.tables.filter((t) => t.sheet !== copy); wb.names = oldNames.map(n => ({ ...n })); }, () => { wb.sheets.splice(idx, 0, copy); wb.tables = tablesAfter; wb.names = namesAfter.map(n => ({ ...n })); });
       O.markStructural();
     });
     return copy;
