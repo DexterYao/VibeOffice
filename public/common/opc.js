@@ -116,11 +116,14 @@
   K.parse = text => XML.parse(text, { keepWhitespace: true, source: true, strict: true });
   K.patch = function (text, changes) {
     let end = text.length;
+    if (!changes.length) return text;
+    const chunks = [];
     for (const c of changes.slice().sort((a, b) => b.start - a.start || b.end - a.end)) {
       if (c.start < 0 || c.end < c.start || c.end > end) throw new Error('Overlapping XML edits');
-      text = text.slice(0, c.start) + c.value + text.slice(c.end); end = c.start;
+      chunks.push(text.slice(c.end, end), String(c.value)); end = c.start;
     }
-    return text;
+    chunks.push(text.slice(0, end));
+    return chunks.reverse().join('');
   };
   K.partXML = function (original, root) {
     const before = XML.source.get(K.parse(original)), after = XML.source.get(K.parse(root));

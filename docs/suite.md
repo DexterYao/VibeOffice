@@ -127,6 +127,8 @@ its root. It removes redundant inner declarations, keeps actual prefix rebinding
 resets, and leaves other compatibility properties scoped as written. Opaque parts bypass this pass
 and keep their bytes. This prevents every preserved paragraph/run property from repeating the full
 document namespace list.
+`patch` assembles disjoint source slices once, so namespace cleanup does not copy a large part
+for every removed declaration. Insertions at shared boundaries retain their original order.
 `duplicate` assigns a shared copy identity to the selected definitions and references; `export` and
 `import` transport their dependency bytes between documents. The writer reserves existing part names,
 relationship IDs and identity spaces before allocating new values. Master and layout IDs share one

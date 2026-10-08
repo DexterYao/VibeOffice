@@ -18,6 +18,15 @@ const text = data => typeof data === 'string' ? data : new TextDecoder().decode(
 const kid = (el, name) => el.children.find(c => c.localName === name);
 const children = xml => K.parse(xml).children.map(e => e.localName);
 
+test('XML patches retain insertion order at shared boundaries and reject overlaps', () => {
+  assert.equal(K.patch('abcdef', [
+    { start: 1, end: 3, value: 'B' }, { start: 1, end: 1, value: 'I' },
+    { start: 4, end: 6, value: 'E' }, { start: 6, end: 6, value: '!' },
+  ]), 'aIBdE!');
+  assert.equal(K.patch('ab', [{ start: 1, end: 1, value: '1' }, { start: 1, end: 1, value: '2' }]), 'a21b');
+  assert.throws(() => K.patch('abc', [{ start: 0, end: 2, value: '' }, { start: 1, end: 3, value: '' }]), /Overlapping/);
+});
+
 test('feature notices describe actual assembled losses, survive drafts, and clear on a preserving save', async () => {
   const original = `<w:document xmlns:w="${N.w}"><w:body><w:smartTag><w:p><w:r><w:t>Retained text</w:t></w:r></w:p></w:smartTag></w:body></w:document>`;
   const converted = `<w:document xmlns:w="${N.w}"><w:body><w:p><w:r><w:t>Retained text</w:t></w:r></w:p></w:body></w:document>`;
