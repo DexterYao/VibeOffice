@@ -161,10 +161,10 @@ including 8 saved copies openpyxl cannot read. No blanket lossless claim is made
 | Kept; Excel edit acceptance pending | Threaded comments | 6/6 corpus records across four workbooks; five thread parts and four person parts remain byte-identical. Focused edits retain replies, mentions, person IDs and shifted cell references |
 | Kept | Notes, tables, merges, validation and names | 373/373 notes, 230/230 tables, 56,263/56,263 merges, 258/259 validations, 2,106/2,106 names |
 | Kept, with exceptions | Charts, pictures and shapes | 155/157 charts, 164/165 pictures and 492/493 shapes; unedited raw shapes retain nested compatibility alternatives and relationships |
-| Converted | Newer conditional formatting | 733/752 base conditional-format entries and 7/30 data-bar/icon-set extensions; some newer properties fall back to the base representation |
+| Kept; Excel edit acceptance pending | Worksheet extensions and newer conditional formatting | The 65-workbook extension sweep retains 100/100 extension entries with unchanged expanded XML: 23/23 extended bars, 53/53 extended rules, 20/20 extended validations, 9/9 sparkline groups and 63/63 unknown entries. Package checks add no issues; SDK comparisons pass in 64, with one malformed original unvalidatable |
 | Kept; Excel edit acceptance pending | Controls, OLE, non-comment VML and sheet custom properties | All 40 relevant workbooks save without new package/SDK errors: 344/344 control references, 26/26 OLE entries, 367/367 non-note VML shapes and 31/31 sheet properties. All 43 VML parts retain their original bytes |
 | Kept; Excel edit acceptance pending | Slicers and timelines | Three pinned supplemental workbooks retain 7/7 views and 12/12 definition/cache parts byte for byte; edits cover shared pivots, table copies, source deletion and drafts. OLAP cases remain unmeasured |
-| Pending / unmeasured | Query-table edit rules and unknown worksheet extensions | Query-table parts alone do not establish preservation of table fields or refresh behavior; unknown sheet extensions still need integration |
+| Pending / unmeasured | Query-table edit rules | Query-table parts alone do not establish preservation of table fields or refresh behavior |
 
 Package figures compare bytes, content types, original rIds and intended targets. The user accepted
 both Excel files in Office batch 1 (XLSM and custom XML/external links); the namespace sample also
@@ -203,7 +203,7 @@ and `~/corpora/results/strict-transitional-2026-10-08/`.
 | No edit to pivot/thread content | Package parts are carried; there is no pivot or threaded-comment editor |
 | Edit pivot source cells, insert/delete rows or columns, rename/delete a sheet | Pivot sources, output locations and shared caches follow the rules below; slicer/timeline connections are pruned when their source disappears |
 | Move or edit a threaded comment | References follow the note; editing its displayed text converts that thread to an ordinary note with a notice |
-| Edit conditional formatting | The model writes its base form; extended bars and unknown entries need property-level merging |
+| Edit conditional formatting | Keep extended rule identities and unchanged properties; update base/extended bar links together, and retain unknown worksheet extensions by URI |
 | Save a sheet containing controls, OLE or non-comment VML | Keep their worksheet entries, previews, VML and dependencies together; they remain uneditable |
 | Edit a query table | Modeled table fields are written; query-specific field identity and refresh rules remain pending |
 
@@ -215,7 +215,7 @@ an external connection. Excel performs any requested refresh when it opens the s
 
 | Source or edit | Required save behavior |
 |---|---|
-| Several pivots share a cache | Keep one cache definition, records part and workbook `cacheId`; every surviving pivot refers to that identity. A source change marks the shared cache once. Deleting one output retains the cache for the others. Integration with slicer dependents is pending in the same Ledger feature group. |
+| Several pivots share a cache | Keep one cache definition, records part and workbook `cacheId`; every surviving pivot refers to that identity. A source change marks the shared cache once. Deleting one output retains the cache for the others and updates shared slicer connections. |
 | Worksheet range source | Resolve the source sheet to its model identity and keep the original range until an edit affects it. Sheet renames update the source name without changing the cache identity. |
 | Table source | Retain `worksheetSource@name` and the table identity; follow the table's current range after row/column edits. Do not replace the table name with a fixed range. |
 | Defined-name source | Retain the name and its scope, and use the current name formula when it resolves to a range. Keep formula-based names intact; if a source cannot be bounded safely, request refresh after workbook value or structure changes instead of inventing a range. |
@@ -304,6 +304,31 @@ and four pages load without console errors. The three supplemental inputs are pi
 commit through `tools/corpora.sh DIR ledger-features`, separate from the 951-file main corpus.
 Excel acceptance in batch 3 and the full Ledger group run remain pending.
 
+### Worksheet extensions: edit behavior
+
+| Edit | Save behavior |
+|---|---|
+| Edit unrelated cells | Keep extended bars, custom icons, validation metadata, sparkline properties and unknown extension entries |
+| Change a bar property | Replace that property in the extended rule and its base representation; keep unchanged negative-border colors, automatic thresholds and other details |
+| Insert/delete rows or columns | Shift the rule ranges and formula thresholds; external-sheet references participate in undo |
+| Copy a sheet or split a rule range | Remap duplicated extended rule IDs and validation/sparkline UIDs; base/extended bar links remain paired |
+| Delete a rule or sparkline group | Remove its owned XML without reintroducing it from the retained extension container |
+| Edit a validation or ordinary conditional rule | Retain its extension metadata through the existing dialog; replace the edited properties |
+| Undo/redo or recover a draft | Restore the rules, extension fragments and matching identities |
+
+Seven focused cases produce **22 passing package/SDK states**, plus **two browser draft/recovery
+states** after editing, copying and undo/redo. Edited bars and moved sparklines open in LibreOffice
+with their original 3/5 page counts; history states also open. All **107 unit tests** pass and all
+four pages load. The extension inventory records all 951 attempts, including 25 ZIP/XML failures.
+`empty_ext_defined_name.xlsx` remains an SDK failure because its original external-link content
+type is invalid; it is not counted as a passing comparison. Reports are in
+`~/corpora/results/ledger-preservation-2026-10-08/extension-*`. Excel batch 3 remains pending.
+
+Namespace declarations still move to the part root. A local `mc:Ignorable` list remains where
+`PreserveAttributes`, `PreserveElements` or `ProcessContent` requires it on the same element; the
+14 affected Mac-authored workbooks in this sweep now pass SDK comparison. These scoped lists do
+not reintroduce the repeated namespace declarations removed by the namespace follow-up.
+
 ## Compatibility testing
 
 `tools/corpora.sh` pins the LibreOffice, Apache POI and Open XML SDK inputs used above. The Node and
@@ -342,6 +367,7 @@ support for every formula or external data source.
 | `js/threads.js` | Complete threads beside notes, mentions/persons, copied identities and ordinary-note conversion |
 | `js/objects.js` | Controls/OLE ownership, linked DrawingML/VML identities, payload copies and note/VML merging |
 | `js/slicers.js` | Slicer/timeline frames, source-cache ownership, sheet/workbook extension links and copied view identities |
+| `js/extensions.js` | Extended rule/validation/sparkline ownership, per-property merges, copied identities and unknown worksheet extension entries |
 | `../common/core.js`, `../common/zip.js` | Utilities, file saving, PDF writer, ZIP reader/writer |
 | `../common/xml.js`, `../common/opc.js`, `../common/opc-order.js`, `js/xml.js` | Shared XML parser and OOXML preservation core; `js/xml.js` aliases the shared tree as `L.xml`. Original package ownership, settings merges and style/string identities are implemented. |
 | `../common/sha.js`, `../common/crypto.js` | SHA-1/256/384/512 and AES, Office document encryption (standard and agile) |

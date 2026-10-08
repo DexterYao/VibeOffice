@@ -190,6 +190,10 @@ at fixed commits and SHA-256 hashes without changing the main corpus manifest. `
 uses them (`LEDGER_FEATURES` overrides their directory); `SLICER_RESULTS=DIR` retains edit states.
 `node tools/ledger/test/slicers-ui.mjs INPUT.xlsx OUTPUT` exercises real drawing copy/paste, undo/redo
 and draft recovery. The supplemental sources and hashes are recorded in `ledger-features/manifest.json`.
+`extensions.test.js` uses `EXTENSION_RESULTS=DIR` for extended bars, validation, sparklines and unknown
+worksheet extension edit/history saves (`EXCEL_CORPUS` overrides `~/corpora/excel`).
+`node tools/ledger/test/extensions-ui.mjs INPUT.xlsx OUTPUT` checks an extended bar through edits,
+sheet copy, undo/redo and actual draft recovery.
 
 Build the SDK validator and install the independent workbook reader in a test environment:
 

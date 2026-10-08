@@ -5,7 +5,7 @@
 (function (root) {
   'use strict';
   const L = root.L;
-  const M = L.model, F = L.formula, NF = L.numfmt, XML = L.xml, K = L.opc;
+  const M = L.model, F = L.formula, NF = L.numfmt, XML = L.xml, K = L.opc, E = L.sheetExtensions;
   const W = (L.xlsxWrite = {});
   const HDR = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\r\n';
   const NS_MAIN = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
@@ -427,33 +427,49 @@
       (ss.keys || []).filter((k) => k.ref).map((k) => `<sortCondition${attrs({ descending: k.desc ? '1' : undefined, sortBy: k.by && k.by !== 'value' ? k.by : undefined, ref: rangeName(k.ref), customList: k.list, dxfId: k.dxf })}/>`).join('') + '</sortState>';
   }
   const cfvoXml = (v) => `<cfvo${attrs({ type: v.type, val: v.val, gte: v.gte === false ? '0' : undefined })}/>`;
-  const guid = () => '{' + [8, 4, 4, 4, 12].map((n) => Array.from({ length: n }, () => '0123456789ABCDEF'[Math.floor(Math.random() * 16)]).join('')).join('-') + '}';
   function dxfInner(d) { d = d || {}; let s = ''; if (d.font) s += '<font>' + fontXml(d.font, true).replace(/<rFont [^>]*>/, '') + '</font>'; if (d.fill) s += fillXml(d.fill, true); if (d.border) s += borderXml(d.border); return s; }
   /** icon sets the 2006 schema does not know (Excel 2010+), and icon sets with per-threshold custom icons */
   const X14_ICON = /^(3Triangles|3Stars|5Boxes|NoIcons)$/;
   const crossSheet = (r) => !r.scale && !r.bar && !r.icons && r.f && r.f.some((f) => /!/.test(String(f)) && !/^"/.test(String(f)));
   const iconExt = (r) => r.icons && (X14_ICON.test(r.icons.set || '') || (r.icons.custom && r.icons.custom.length) || r.icons.cfvo.some((v) => /!/.test(String(v.val || ''))));
   /** rules that must live in the Excel 2010 extension list */
-  const extRule = (r) => crossSheet(r) || iconExt(r);
-  function cfExtXml(sh, wb) {
+  const extRule = (r) => r.x14Only || crossSheet(r) || iconExt(r);
+  function cfExtXml(sh, wb, state, owner) {
     const items = [];
     const all = sh.cf.flatMap((x) => x.rules).slice().sort((a, b) => (a.priority || 0) - (b.priority || 0));
-    for (const cf of sh.cf) for (const r of cf.rules) if (extRule(r) && cf.ranges.length) items.push({ cf, r });
+    for (const cf of sh.cf) for (const r of cf.rules) if ((extRule(r) || E.bar(r)) && cf.ranges.length) items.push({ cf, r });
     if (!items.length) return '';
     const body = (r) => {
+      if (r.bar) {
+        const b = r.bar;
+        return `<x14:dataBar${attrs({ minLength: b.minLength, maxLength: b.maxLength, showValue: b.showValue === false ? '0' : undefined,
+          gradient: b.gradient === false ? '0' : undefined, border: b.border ? '1' : undefined, direction: b.direction, axisPosition: b.axis })}>` +
+          b.cfvo.slice(0, 2).map(v => `<x14:cfvo${attrs({ type: v.type === 'min' ? 'autoMin' : v.type === 'max' ? 'autoMax' : v.type, gte: v.gte === false ? '0' : undefined })}>${v.val != null && !/^(min|max|autoMin|autoMax)$/.test(v.type) ? `<xm:f>${esc(v.val)}</xm:f>` : ''}</x14:cfvo>`).join('') +
+          (r.x14Only ? colorEl('x14:fillColor', b.color || { rgb: 'FF638EC6' }) : '') +
+          (b.border ? colorEl('x14:borderColor', b.borderColor || b.color || { rgb: 'FF638EC6' }) : '') +
+          colorEl('x14:negativeFillColor', b.negColor || { rgb: 'FFFF0000' }) +
+          (b.axis !== 'none' ? colorEl('x14:axisColor', b.axisColor || { rgb: 'FF000000' }) : '') + '</x14:dataBar>';
+      }
       if (r.icons) {
         const ic = r.icons;
         return `<x14:iconSet${attrs({ iconSet: ic.set && ic.set !== '3TrafficLights1' ? ic.set : undefined, showValue: ic.showValue === false ? '0' : undefined, percent: ic.percent === false ? '0' : undefined, reverse: ic.reverse ? '1' : undefined, custom: ic.custom && ic.custom.length ? '1' : undefined })}>` +
           ic.cfvo.map((v) => `<x14:cfvo${attrs({ type: v.type, gte: v.gte === false ? '0' : undefined })}>${v.val != null ? `<xm:f>${esc(v.val)}</xm:f>` : ''}</x14:cfvo>`).join('') +
           (ic.custom || []).map((c) => `<x14:cfIcon iconSet="${esc(c.set || 'NoIcons')}" iconId="${c.id || 0}"/>`).join('') + '</x14:iconSet>';
       }
-      return r.f.slice(0, 3).map((f) => `<xm:f>${esc(f)}</xm:f>`).join('') + (r.dxf != null && wb.dxfs[r.dxf] ? `<x14:dxf>${dxfInner(wb.dxfs[r.dxf])}</x14:dxf>` : '');
+      return (r.f || []).slice(0, 3).map((f) => `<xm:f>${esc(f)}</xm:f>`).join('') + (r.dxf != null && wb.dxfs[r.dxf] ? `<x14:dxf>${dxfInner(wb.dxfs[r.dxf])}</x14:dxf>` : '');
     };
+    for (const item of items) {
+      const r = item.r;
+      const xml = `<x14:cfRule xmlns="${NS_MAIN}" xmlns:x14="${E.NS}" xmlns:xm="${E.XM}"${attrs({ type: r.icons ? 'iconSet' : r.type,
+        priority: r.bar && !r.x14Only ? undefined : all.indexOf(r) + 1, stopIfTrue: r.stop ? '1' : undefined,
+        operator: r.icons ? undefined : r.op, text: r.icons ? undefined : r.text, id: E.id(r, state) })}>` + body(r) + '</x14:cfRule>';
+      item.xml = E.rule(r, xml, state, owner, wb);
+    }
     return '<ext uri="{78C0D931-6437-407d-A8EE-F0AAD7539E65}" xmlns:x14="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main"><x14:conditionalFormattings>' +
-      items.map(({ cf, r }) => `<x14:conditionalFormatting xmlns:xm="http://schemas.microsoft.com/office/excel/2006/main"><x14:cfRule${attrs({ type: r.icons ? 'iconSet' : r.type, priority: all.indexOf(r) + 1, stopIfTrue: r.stop ? '1' : undefined, operator: r.icons ? undefined : r.op, text: r.icons ? undefined : r.text, id: guid() })}>` + body(r) + `</x14:cfRule><xm:sqref>${sqref(cf.ranges)}</xm:sqref></x14:conditionalFormatting>`).join('') +
+      E.groups(items, state, owner) +
       '</x14:conditionalFormattings></ext>';
   }
-  function cfXml(sh) {
+  function cfXml(sh, state, owner) {
     let prio = 0;
     const out = [];
     const all = [];
@@ -467,31 +483,46 @@
       for (const r of rules) {
         prio = pr.get(r);
         const a = { type: r.type, dxfId: r.dxf != null && r.dxf >= 0 && !/colorScale|dataBar|iconSet/.test(r.type) ? r.dxf : undefined, priority: prio, stopIfTrue: r.stop ? '1' : undefined, aboveAverage: r.below ? '0' : undefined, percent: r.percent ? '1' : undefined, bottom: r.bottom ? '1' : undefined, operator: r.op, text: r.text, timePeriod: r.period, rank: r.rank, stdDev: r.stdDev || undefined, equalAverage: r.equal ? '1' : undefined };
-        s += `<cfRule${attrs(a)}>`;
-        if (r.scale) s += '<colorScale>' + r.scale.cfvo.map(cfvoXml).join('') + r.scale.colors.map((c) => colorEl('color', c) || '<color rgb="FF000000"/>').join('') + '</colorScale>';
-        else if (r.bar) s += `<dataBar${attrs({ minLength: r.bar.minLength !== 10 ? r.bar.minLength : undefined, maxLength: r.bar.maxLength !== 90 ? r.bar.maxLength : undefined, showValue: r.bar.showValue === false ? '0' : undefined })}>` + r.bar.cfvo.slice(0, 2).map((v) => cfvoXml({ type: v.type === 'autoMin' ? 'min' : v.type === 'autoMax' ? 'max' : v.type, val: v.type === 'min' || v.type === 'max' ? undefined : v.val })).join('') + (colorEl('color', r.bar.color) || '<color rgb="FF638EC6"/>') + '</dataBar>';
-        else if (r.icons) s += `<iconSet${attrs({ iconSet: r.icons.set && r.icons.set !== '3TrafficLights1' ? r.icons.set : undefined, showValue: r.icons.showValue === false ? '0' : undefined, percent: r.icons.percent === false ? '0' : undefined, reverse: r.icons.reverse ? '1' : undefined })}>` + r.icons.cfvo.map(cfvoXml).join('') + '</iconSet>';
-        if (r.f && !r.scale && !r.bar && !r.icons) for (const f of r.f.slice(0, 3)) s += '<formula>' + esc(f) + '</formula>';
-        s += '</cfRule>';
+        let rule = `<cfRule xmlns="${NS_MAIN}"${attrs(a)}>`;
+        if (r.scale) rule += '<colorScale>' + r.scale.cfvo.map(cfvoXml).join('') + r.scale.colors.map((c) => colorEl('color', c) || '<color rgb="FF000000"/>').join('') + '</colorScale>';
+        else if (r.bar) {
+          const full = E.bar(r) && r.bar.minLength === 0 && r.bar.maxLength === 100;
+          rule += `<dataBar${attrs({ minLength: full || r.bar.minLength === 10 ? undefined : r.bar.minLength, maxLength: full || r.bar.maxLength === 90 ? undefined : r.bar.maxLength, showValue: r.bar.showValue === false ? '0' : undefined })}>` + r.bar.cfvo.slice(0, 2).map((v) => cfvoXml({ type: v.type === 'autoMin' ? 'min' : v.type === 'autoMax' ? 'max' : v.type, val: /^(min|max|autoMin|autoMax)$/.test(v.type) ? undefined : v.val })).join('') + (colorEl('color', r.bar.color) || '<color rgb="FF638EC6"/>') + '</dataBar>';
+        } else if (r.icons) rule += `<iconSet${attrs({ iconSet: r.icons.set && r.icons.set !== '3TrafficLights1' ? r.icons.set : undefined, showValue: r.icons.showValue === false ? '0' : undefined, percent: r.icons.percent === false ? '0' : undefined, reverse: r.icons.reverse ? '1' : undefined })}>` + r.icons.cfvo.map(cfvoXml).join('') + '</iconSet>';
+        if (r.f && !r.scale && !r.bar && !r.icons) for (const f of r.f.slice(0, 3)) rule += '<formula>' + esc(f) + '</formula>';
+        if (E.bar(r)) rule += `<extLst><ext uri="{B025F937-C7B1-47D3-B67F-A62EFF666E3E}" xmlns:x14="${E.NS}"><x14:id>${esc(E.id(r, state))}</x14:id></ext></extLst>`;
+        s += E.rule(r, rule + '</cfRule>', state, owner, sh.wb, true);
       }
       out.push(s + '</conditionalFormatting>');
     }
     return out.join('');
   }
   function dvXml(sh) {
-    const list = sh.dv.filter((d) => d.ranges && d.ranges.length);
+    const list = sh.dv.filter((d) => !d.x14 && d.ranges && d.ranges.length);
     if (!list.length) return '';
     return `<dataValidations count="${list.length}">` + list.map((d) => {
       const a = { type: d.type && d.type !== 'none' ? d.type : undefined, errorStyle: d.errorStyle && d.errorStyle !== 'stop' ? d.errorStyle : undefined, imeMode: d.ime, operator: d.op && d.op !== 'between' ? d.op : undefined, allowBlank: d.allowBlank ? '1' : undefined, showDropDown: d.showDrop === false ? '1' : undefined, showInputMessage: d.showInput ? '1' : undefined, showErrorMessage: d.showError ? '1' : undefined, errorTitle: d.errorTitle, error: d.error, promptTitle: d.promptTitle, prompt: d.prompt, sqref: sqref(d.ranges) };
       return `<dataValidation${attrs(a)}>` + (d.f1 != null ? '<formula1>' + esc(d.f1) + '</formula1>' : '') + (d.f2 != null ? '<formula2>' + esc(d.f2) + '</formula2>' : '') + '</dataValidation>';
     }).join('') + '</dataValidations>';
   }
-  function sparklineXml(sh, wb) {
-    const cfx = cfExtXml(sh, wb);
+  function validationExtXml(sh, state, owner) {
+    const list = sh.dv.filter(d => d.x14 && d.ranges?.length); if (!list.length) return '';
+    const body = list.map(d => {
+      const a = { type: d.type, operator: d.op, errorStyle: d.errorStyle, imeMode: d.ime, allowBlank: d.allowBlank ? '1' : undefined,
+        showDropDown: d.showDrop === false ? '1' : undefined, showInputMessage: d.showInput ? '1' : undefined, showErrorMessage: d.showError ? '1' : undefined,
+        promptTitle: d.promptTitle, prompt: d.prompt, errorTitle: d.errorTitle, error: d.error };
+      const xml = `<x14:dataValidation xmlns:x14="${E.NS}" xmlns:xm="${E.XM}"${attrs(a)}>` +
+        ['f1', 'f2'].map((k, i) => d[k] != null ? `<x14:formula${i + 1}><xm:f>${esc(d[k])}</xm:f></x14:formula${i + 1}>` : '').join('') + `<xm:sqref>${sqref(d.ranges)}</xm:sqref></x14:dataValidation>`;
+      return E.validation(d, xml, state, owner);
+    }).join('');
+    return `<ext uri="{CCE6A557-97BC-4b89-ADB6-D9C93CAAB3DF}" xmlns:x14="${E.NS}"><x14:dataValidations count="${list.length}">${body}</x14:dataValidations></ext>`;
+  }
+  function sparklineXml(sh, wb, state, owner) {
+    const cfx = cfExtXml(sh, wb, state, owner) + validationExtXml(sh, state, owner);
     if (!sh.sparklines || !sh.sparklines.length) return cfx ? '<extLst>' + cfx + '</extLst>' : '';
-    const g = sh.sparklines.map((s) => `<x14:sparklineGroup${attrs({ manualMax: s.maxAxisType === 'custom' && s.manualMax != null ? s.manualMax : undefined, manualMin: s.minAxisType === 'custom' && s.manualMin != null ? s.manualMin : undefined, lineWeight: s.lineWeight !== 0.75 ? s.lineWeight : undefined, type: s.type !== 'line' ? s.type : undefined, dateAxis: s.dateAxis ? '1' : undefined, displayEmptyCellsAs: s.displayEmptyCellsAs || 'gap', markers: s.markers ? '1' : undefined, high: s.high ? '1' : undefined, low: s.low ? '1' : undefined, first: s.first ? '1' : undefined, last: s.last ? '1' : undefined, negative: s.negative ? '1' : undefined, displayXAxis: s.displayXAxis ? '1' : undefined, displayHidden: s.displayHidden ? '1' : undefined, minAxisType: s.minAxisType && s.minAxisType !== 'individual' ? s.minAxisType : undefined, maxAxisType: s.maxAxisType && s.maxAxisType !== 'individual' ? s.maxAxisType : undefined, rightToLeft: s.rightToLeft ? '1' : undefined })}>` +
+    const g = sh.sparklines.map((s) => E.sparkline(s, `<x14:sparklineGroup xmlns:x14="${E.NS}" xmlns:xm="${E.XM}"${attrs({ manualMax: s.maxAxisType === 'custom' && s.manualMax != null ? s.manualMax : undefined, manualMin: s.minAxisType === 'custom' && s.manualMin != null ? s.manualMin : undefined, lineWeight: s.lineWeight !== 0.75 ? s.lineWeight : undefined, type: s.type !== 'line' ? s.type : undefined, dateAxis: s.dateAxis ? '1' : undefined, displayEmptyCellsAs: s.displayEmptyCellsAs || 'gap', markers: s.markers ? '1' : undefined, high: s.high ? '1' : undefined, low: s.low ? '1' : undefined, first: s.first ? '1' : undefined, last: s.last ? '1' : undefined, negative: s.negative ? '1' : undefined, displayXAxis: s.displayXAxis ? '1' : undefined, displayHidden: s.displayHidden ? '1' : undefined, minAxisType: s.minAxisType && s.minAxisType !== 'individual' ? s.minAxisType : undefined, maxAxisType: s.maxAxisType && s.maxAxisType !== 'individual' ? s.maxAxisType : undefined, rightToLeft: s.rightToLeft ? '1' : undefined })}>` +
       [['colorSeries', s.color], ['colorNegative', s.negColor], ['colorAxis', s.axisColor || { rgb: 'FF000000' }], ['colorMarkers', s.markerColor], ['colorFirst', s.firstColor], ['colorLast', s.lastColor], ['colorHigh', s.highColor], ['colorLow', s.lowColor]].map(([t, c]) => colorEl('x14:' + t, c || { rgb: 'FF376092' })).join('') +
-      '<x14:sparklines>' + s.items.map((i) => `<x14:sparkline><xm:f>${esc(i.f)}</xm:f><xm:sqref>${esc(i.sqref)}</xm:sqref></x14:sparkline>`).join('') + '</x14:sparklines></x14:sparklineGroup>').join('');
+      '<x14:sparklines>' + s.items.map((i) => `<x14:sparkline><xm:f>${esc(i.f)}</xm:f><xm:sqref>${esc(i.sqref)}</xm:sqref></x14:sparkline>`).join('') + '</x14:sparklines></x14:sparklineGroup>', state, owner)).join('');
     return `<extLst>${cfx}<ext uri="{05C60535-1F16-4fd2-B633-F4F36F0B64E0}" xmlns:x14="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main"><x14:sparklineGroups xmlns:xm="http://schemas.microsoft.com/office/excel/2006/main">${g}</x14:sparklineGroups></ext></extLst>`;
   }
   function printXml(sh) {
@@ -687,6 +718,7 @@
     const usedT = new Set();
     for (const t of wb.tables) { if (!(t.id > 0) || usedT.has(t.id)) t.id = ++tid; usedT.add(t.id); }
     const slicers = L.slicers.begin(wb, pack);
+    const extensions = E.begin(wb, pack.writer);
     const sheetEntries = [];
     for (let si = 0; si < wb.sheets.length; si++) {
       const sh = wb.sheets[si];
@@ -748,7 +780,7 @@
       const merges = sh.merges.filter((m) => m.r1 !== m.r2 || m.c1 !== m.c2);
       if (merges.length) out.push(`<mergeCells count="${merges.length}">` + merges.map((m) => `<mergeCell ref="${rangeName(m)}"/>`).join('') + '</mergeCells>');
       out.push(keepXml(sh, 'phoneticPr'));
-      out.push(cfXml(sh));
+      out.push(cfXml(sh, extensions, pack.part(part)));
       out.push(dvXml(sh));
       const links = sh.links.filter((l) => l.ref);
       if (links.length) {
@@ -795,7 +827,7 @@
         });
         out.push(`<tableParts count="${ids.length}">` + ids.map((id) => `<tablePart r:id="${id}"/>`).join('') + '</tableParts>');
       }
-      out.push(L.slicers.sheet(sh, sparklineXml(sh, wb), slicers, pack.part(part)));
+      out.push(E.sheet(sh, L.slicers.sheet(sh, sparklineXml(sh, wb, extensions, pack.part(part)), slicers, pack.part(part)), extensions, pack.part(part)));
       out.push('</worksheet>');
       add(part, out.join(''), CT.sheet);
       if (rels.list.length) add(relsPath(part), rels.xml());

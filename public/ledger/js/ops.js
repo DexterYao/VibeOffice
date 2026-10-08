@@ -714,8 +714,14 @@
     for (const s of wb.sheets) {
       for (const d of s.drawings) if (d.chart && L.xchart && L.xchart.adjust) L.xchart.adjust(d.chart, (ast) => F.adjust(ast, op, s.name));
       if (s.name === op.sheet) continue;
+      const beforeCF = JSON.stringify(s.cf), beforeDV = JSON.stringify(s.dv);
       for (const v of s.dv) for (const k of ['f1', 'f2']) if (v[k]) { const t = adjText(v[k], op, s.name); if (t !== v[k]) v[k] = t; }
-      for (const cf of s.cf) for (const rule of cf.rules) if (rule.f) rule.f = rule.f.map((x) => adjText(x, op, s.name));
+      for (const cf of s.cf) for (const rule of cf.rules) adjustRule(rule, op, s.name);
+      const afterCF = JSON.stringify(s.cf), afterDV = JSON.stringify(s.dv);
+      if (beforeCF !== afterCF || beforeDV !== afterDV) {
+        const put = (cf, dv) => { s.cf = JSON.parse(cf); s.dv = JSON.parse(dv); s._cfIdx = null; };
+        wb.undo.op(() => put(beforeCF, beforeDV), () => put(afterCF, afterDV));
+      }
     }
     /* sparkline data ranges (the edited sheet's own groups are restored by its snapshot) */
     for (const s of wb.sheets) {
@@ -732,6 +738,12 @@
   }
   function adjText(text, op, home) {
     try { const a = F.parse(String(text).replace(/^=/, '')); const r = F.adjust(a, op, home); return r.changed ? F.toText(r.ast, { store: true }) : text; } catch (e) { return text; }
+  }
+  function adjustRule(rule, op, home) {
+    if (rule.f) rule.f = rule.f.map(x => adjText(x, op, home));
+    for (const property of ['bar', 'icons', 'scale']) for (const value of rule[property]?.cfvo || []) {
+      if (value.type === 'formula' && value.val != null) value.val = adjText(value.val, op, home);
+    }
   }
   /** shift a range for an insert / delete; null when it disappears */
   function shiftRange(rg, axis, at, n) {
@@ -807,7 +819,7 @@
       sh.rows.forEach((row) => { if (!row) return; row.cells.forEach((cl) => { if (cl && cl.am) { const p = shiftRange({ r1: cl.am.r, c1: cl.am.c, r2: cl.am.r, c2: cl.am.c }, axis, at, n); if (p) cl.am = { r: p.r1, c: p.c1 }; } }); });
       /* ranges hanging off the sheet */
       sh.merges = sh.merges.map((m) => shiftRange(m, axis, at, n)).filter((m) => m && (m.r1 !== m.r2 || m.c1 !== m.c2));
-      for (const cf of sh.cf) { cf.ranges = cf.ranges.map((g) => shiftRange(g, axis, at, n)).filter(Boolean); for (const rule of cf.rules) if (rule.f) rule.f = rule.f.map((x) => adjText(x, op, sh.name)); }
+      for (const cf of sh.cf) { cf.ranges = cf.ranges.map((g) => shiftRange(g, axis, at, n)).filter(Boolean); for (const rule of cf.rules) adjustRule(rule, op, sh.name); }
       sh.cf = sh.cf.filter((cf) => cf.ranges.length);
       for (const v of sh.dv) { v.ranges = v.ranges.map((g) => shiftRange(g, axis, at, n)).filter(Boolean); for (const k of ['f1', 'f2']) if (v[k]) v[k] = adjText(v[k], op, sh.name); }
       sh.dv = sh.dv.filter((v) => v.ranges.length);
@@ -1027,6 +1039,7 @@
       copy.tabColor = sh.tabColor; copy.defColW = sh.defColW; copy.baseColW = sh.baseColW; copy.defRowH = sh.defRowH; copy.outline = Object.assign({}, sh.outline);
       copy.drawings = sh.drawings.map((d) => Object.assign({}, d, { anchor: JSON.parse(JSON.stringify(d.anchor)), chart: d.chart ? JSON.parse(JSON.stringify(d.chart)) : d.chart }));
       L.sheetObjects.copySheet(sh, copy);
+      if (sh.extra.extensions) copy.extra.extensions = L.opc.duplicate(sh.extra.extensions);
       wb.names = snap.names.map((n) => Object.assign({}, n));
       /* sheet-scoped names are duplicated for the copy */
       const idx = wb.sheets.indexOf(copy), srcIdx = wb.sheets.indexOf(sh);

@@ -651,7 +651,7 @@
     for (const cf of kids(el, 'conditionalFormatting')) {
       const ranges = M.parseSqref(at(cf, 'sqref'));
       if (!ranges.length) continue;
-      const rules = kids(cf, 'cfRule').map((r) => readCfRule(r, ctx));
+      const rules = kids(cf, 'cfRule').map((r) => { const o = readCfRule(r, ctx); L.sheetExtensions.base(o, r, sh); return o; });
       if (rules.length) sh.cf.push({ ranges, rules, pivot: bool(cf, 'pivot', false) || undefined });
     }
     /* data validation */
@@ -815,6 +815,7 @@
   function readSheetExt(ext, sh, ctx) {
     for (const e of kids(ext, 'ext')) {
       for (const c of e.children) {
+        if (c.namespaceURI !== L.sheetExtensions.NS) continue;
         if (c.localName === 'dataValidations') {
           for (const d of kids(c, 'dataValidation')) {
             const sq = kid(d, 'sqref');
@@ -827,6 +828,7 @@
             if (f2) o.f2 = f2.textContent.trim();
             o.x14 = true;
             sh.dv.push(o);
+            L.sheetExtensions.keep(o, d, sh);
           }
         } else if (c.localName === 'conditionalFormattings') {
           for (const cf of kids(c, 'conditionalFormatting')) {
@@ -838,6 +840,8 @@
               const base = id && sh.cf.flatMap((x) => x.rules).find((x) => x.x14id === id);
               const db = kid(r, 'dataBar');
               if (base && db && base.bar) {
+                for (const k of ['minLength', 'maxLength']) if (at(db, k) != null) base.bar[k] = num(db, k, base.bar[k]);
+                if (at(db, 'showValue') != null) base.bar.showValue = bool(db, 'showValue', true);
                 base.bar.gradient = at(db, 'gradient') !== '0';
                 base.bar.border = bool(db, 'border', false);
                 if (at(db, 'direction')) base.bar.direction = at(db, 'direction');
@@ -847,11 +851,13 @@
                 if (at(db, 'axisPosition')) base.bar.axis = at(db, 'axisPosition');
                 const cfvos = kids(db, 'cfvo');
                 if (cfvos.length === 2) base.bar.cfvo = cfvos.map((v) => { const o = { type: at(v, 'type') === 'autoMin' ? 'min' : at(v, 'type') === 'autoMax' ? 'max' : at(v, 'type') }; const f = kid(v, 'f'); if (f) o.val = f.textContent; return o; });
+                L.sheetExtensions.keep(base, r, sh, cf);
                 continue;
               }
               if (!ranges.length) continue;
               /* x14-only rules (icon sets with custom icons, rules referring to other sheets) */
               const o = readCfRule(r, ctx);
+              o.x14id = id; o.x14Only = true;
               const fs = kids(r, 'f').map((f) => f.textContent);
               if (fs.length) o.f = fs;
               const dx = kid(r, 'dxf');
@@ -863,6 +869,7 @@
                 if (ci.length) o.icons.custom = ci.map((x) => ({ set: at(x, 'iconSet'), id: +(at(x, 'iconId') || 0) }));
               }
               sh.cf.push({ ranges, rules: [o] });
+              L.sheetExtensions.keep(o, r, sh, cf);
             }
           }
         } else if (c.localName === 'sparklineGroups') {
@@ -874,9 +881,11 @@
             minAxisType: at(g, 'minAxisType') || 'individual', maxAxisType: at(g, 'maxAxisType') || 'individual', manualMin: at(g, 'manualMin') != null ? +at(g, 'manualMin') : null, manualMax: at(g, 'manualMax') != null ? +at(g, 'manualMax') : null, dateAxis: bool(g, 'dateAxis', false),
             items: kids(kid(g, 'sparklines'), 'sparkline').map((s) => ({ f: (kid(s, 'f') || { textContent: '' }).textContent, sqref: (kid(s, 'sqref') || { textContent: '' }).textContent })),
           }));
+          kids(c, 'sparklineGroup').forEach((g, i) => L.sheetExtensions.keep(sh.sparklines[i], g, sh));
         }
       }
     }
+    L.sheetExtensions.read(sh, ext);
   }
 
   async function readComments(pkg, part, sh) {
