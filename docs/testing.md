@@ -255,6 +255,15 @@ the edit driver's 15 states pass too. These focused reports and a LibreOffice bi
 retained under `~/corpora/results/quire-controls-2026-10-08/`. The date-value dialog was inspected and
 Quire loaded without console errors. Other full-corpus gates remain pending.
 
+Quire's property increment uses `node --test tools/quire/test/properties.test.js` for independent
+property replacement, alternatives, undo and copied permission identities. The shared schema-order
+generator supplements ECMA run-property ordering with the Office 2010 effect sequence used by the
+Open XML SDK. Six authored save fixtures retain 153/153 tracked property/range/background elements;
+one formatting fixture plus undo/redo retains 21/21. All nine saved states have no new package/SDK
+diagnostics after fixing the ordering failure caught by the edit. Reports, the initial failure and
+its corrected artifacts are under `~/corpora/results/quire-properties-2026-10-08/`. This was a focused
+check; the full corpus was not rerun. Word handoffs are in `~/Downloads/lossless-check/quire/properties/`.
+
 `python3 tools/ooxml/samples.py ~/corpora /tmp/lossless ~/Downloads/lossless-check/baseline`
 selects small independently authored files for each carried-feature test, copies original/saved/edited
 variants where available, and writes a manifest. It refuses to replace differing handoff files.

@@ -35,14 +35,16 @@
     const get = (p) => zip.get(p) || zip.get(p.replace(/^\//, '')) || findCI(p);
     const findCI = (p) => { const lp = p.toLowerCase(); for (const [k, v] of zip) if (k.toLowerCase() === lp) return v; return null; };
     const xmlCache = new Map();
+    const xmlParts = new WeakMap();
     const xml = async (p) => {
       if (!p) return null;
       if (xmlCache.has(p)) return xmlCache.get(p);
       const e = get(p);
       if (!e) return null;
       let x = null;
-      try { x = X.parse(await e.text()); } catch (err) { warnings.push('Part ' + p + ' could not be read.'); }
+      try { x = X.parse(await e.text(), L.preserve.captureProperties); } catch (err) { warnings.push('Part ' + p + ' could not be read.'); }
       xmlCache.set(p, x);
+      if (x) xmlParts.set(x.ownerDocument || x, p);
       return x;
     };
     const rels = async (p) => {
@@ -147,6 +149,7 @@
     try { L.opc.attach(doc, await L.opc.open(zip)); }
     catch (error) { L.opc.loss(doc, { id: 'package', what: 'Some original package data could not be retained: ' + error.message, where: mainPath, action: 'drop' }); }
     doc.keep = { media: {}, stores: storeParts };
+    const propertyContext = el => ({ pkg: doc.pkg, part: xmlParts.get(el.ownerDocument || el) || mainPath });
 
     /* ---- theme ---- */
     const themeRel = relOfType('theme');
@@ -227,6 +230,7 @@
       const r = {};
       if (!el) return r;
       for (const c of el.children) {
+        if (![L.opc.NS.w, 'http://purl.oclc.org/ooxml/wordprocessingml/main'].includes(c.namespaceURI)) continue;
         switch (c.localName) {
           case 'rStyle': r.style = at(c, 'val'); break;
           case 'rFonts': {
@@ -277,7 +281,7 @@
           default: break;
         }
       }
-      return r;
+      return L.preserve.properties(r, el, 'rPr', propertyContext(el));
     }
     const rev = (el) => ({ author: at(el, 'author') || 'Unknown', date: at(el, 'date') || '', id: num(el, 'id', 0) });
 
@@ -287,6 +291,7 @@
       const p = {};
       if (!el) return p;
       for (const c of el.children) {
+        if (![L.opc.NS.w, 'http://purl.oclc.org/ooxml/wordprocessingml/main'].includes(c.namespaceURI)) continue;
         switch (c.localName) {
           case 'pStyle': p.style = at(c, 'val'); break;
           case 'keepNext': p.keepNext = bool(c); break;
@@ -365,7 +370,7 @@
           default: break;
         }
       }
-      return p;
+      return L.preserve.properties(p, el, 'pPr', propertyContext(el));
     }
 
     /* ---- styles ---- */
@@ -547,6 +552,8 @@
         const pp = pPr(kid(lv, 'pPr'));
         if (pp.ind) o.ind = { l: pp.ind.l || 0, fl: pp.ind.fl || 0 };
         if (pp.tabs && pp.tabs.length) { const nt = pp.tabs.find((t) => t.al === 'num' || t.al === 'left'); if (nt) o.tabPos = nt.pos; }
+        o.pPr = pp;
+        o.pPrValues = { ind: L.clone(o.ind), tabPos: o.tabPos };
         if (kid(lv, 'isLgl')) o.isLgl = true;
         if (kid(lv, 'lvlRestart')) o.restart = num(kid(lv, 'lvlRestart'), 'val', 0) - 1;
         if (kid(lv, 'pStyle')) o.pStyle = rn(at(kid(lv, 'pStyle'), 'val'));
@@ -672,8 +679,8 @@
           }
           case 'customXml': case 'ins': case 'moveTo': case 'smartTag': parseBlocks(c, ctx, out); break;
           case 'del': case 'moveFrom': parseBlocks(c, ctx, out); break;
-          case 'bookmarkStart': ctx.pendingBm.push(D.item('bs', { id: at(c, 'id'), name: at(c, 'name') })); break;
-          case 'bookmarkEnd': { const last = lastParaIn(out); if (last) last.runs.push(D.item('be', { id: at(c, 'id') })); else ctx.pendingBm.push(D.item('be', { id: at(c, 'id') })); break; }
+          case 'bookmarkStart': case 'permStart': ctx.pendingBm.push(L.preserve.rangeMarker(c, { pkg: doc.pkg, part: ctx.part })); break;
+          case 'bookmarkEnd': case 'permEnd': { const last = lastParaIn(out), item = L.preserve.rangeMarker(c, { pkg: doc.pkg, part: ctx.part }); if (last) last.runs.push(item); else ctx.pendingBm.push(item); break; }
           case 'commentRangeStart': ctx.pendingBm.push(D.item('cs', { id: at(c, 'id') })); break;
           case 'commentRangeEnd': { const last = lastParaIn(out); const it = D.item('ce', { id: at(c, 'id') }); if (last) last.runs.push(it); else ctx.pendingBm.push(it); break; }
           case 'altChunk': ctx.altChunk = true; break;
@@ -750,8 +757,7 @@
             if (control) p.runs.push(D.item('sdte', { key: control.key }));
             break;
           }
-          case 'bookmarkStart': p.runs.push(D.item('bs', { id: at(c, 'id'), name: at(c, 'name') })); break;
-          case 'bookmarkEnd': p.runs.push(D.item('be', { id: at(c, 'id') })); break;
+          case 'bookmarkStart': case 'bookmarkEnd': case 'permStart': case 'permEnd': p.runs.push(L.preserve.rangeMarker(c, { pkg: doc.pkg, part: ctx.part })); break;
           case 'commentRangeStart': p.runs.push(D.item('cs', { id: at(c, 'id') })); ctx.cmtOpen.add(at(c, 'id')); break;
           case 'commentRangeEnd': p.runs.push(D.item('ce', { id: at(c, 'id') })); ctx.cmtSeen = ctx.cmtSeen || new Set(); ctx.cmtSeen.add(at(c, 'id')); break;
           case 'oMath': case 'oMathPara': p.runs.push(mathItem(c)); break;
@@ -1716,7 +1722,7 @@
     await preload(docRels);
     const body = kid(docX, 'body');
     const bg = kid(docX, 'background');
-    if (bg) { const c = wColor(bg, 'color', 'themeColor'); if (c && c !== 'auto' && c !== 'FFFFFF') doc.bg = c; }
+    if (bg) { const c = wColor(bg, 'color', 'themeColor'); if (c && c !== 'auto' && c !== 'FFFFFF') doc.bg = c; doc.keep.background = { fragment: L.opc.fragment(bg, { pkg: doc.pkg, part: mainPath }), value: doc.bg }; }
     const mctx = storyCtx(mainPath, docRels, doc.main);
     mctx.hfMap = hfMap;
     if (body) {

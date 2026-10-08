@@ -100,8 +100,8 @@
     if (r.em) x += `<w:em w:val="${r.em}"/>`;
     if (r.lang || r.langEA) x += `<w:lang${r.lang ? ` w:val="${X(r.lang)}"` : ''}${r.langEA ? ` w:eastAsia="${X(r.langEA)}"` : ''}/>`;
     tog('specVanish', 'specVanish');
-    if (r.chg && ctx) x += `<w:rPrChange w:id="${ctx.rev()}" w:author="${X(r.chg.author || 'Unknown')}" ${DT(r.chg.date)}><w:rPr>${rPrXML(r.chg.old || {}, null, null)}</w:rPr></w:rPrChange>`;
-    return x;
+    if (r.chg && ctx) { const old = { ...r.chg.old }; delete old.chg; x += `<w:rPrChange w:id="${ctx.rev()}" w:author="${X(r.chg.author || 'Unknown')}" ${DT(r.chg.date)}>${rPrXML(old, null, ctx) || '<w:rPr/>'}</w:rPrChange>`; }
+    return L.preserve.propertyXML('rPr', r, x, ctx);
   }
   function pPrXML(p, ctx, opts) {
     p = p || {};
@@ -166,8 +166,8 @@
     if (p.outline != null && p.outline < 9) x += `<w:outlineLvl w:val="${p.outline}"/>`;
     if (opts && opts.rPr != null) x += opts.rPr;
     if (opts && opts.sect) x += opts.sect;
-    if (p.chg && ctx) { const o = Object.assign({}, p.chg.old || {}); delete o.chg; x += `<w:pPrChange w:id="${ctx.rev()}" w:author="${X(p.chg.author || 'Unknown')}" ${DT(p.chg.date)}><w:pPr>${pPrXML(o, null, { noChg: true })}</w:pPr></w:pPrChange>`; }
-    return x;
+    if (p.chg && ctx) { const o = Object.assign({}, p.chg.old || {}); delete o.chg; x += `<w:pPrChange w:id="${ctx.rev()}" w:author="${X(p.chg.author || 'Unknown')}" ${DT(p.chg.date)}>${pPrXML(o, ctx, { noChg: true }) || '<w:pPr/>'}</w:pPrChange>`; }
+    return L.preserve.propertyXML('pPr', p, x, ctx);
   }
   function sectXML(s, ctx) {
     let x = '';
@@ -340,7 +340,7 @@
   }
   function runWrap(r, content, ctx) {
     const rp = rPrXML(cleanRPr(r), null, ctx);
-    return `<w:r>${rp ? `<w:rPr>${rp}</w:rPr>` : ''}${content}</w:r>`;
+    return `<w:r>${rp}${content}</w:r>`;
   }
   function itemXML(it, p, ctx, del) {
     const r = it.rPr || {};
@@ -352,7 +352,7 @@
       case 'ruby': {
         const pr = it.pr || {};
         const prx = ['rubyAlign', 'hps', 'hpsRaise', 'hpsBaseText', 'lid'].filter((k) => pr[k] != null).map((k) => `<w:${k} w:val="${X(String(pr[k]))}"/>`).join('');
-        const sub = (rp, t) => { const x = rPrXML(rp || {}, null, null); return `<w:r>${x ? `<w:rPr>${x}</w:rPr>` : ''}${textXML(t || '')}</w:r>`; };
+        const sub = (rp, t) => `<w:r>${rPrXML(rp || {}, null, ctx)}${textXML(t || '')}</w:r>`;
         return runWrap(r, `<w:ruby><w:rubyPr>${prx || '<w:rubyAlign w:val="distributeSpace"/><w:hps w:val="10"/><w:hpsRaise w:val="20"/><w:hpsBaseText w:val="21"/><w:lid w:val="ja-JP"/>'}</w:rubyPr><w:rt>${sub(it.rtRPr, it.rt)}</w:rt><w:rubyBase>${sub(it.baseRPr, it.base)}</w:rubyBase></w:ruby>`, ctx);
       }
       case 'sym': return runWrap(r, `<w:sym w:font="${X(it.font || 'Symbol')}" w:char="${it.code || it.char.charCodeAt(0).toString(16).toUpperCase().padStart(4, '0')}"/>`, ctx);
@@ -373,8 +373,9 @@
       }
       case 'fs': return runWrap(r, '<w:fldChar w:fldCharType="separate"/>', ctx);
       case 'fe': return runWrap(r, '<w:fldChar w:fldCharType="end"/>', ctx);
-      case 'bs': { const k = 's' + it.id; if (ctx.bmSeen.has(k)) return ''; ctx.bmSeen.add(k); return `<w:bookmarkStart w:id="${ctx.bmId(it.id)}" w:name="${X(it.name || '_bm' + it.id)}"/>`; }
-      case 'be': { const k = 'e' + it.id; if (ctx.bmSeen.has(k)) return ''; ctx.bmSeen.add(k); return `<w:bookmarkEnd w:id="${ctx.bmId(it.id)}"/>`; }
+      case 'bs': { const k = 's' + it.id; if (ctx.bmSeen.has(k)) return ''; ctx.bmSeen.add(k); return L.preserve.markerXML(it, ctx) ?? `<w:bookmarkStart w:id="${ctx.bmId(it.id)}" w:name="${X(it.name || '_bm' + it.id)}"/>`; }
+      case 'be': { const k = 'e' + it.id; if (ctx.bmSeen.has(k)) return ''; ctx.bmSeen.add(k); return L.preserve.markerXML(it, ctx) ?? `<w:bookmarkEnd w:id="${ctx.bmId(it.id)}"/>`; }
+      case 'perm': return L.preserve.markerXML(it, ctx) || '';
       case 'cs': return ctx.cmtOk(it.id) ? `<w:commentRangeStart w:id="${ctx.cmtId(it.id)}"/>` : '';
       case 'ce': return ctx.cmtOk(it.id) ? `<w:commentRangeEnd w:id="${ctx.cmtId(it.id)}"/>` + runWrap({ style: 'CommentReference' }, `<w:commentReference w:id="${ctx.cmtId(it.id)}"/>`, ctx) : '';
       case 'fn': case 'en': {
@@ -496,9 +497,10 @@
       };
       const ln = it.line && it.line.t !== 'none' && it.line.c ? `<w14:textOutline w14:w="${emu(it.line.w || 0.75)}" w14:cap="flat" w14:cmpd="sng" w14:algn="ctr"><w14:solidFill><w14:srgbClr w14:val="${hex(it.line.c)}"/></w14:solidFill><w14:prstDash w14:val="solid"/><w14:round/></w14:textOutline>` : '';
       const baseColor = f.t === 'solid' ? hex(f.c) : f.t === 'grad' && f.stops ? hex(f.stops[0].c) : '3366CC';
-      const rp = rPrXML({ font: w.font || 'Arial Black', sz: w.sz || 36, b: w.b || undefined, i: w.i || undefined, color: baseColor }, null, null);
+      const rp = rPrXML({ font: w.font || 'Arial Black', sz: w.sz || 36, b: w.b || undefined, i: w.i || undefined, color: baseColor }, null, ctx);
       const lines = String(w.text || '').split('\n');
-      wa = `<wps:txbx><w:txbxContent>${lines.map((t) => `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr>${rp}${ln}${w14fill(f)}</w:rPr>${textXML(t)}</w:r></w:p>`).join('')}</w:txbxContent></wps:txbx>`;
+      const effects = rp.replace('</w:rPr>', ln + w14fill(f) + '</w:rPr>');
+      wa = `<wps:txbx><w:txbxContent>${lines.map((t) => `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r>${effects}${textXML(t)}</w:r></w:p>`).join('')}</w:txbxContent></wps:txbx>`;
     }
     const shapeFill = isWA ? '<a:noFill/>' : isLine ? '<a:noFill/>' : fillXML(it.fill || { t: 'none' }, ctx);
     const shapeLine = isWA ? '<a:ln><a:noFill/></a:ln>' : lineXML(it.line || { t: 'none' });
@@ -580,10 +582,10 @@
   /* ================= blocks ================= */
   function paraXML(p, ctx) {
     const markR = rPrXML(p.rPr || {}, p.mark, ctx);
-    const pPr = pPrXML(p.pPr, ctx, { rPr: markR ? `<w:rPr>${markR}</w:rPr>` : '', sect: p.sect && ctx.main ? sectXML(p.sect, ctx) : '' });
+    const pPr = pPrXML(p.pPr, ctx, { rPr: markR, sect: p.sect && ctx.main ? sectXML(p.sect, ctx) : '' });
     /* display math paragraphs */
     const runs = runsXML(p, ctx);
-    return `<w:p>${pPr ? `<w:pPr>${pPr}</w:pPr>` : ''}${runs}</w:p>`;
+    return `<w:p>${pPr}${runs}</w:p>`;
   }
   function tableXML(t, ctx) {
     const map = L.R.tblMap(t);
@@ -613,7 +615,7 @@
   function stylesXML(doc, ctx) {
     const dd = doc.defaults || {};
     let x = HEAD + `<w:styles xmlns:w="${NS.w}" xmlns:r="${NS.r}" xmlns:mc="${NS.mc}" xmlns:w14="${NS.w14}" mc:Ignorable="w14">`;
-    x += `<w:docDefaults><w:rPrDefault><w:rPr>${rPrXML(Object.assign({ font: 'Times New Roman', sz: 12, lang: 'en-US' }, dd.rPr || {}), null, null)}</w:rPr></w:rPrDefault><w:pPrDefault>${dd.pPr && Object.keys(dd.pPr).length ? `<w:pPr>${pPrXML(dd.pPr, null)}</w:pPr>` : ''}</w:pPrDefault></w:docDefaults>`;
+    x += `<w:docDefaults><w:rPrDefault>${rPrXML(Object.assign({ font: 'Times New Roman', sz: 12, lang: 'en-US' }, dd.rPr || {}), null, ctx)}</w:rPrDefault><w:pPrDefault>${pPrXML(dd.pPr, ctx)}</w:pPrDefault></w:docDefaults>`;
     const order = Object.values(doc.styles).sort((a, b) => (a.id === 'Normal' ? -1 : b.id === 'Normal' ? 1 : 0));
     for (const s of order) {
       if (!s || !s.id) continue;
@@ -630,10 +632,9 @@
       if (type === 'paragraph' || type === 'table' || type === 'numbering') {
         const pp = Object.assign({}, s.pPr || {});
         delete pp.style;
-        if (type === 'numbering' && pp.num) { st += `<w:pPr>${pPrXML({ num: pp.num }, ctx)}</w:pPr>`; }
-        else { const ppx = pPrXML(pp, ctx); if (ppx) st += `<w:pPr>${ppx}</w:pPr>`; }
+        st += pPrXML(pp, ctx);
       }
-      if (type !== 'numbering') { const rp = rPrXML(s.rPr || {}, null, null); if (rp) st += `<w:rPr>${rp}</w:rPr>`; }
+      if (type !== 'numbering') st += rPrXML(s.rPr || {}, null, ctx);
       if (type === 'table') {
         const tp = tblPrXML(s.tblPr || {}, null);
         if (tp) st += `<w:tblPr>${tp}</w:tblPr>`;
@@ -643,8 +644,8 @@
           const c = s.cond && s.cond[ty];
           if (!c) continue;
           let cx = '';
-          if (c.pPr) { const v = pPrXML(c.pPr, ctx); if (v) cx += `<w:pPr>${v}</w:pPr>`; }
-          if (c.rPr) { const v = rPrXML(c.rPr, null, null); if (v) cx += `<w:rPr>${v}</w:rPr>`; }
+          if (c.pPr) cx += pPrXML(c.pPr, ctx);
+          if (c.rPr) cx += rPrXML(c.rPr, null, ctx);
           cx += `<w:tblPr>${c.tblPr ? tblPrXML(c.tblPr, null) : ''}</w:tblPr>`;
           if (c.tcPr) { const v = tcPrXML(c.tcPr, null); if (v) cx += `<w:tcPr>${v}</w:tcPr>`; }
           st += `<w:tblStylePr w:type="${ty}">${cx}</w:tblStylePr>`;
@@ -654,7 +655,7 @@
     }
     return x + '</w:styles>';
   }
-  function lvlXML(lv, i) {
+  function lvlXML(lv, i, ctx) {
     let x = `<w:lvl w:ilvl="${i}"><w:start w:val="${lv.start != null ? lv.start : 1}"/>`;
     x += lv.custFmt ? `<w:numFmt w:val="custom" w:format="${X(lv.custFmt)}"/>` : `<w:numFmt w:val="${lv.fmt || 'decimal'}"/>`;
     if (lv.restart != null) x += `<w:lvlRestart w:val="${lv.restart + 1}"/>`;
@@ -664,13 +665,15 @@
     x += `<w:lvlText w:val="${X(lv.text == null ? '' : lv.text)}"/>`;
     if (lv.pictureId != null) x += `<w:lvlPicBulletId w:val="${lv.pictureId}"/>`;
     x += `<w:lvlJc w:val="${lv.jc || 'left'}"/>`;
-    const pp = {};
-    if (lv.tabPos != null) pp.tabs = [{ pos: lv.tabPos, al: 'num' }];
-    if (lv.ind) pp.ind = { l: lv.ind.l || 0, fl: lv.ind.fl || 0 };
-    const ppx = pPrXML(pp, null);
-    if (ppx) x += `<w:pPr>${ppx}</w:pPr>`;
-    const rp = rPrXML(lv.rPr || {}, null, null);
-    if (rp) x += `<w:rPr>${rp}</w:rPr>`;
+    const pp = { ...lv.pPr };
+    if (!lv.pPrValues || lv.tabPos !== lv.pPrValues.tabPos) {
+      if (lv.tabPos != null) pp.tabs = [{ pos: lv.tabPos, al: 'num' }]; else delete pp.tabs;
+    }
+    if (!lv.pPrValues || JSON.stringify(lv.ind) !== JSON.stringify(lv.pPrValues.ind)) {
+      if (lv.ind) pp.ind = { l: lv.ind.l || 0, fl: lv.ind.fl || 0 }; else delete pp.ind;
+    }
+    x += pPrXML(pp, ctx);
+    x += rPrXML(lv.rPr || {}, null, ctx);
     return x + '</w:lvl>';
   }
   function numberingXML(doc, ctx) {
@@ -685,7 +688,7 @@
       if (a.name) ax += `<w:name w:val="${X(a.name)}"/>`;
       if (a.styleDef) ax += `<w:styleLink w:val="${X(a.styleDef)}"/>`;
       if (a.styleLink && !a.styleDef) ax += `<w:numStyleLink w:val="${X(a.styleLink)}"/>`;
-      if (!a.styleLink || a.styleDef) for (let i = 0; i < 9; i++) ax += lvlXML(a.levels[i] || D.numLevel(i, 'decimal', `%${i + 1}.`), i);
+      if (!a.styleLink || a.styleDef) for (let i = 0; i < 9; i++) ax += lvlXML(a.levels[i] || D.numLevel(i, 'decimal', `%${i + 1}.`), i, ctx);
       x += ax + '</w:abstractNum>';
     }
     for (const id of Object.keys(nb.nums)) {
@@ -694,7 +697,7 @@
       let nx = `<w:num w:numId="${ctx.numMap(id)}"><w:abstractNumId w:val="${absMap.get(String(n.abs))}"/>`;
       for (const l of Object.keys(n.ov || {})) {
         const o = n.ov[l];
-        nx += `<w:lvlOverride w:ilvl="${l}">${o.start != null ? `<w:startOverride w:val="${o.start}"/>` : ''}${o.lvl ? lvlXML(o.lvl, +l) : ''}</w:lvlOverride>`;
+        nx += `<w:lvlOverride w:ilvl="${l}">${o.start != null ? `<w:startOverride w:val="${o.start}"/>` : ''}${o.lvl ? lvlXML(o.lvl, +l, ctx) : ''}</w:lvlOverride>`;
       }
       x += nx + '</w:num>';
     }
@@ -827,8 +830,9 @@
     const defaults = new Map([['rels', 'application/vnd.openxmlformats-package.relationships+xml'], ['xml', 'application/xml']]);
     const docRels = pack.rels('word/document.xml');
     D.reindex(doc);
+    const ranges = L.preserve.prepareRanges(doc);
     /* --- context shared by every story --- */
-    let revN = 0, bmN = 0;
+    let revN = 0;
     const bmIds = new Map();
     const mediaMap = new Map();
     let mediaN = 0;
@@ -842,11 +846,11 @@
     const charts = [];
     const usedPaths = new Set();
     const mkCtx = (rels, main) => ({
-      rels, main, doc, writer: pack.writer, part: rels.owner, mainPart: pack.part('word/document.xml'),
+      rels, main, doc, ranges, writer: pack.writer, part: rels.owner, mainPart: pack.part('word/document.xml'),
       rev: () => ++revN,
       docPrId: () => pack.writer.ids.fresh('document', 'docPr'),
       bmSeen: new Set(),
-      bmId: (id) => { const k = String(id); if (!bmIds.has(k)) bmIds.set(k, bmN++); return bmIds.get(k); },
+      bmId: (id) => { const k = rels.owner + ':' + id; if (!bmIds.has(k)) bmIds.set(k, pack.writer.ids.fresh(rels.owner, 'bookmark')); return bmIds.get(k); },
       cmtOk: (id) => !!doc.comments[id],
       cmtId: (id) => { const k = String(id); if (!cmtIds.has(k)) cmtIds.set(k, cmtIds.size); return cmtIds.get(k); },
       noteId: (kind, id) => {
@@ -926,7 +930,7 @@
     /* undo temporary watermark header refs */
     for (const s of D.sections(doc)) if (s._tempRefs) for (const [ty] of s._tempRefs) delete s.sect.refs.hdr[ty];
     for (const k of Object.keys(doc.hf)) if (doc.hf[k]._temp) delete doc.hf[k];
-    const bg = doc.bg ? `<w:background w:color="${hex(doc.bg)}"/>` : '';
+    const bg = doc.keep?.background && doc.bg === doc.keep.background.value ? pack.writer.emit(doc.keep.background.fragment, mainCtx.part) : doc.bg ? `<w:background w:color="${hex(doc.bg)}"/>` : '';
     const documentXML = HEAD + `<w:document ${NSDECL}>${bg}<w:body>${body}</w:body></w:document>`;
     /* --- notes --- */
     const noteXML = (kind) => {
@@ -1023,13 +1027,13 @@
       overrides.push(['word/' + p.name, p.isH ? CT.header : CT.footer]);
       if (p.rels.list.length) add('word/_rels/' + p.name + '.rels', flatRels(p.rels).xml());
     }
-    const stylesCtx = mkCtx(docRels, false);
+    const stylesCtx = mkCtx(pack.rels('word/styles.xml'), false);
     add('word/styles.xml', stylesXML(doc, stylesCtx));
     docRels.add(RT('styles'), 'styles.xml');
     overrides.push(['word/styles.xml', CT.styles]);
     const usesNumbering = Object.keys(doc.numbering.nums).length > 0;
     if (usesNumbering) {
-      add('word/numbering.xml', numberingXML(doc, mainCtx));
+      add('word/numbering.xml', numberingXML(doc, mkCtx(pack.rels('word/numbering.xml'), false)));
       docRels.add(RT('numbering'), 'numbering.xml');
       overrides.push(['word/numbering.xml', CT.numbering]);
     }

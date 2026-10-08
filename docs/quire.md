@@ -115,8 +115,8 @@ Checks (tools in docs/testing.md):
 ## What a save keeps, converts and drops
 
 Quire regenerates document content from its model and carries original package dependencies alongside
-it. Package preservation and content-control boundaries are implemented. Opaque objects and unknown
-run/paragraph properties are still being integrated. The Compatibility Checker reports recorded losses before a
+it. Package preservation, content-control boundaries, run/paragraph properties, permission ranges and
+page backgrounds are implemented. Opaque objects are still being integrated. The Compatibility Checker reports recorded losses before a
 user save. Its coverage is incomplete until those remaining object paths populate the loss ledger.
 
 ### Package preservation (2026-10-08)
@@ -145,8 +145,8 @@ audit checks original bytes, content types and relationship identities:
 The two glossary exceptions have missing source dependencies. Orphaned parts with no incoming
 relationship (including three font files) are not reattached; drops are recorded. Settings retain
 unowned children, font-table entries retain embedding metadata, and existing comment paragraph IDs
-and special footnote/endnote entries survive. General drawing/bookmark identity preservation remains
-part of the next object stage.
+and special footnote/endnote entries survive. Bookmark and permission identities now survive too;
+general drawing identity preservation remains part of the next object stage.
 
 Reports: `~/corpora/results/package-preservation-2026-10-08/`. Word samples are in
 `~/Downloads/lossless-check/quire/package/`; Office acceptance is pending. The 24 Markdown fixtures
@@ -186,6 +186,37 @@ count. This is a focused increment; the full corpus and Markdown corpus were not
 
 Reports: `~/corpora/results/quire-controls-2026-10-08/`. Review copies:
 `~/Downloads/lossless-check/quire/content-controls/`. Word acceptance remains pending.
+
+### Text and paragraph properties, ranges and backgrounds (2026-10-08)
+
+Run and paragraph properties retain their original children and attributes, including Word 2010
+glow, reflection, shadow, 3-D text and typography extensions. This applies to direct formatting,
+styles, paragraph marks and numbering-level properties. Compatibility alternatives inside these
+properties are captured before the reader selects a branch. Drawing effects are a separate,
+unfinished object-preservation step.
+
+| Edit | Preservation behavior |
+|---|---|
+| Type text or change an unrelated property | Keep the original property XML and its dependencies |
+| Change font, colour, shadow, spacing or another modeled property | Replace only that property; retain other extensions and attributes |
+| Clear all formatting | Remove the direct formatting, including its retained extensions |
+| Copy a bookmark or permission range | Remap both endpoints together; incomplete copies omit the markers |
+| Delete one range endpoint | Omit the remaining endpoint on save and report the incomplete range |
+| Set a page colour | Replace the original background; other edits retain its fill/picture |
+| Undo/redo or same-format drafts | Preserve property fragments and range metadata through the model snapshots/writer |
+
+Six authored save fixtures retain **153/153 tracked XML elements** (140 Word 2010 effect/typography
+elements, 12 bookmark/permission endpoints and one picture background), with identical ordered
+document text and no new package/SDK diagnostics. One formatting edit, its undo and redo retain
+all 21 tracked elements and pass the same diagnostics comparison. The edit exposed and fixed an
+ordering error when adding bold before retained Word 2010 effects. Three focused model tests cover
+property replacement, compatibility alternatives, range copying and undo. Existing control and OPC
+tests also pass (35 total). The edited file opened in LibreOffice at one page before/after; that
+LibreOffice check preceded the final XML-order correction. All three apps load without console
+errors; only the existing font requests leave localhost. No full corpus rerun was made.
+
+Reports: `~/corpora/results/quire-properties-2026-10-08/`. Word review copies:
+`~/Downloads/lossless-check/quire/properties/`. Office acceptance remains pending.
 
 ### Historical feature baseline
 

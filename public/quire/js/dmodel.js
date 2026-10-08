@@ -804,7 +804,7 @@
       const n = D.ilen(it);
       const s = pos, e = pos + n;
       pos = e;
-      if (n === 0) { const end = ['ce', 'be', 'fe', 'sdte'].includes(it.t); if (s >= a && s <= b && !(s === b && b !== a && !end) && !(s === a && a !== b && end)) out.push(L.clone(it)); continue; }
+      if (n === 0) { const end = ['ce', 'be', 'fe', 'sdte'].includes(it.t) || it.t === 'perm' && it.end; if (s >= a && s <= b && !(s === b && b !== a && !end) && !(s === a && a !== b && end)) out.push(L.clone(it)); continue; }
       if (e <= a || s >= b) continue;
       if (it.t === 'text') out.push(Object.assign(L.clone(it), { text: it.text.slice(Math.max(0, a - s), Math.min(n, b - s)) }));
       else out.push(L.clone(it));

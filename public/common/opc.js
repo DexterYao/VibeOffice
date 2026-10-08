@@ -394,11 +394,19 @@
     const rank = new Map(); slots.forEach((slot, i) => slot.forEach(name => { if (!rank.has(expanded(name))) rank.set(expanded(name), i); }));
     const entries = [], seen = new Set(); let previous = -1, cursor = pos.openEnd, serial = 0;
     const add = (text, order) => { if (text) entries.push({ text, order, serial: serial++ }); };
+    const childRank = child => {
+      const name = canonical('{' + child.namespaceURI + '}' + child.localName);
+      if (rank.has(name)) return rank.get(name);
+      if (child.namespaceURI === NS.mc && ['AlternateContent', 'Choice', 'Fallback'].includes(child.localName)) {
+        const slots = elements(child).map(childRank).filter(n => n != null);
+        if (slots.length) return Math.min(...slots);
+      }
+    };
     for (const child of elements(tree)) {
       const cp = XML.source.get(child), name = canonical('{' + child.namespaceURI + '}' + child.localName);
       add(xml.slice(cursor, cp.start), previous);
-      const order = rank.get(name) ?? previous;
-      if (rank.has(name)) previous = order;
+      const known = childRank(child), order = known ?? previous;
+      if (known != null) previous = order;
       if (Object.prototype.hasOwnProperty.call(replacements, name)) {
         if (!seen.has(name)) for (const value of [replacements[name]].flat()) add(value, order);
         seen.add(name);

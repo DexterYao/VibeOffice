@@ -61,6 +61,100 @@
     return writer.emit(K.slice(fragment, xml), source);
   };
 
+  /* A property is regenerated only when the model fields owning it change.
+     The original fragment keeps extension children and attributes on otherwise
+     familiar properties (theme fonts/colours, language, spacing, and so on). */
+  const wordNS = ns => ns === N.w || ns === 'http://purl.oclc.org/ooxml/wordprocessingml/main';
+  const expanded = e => '{' + (wordNS(e.namespaceURI) ? N.w : e.namespaceURI) + '}' + e.localName;
+  const originalProperties = new WeakMap();
+  P.captureProperties = function (root) {
+    // Capture before compatibility choices are normalised. A property fragment
+    // belongs to this element, even when the element itself is inside a choice.
+    for (const el of root.getElementsByTagName('*')) if (wordNS(el.namespaceURI) && ['rPr', 'pPr'].includes(el.localName)) originalProperties.set(el, K.raw(el));
+  };
+  const alternatives = e => e.namespaceURI === N.mc && ['AlternateContent', 'Choice', 'Fallback'].includes(e.localName);
+  const propertyChildren = el => kids(el).flatMap(c => alternatives(c) ? propertyChildren(c) : [c]);
+  P.propertyFields = Object.freeze({
+    rPr: { rStyle: ['style'], rFonts: ['font', 'fontEA', 'fontCS', 'hint'], b: ['b'], bCs: ['bCs'], i: ['i'], iCs: ['iCs'], caps: ['caps'], smallCaps: ['smallCaps'], strike: ['strike'], dstrike: ['dstrike'], outline: ['outline'], shadow: ['shadow'], emboss: ['emboss'], imprint: ['imprint'], noProof: ['noProof'], vanish: ['hidden'], webHidden: ['webHidden'], color: ['color'], spacing: ['spacing'], w: ['w'], kern: ['kern'], position: ['pos'], sz: ['sz'], szCs: ['szCs', 'sz'], highlight: ['hl'], u: ['u', 'uColor'], effect: ['effect'], bdr: ['border'], shd: ['shd'], vertAlign: ['vert'], rtl: ['rtl'], cs: ['cs'], em: ['em'], lang: ['lang', 'langEA'], specVanish: ['specVanish'], rPrChange: ['chg'] },
+    pPr: { pStyle: ['style'], keepNext: ['keepNext'], keepLines: ['keepLines'], pageBreakBefore: ['pageBreakBefore'], framePr: ['frame', 'dropCap'], widowControl: ['widow'], numPr: ['num'], suppressLineNumbers: ['noLineNum'], pBdr: ['borders'], shd: ['shd'], tabs: ['tabs'], suppressAutoHyphens: ['noHyphen'], bidi: ['bidi'], snapToGrid: ['noSnap'], spacing: ['sp'], ind: ['ind'], contextualSpacing: ['contextual'], mirrorIndents: ['mirrorInd'], jc: ['jc'], textDirection: ['textDir'], textAlignment: ['textAlign'], outlineLvl: ['outline'], pPrChange: ['chg'] },
+  });
+  const propertyKeys = (kind, el) => wordNS(el.namespaceURI) ? P.propertyFields[kind][el.localName] : kind === 'rPr' && /word\/2010\/wordml$/.test(el.namespaceURI || '') ? ({ shadow: ['shadow'], textFill: ['color'], textOutline: ['outline'] }[el.localName]) : undefined;
+  const propertyValues = (model, keys) => JSON.stringify(keys.map(k => model[k] ?? null), (k, v) => k === 'x' && v?.fragment ? undefined : v);
+  P.properties = function (model, el, kind, context) {
+    if (!el) return model;
+    const fragment = K.fragment(K.parse(originalProperties.get(el) || K.raw(el)), context), tree = K.parse(fragment.xml);
+    model.x = { key: D.nid(), fragment, values: Object.fromEntries(propertyChildren(tree).map(c => [expanded(c), propertyValues(model, propertyKeys(kind, c) || [])])) };
+    return model;
+  };
+  P.propertyXML = function (kind, model, generated, ctx) {
+    const kept = model.x, root = '<w:' + kind + ' xmlns:w="' + N.w + '">' + generated + '</w:' + kind + '>';
+    if (!kept) return generated ? root : '';
+    const original = K.parse(kept.fragment.xml), fresh = kids(K.parse(root)), present = new Set(propertyChildren(original).map(expanded));
+    // Paragraph-mark revisions belong to CT_ParaRPr. They precede CT_RPr's
+    // shared property sequence; pPr's nested mark/section are regenerated too.
+    const mark = e => kind === 'rPr' && wordNS(e.namespaceURI) && ['ins', 'del'].includes(e.localName);
+    const merge = (xml, outer = false) => {
+      let tree = K.parse(xml);
+      const patches = kids(tree).filter(alternatives).map(e => ({ ...location(e), value: merge(K.raw(e)) }));
+      if (patches.length) { xml = K.patch(xml, patches); tree = K.parse(xml); }
+      if (tree.namespaceURI === N.mc && tree.localName === 'AlternateContent') return xml;
+      const replacements = {};
+      for (const e of kids(tree)) {
+        if (mark(e)) { replacements[expanded(e)] = []; continue; }
+        const name = expanded(e), keys = propertyKeys(kind, e);
+        const always = kind === 'pPr' && wordNS(e.namespaceURI) && ['rPr', 'sectPr'].includes(e.localName);
+        if (always || keys && kept.values[name] !== propertyValues(model, keys)) replacements[name] = fresh.filter(c => expanded(c) === name).map(K.raw);
+      }
+      if (outer) for (const c of fresh) if (!mark(c) && !present.has(expanded(c))) replacements[expanded(c)] = fresh.filter(e => expanded(e) === expanded(c)).map(K.raw);
+      return K.merge(xml, replacements, kind === 'rPr' ? 'w:CT_RPr' : 'w:CT_PPr');
+    };
+    try {
+      let xml = merge(kept.fragment.xml, true);
+      const marks = fresh.filter(mark).map(K.raw).join('');
+      if (marks) { const tree = K.parse(xml); xml = inner(xml, tree, marks + kids(tree).map(K.raw).join('')); }
+      return ctx.writer.emit(K.slice(kept.fragment, xml), ctx.part);
+    } catch (error) {
+      ctx?.writer.loss({ id: 'property:' + kept.key, what: 'Some ' + (kind === 'rPr' ? 'text' : 'paragraph') + ' formatting could not be retained: ' + error.message, where: kept.fragment.part, action: 'conversion' });
+      return generated ? root : '';
+    }
+  };
+  P.rangeMarker = function (el, context) {
+    const name = el.localName, bookmark = name.startsWith('bookmark');
+    return D.item(bookmark ? name.endsWith('Start') ? 'bs' : 'be' : 'perm', { id: attr(el, 'id'), name: bookmark ? attr(el, 'name') : undefined,
+      end: name.endsWith('End'), keep: K.fragment(K.parse(K.raw(el)), context) });
+  };
+  P.prepareRanges = function (doc) {
+    const valid = new Map(), visited = new Set();
+    for (const story of D.stories(doc)) {
+      const pairs = new Map();
+      D.walk(story, p => {
+        if (p.t !== 'p' || visited.has(p)) return;
+        visited.add(p);
+        for (const it of p.runs) if (['bs', 'be', 'perm'].includes(it.t)) {
+          const key = (it.t === 'perm' ? 'permission:' : 'bookmark:') + it.id;
+          if (!pairs.has(key)) pairs.set(key, { start: [], end: [] });
+          pairs.get(key)[it.t === 'be' || it.end ? 'end' : 'start'].push(it);
+        }
+      });
+      for (const pair of pairs.values()) for (const it of [...pair.start, ...pair.end]) valid.set(it, !!(pair.start.length && pair.end.length));
+    }
+    return valid;
+  };
+  P.markerXML = function (item, ctx) {
+    if (ctx.ranges?.get(item) === false) {
+      ctx.writer.loss({ id: 'range:' + item.t + ':' + (item.keep?.source || '') + ':' + ctx.part + ':' + item.id,
+        what: (item.t === 'perm' ? 'Permission range' : 'Bookmark') + ': an incomplete boundary was removed.', where: ctx.part, action: 'drop' });
+      return '';
+    }
+    if (!item.keep) return null;
+    let fragment = item.keep;
+    if (item.t === 'bs') {
+      const tree = K.parse(fragment.xml), key = Array.from(tree.attributes).find(a => a.localName === 'name')?.name || (tree.prefix ? tree.prefix + ':' : '') + 'name';
+      fragment = K.slice(fragment, K.attributes(K.serialize(tree), { [key]: item.name || '_bm' + item.id }));
+    }
+    return ctx.writer.emit(fragment, ctx.part);
+  };
+
   /* Content controls are boundaries, not text. The shell owns its properties and
      dependencies; the editor continues to own the paragraphs/runs inside it. */
   const SLOT = '\u0002content\u0002';
@@ -262,20 +356,22 @@
     D.walk({ blocks: copy }, b => {
       if (b.t !== 'p') return;
       paragraphs.push(b);
-      for (const it of b.runs) if (it.t === 'bs' || it.t === 'be') {
-        const key = String(it.id); if (!bookmarks.has(key)) bookmarks.set(key, {});
-        bookmarks.get(key)[it.t] = it;
+      for (const it of b.runs) if (['bs', 'be', 'perm'].includes(it.t)) {
+        const key = (it.t === 'perm' ? 'perm:' : 'bm:') + it.id; if (!bookmarks.has(key)) bookmarks.set(key, {});
+        bookmarks.get(key)[it.t === 'be' || it.end ? 'be' : 'bs'] = it;
       }
     });
     const names = new Map();
     for (const pair of bookmarks.values()) if (pair.bs && pair.be) {
       pair.id = 'copy' + D.nid();
-      const name = (pair.bs.name || 'Bookmark').slice(0, 24) + '_' + pair.id;
-      names.set(pair.bs.name, name); pair.bs.name = name;
+      if (pair.bs.t === 'bs') {
+        const name = (pair.bs.name || 'Bookmark').slice(0, 24) + '_' + pair.id;
+        names.set(pair.bs.name, name); pair.bs.name = name;
+      }
     }
     for (const p of paragraphs) p.runs = p.runs.filter(it => {
-      if (it.t === 'bs' || it.t === 'be') {
-        const pair = bookmarks.get(String(it.id)); if (!pair.id) return false; it.id = pair.id;
+      if (['bs', 'be', 'perm'].includes(it.t)) {
+        const pair = bookmarks.get((it.t === 'perm' ? 'perm:' : 'bm:') + it.id); if (!pair.id) return false; it.id = pair.id;
       }
       if (it.rPr?.link?.anchor && names.has(it.rPr.link.anchor)) it.rPr.link.anchor = names.get(it.rPr.link.anchor);
       return true;
