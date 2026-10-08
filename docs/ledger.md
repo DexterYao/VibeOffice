@@ -202,6 +202,29 @@ and `~/corpora/results/strict-transitional-2026-10-08/`.
 | Save a sheet containing controls, OLE or non-comment VML | Their worksheet/VML content still needs integration; retained package parts alone are insufficient |
 | Edit a query table | Modeled table fields are written; query-specific field identity and refresh rules remain pending |
 
+### Pivot preservation rules for the next implementation
+
+These are the agreed behavior rules for the pending pivot work, not additional supported behavior.
+Pivot definitions and cached records remain original package data. The model will hold source and
+output locations, cache identities and pending changes; Ledger will not calculate a pivot or execute
+an external connection. Excel performs any requested refresh when it opens the saved file.
+
+| Source or edit | Required save behavior |
+|---|---|
+| Several pivots share a cache | Keep one cache definition, records part and workbook `cacheId`; every surviving pivot refers to that identity. A source change marks the shared cache once. Remove it only when no pivot or other retained dependent uses it. |
+| Worksheet range source | Resolve the source sheet to its model identity and keep the original range until an edit affects it. Sheet renames update the source name without changing the cache identity. |
+| Table source | Retain `worksheetSource@name` and the table identity; follow the table's current range after row/column edits. Do not replace the table name with a fixed range. |
+| Defined-name source | Retain the name and its scope, and use the current name formula when it resolves to a range. Keep formula-based names intact; if a source cannot be bounded safely, request refresh after workbook value or structure changes instead of inventing a range. |
+| External source | Keep the connection, external source metadata and cached records unchanged. Local edits do not execute the connection or rewrite its source. |
+| Consolidation source | Keep every source area and its page-field metadata. Shift or rename each local area by its owning sheet; retain external areas unchanged. |
+| Change a value or formula in a local source | Keep the current cache records and set `refreshOnLoad="1"` on the cache definition. Formatting-only edits do not request refresh. The Compatibility Checker explains that Excel must refresh the cached result. |
+| Insert/delete source rows or columns | Apply `O.shiftRange` to each affected area and request refresh. Preserve field identities and cached records; if a deleted source column is used by a pivot field, report that field's loss rather than silently remapping it to another column. |
+| Insert/delete rows or columns around the output | Shift or shrink the pivot `location` with its displayed cells. Keep offsets and field layout consistent with the surviving range. If the whole output is deleted, remove that pivot and report it. |
+| Edit a value or formula inside the output | Allow the cell edit and retain the pivot. Report that Excel can overwrite that edit on refresh; never silently discard the edit while saving. |
+| Delete a pivot sheet, source sheet, whole source range, source table or source name | Remove the affected pivots and their slicers, and report the loss. Keep caches still used elsewhere; remove dependencies that no surviving object references. Deleting one local consolidation area invalidates its dependent pivot rather than changing the meaning of the consolidation. |
+| Undo/redo a cell or structural edit | Restore source/output locations, refresh flags, cache membership and loss entries together with the cells. `snapSheet`/`restoreSheet` must cover the preserved state, including changes to caches shared with another sheet. |
+| Save, reopen or recover a draft | Write the current pivot state and original identities; drafts retain the same refresh requests and pending notices without showing or acknowledging the checker. |
+
 ## Compatibility testing
 
 `tools/corpora.sh` pins the LibreOffice, Apache POI and Open XML SDK inputs used above. The Node and

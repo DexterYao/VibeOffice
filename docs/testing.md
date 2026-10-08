@@ -244,6 +244,8 @@ properties and watermarks, plus generated row/cell alternatives with populated a
 It writes originals and every edit/history/draft state, checking that deletion cannot restore hidden
 table content and that original watermark elements remain byte-identical before editing.
 Use the resulting JSONL state rows with `validate.py`; it validates every emitted state.
+The Office batch generator supports Quire edits `picture-properties`, `shape-shadow`, `drawing-anchor`
+and `watermark`, so review copies and previous-writer comparisons use the same scripted edits.
 
 Current results belong in the app docs. Preserve complete run commands, hashes, previous-writer
 comparisons, initial failures, corrections and historical tables in `~/corpora/results/<run>/README.md`.

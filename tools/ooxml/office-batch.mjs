@@ -52,6 +52,20 @@ async function save(c, data) {
       doc = D.newDoc(); L.app.loadDoc(doc, 'Pasted object', { saved: true });
       D.tx('Paste object', () => O.insertBlocks(D.pos(doc.main.blocks[0], 0), imported));
       changed.push('Pasted all source blocks into a new document');
+    } else if (['picture-properties', 'shape-shadow', 'drawing-anchor'].includes(c.edit)) {
+      let owner, object;
+      D.walk(doc.main, p => { if (p.t === 'p' && !object) { const it = p.runs.find(it => c.edit === 'shape-shadow' ? it.t === 'shape' : it.t === 'img'); if (it) { owner = p; object = it; } } });
+      if (!object) throw new Error('No drawing for ' + c.edit);
+      D.tx('Edit drawing properties', () => {
+        D.touch(owner);
+        if (c.edit === 'picture-properties') { object.crop = { l: 0.15, t: 0.05, r: 0, b: 0 }; object.border = { val: 'single', sz: 1.5, color: '123456' }; object.alt = 'Edited picture'; }
+        else if (c.edit === 'shape-shadow') object.shadow = { c: '#123456', a: 0.6, dx: 5, dy: 3, blur: 2 };
+        else object.float = { ...(object.float || {}), wrap: 'square', posH: { rel: 'column', off: 12 }, posV: { rel: 'paragraph', off: 10 }, allowOverlap: false };
+      });
+      changed.push(c.edit === 'picture-properties' ? 'Cropped the picture and changed its border and alternative text' : c.edit === 'shape-shadow' ? 'Changed the outer shadow' : 'Changed the drawing anchor and wrapping');
+    } else if (c.edit === 'watermark') {
+      D.tx('Replace watermark', () => { D.touchKey(doc, 'watermark'); doc.watermark = { type: 'text', text: 'REVISED', color: 'C0C0C0', layout: 'diagonal' }; });
+      changed.push('Replaced the watermark with REVISED');
     } else if (c.edit === 'wordart') {
       let owner, shape;
       D.walk(doc.main, p => { if (p.t === 'p' && !shape) { const s = p.runs.find(r => r.wordart); if (s) { owner = p; shape = s; } } });

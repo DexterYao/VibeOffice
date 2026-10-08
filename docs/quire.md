@@ -120,47 +120,55 @@ its editable model. Save and drafts retain DOCX/DOCM/DOTX/DOTM and encryption. T
 Checker reports recorded conversions before a user download; coverage of all remaining conversions
 is still in progress.
 
-The pinned 2,902-file full run uses writer `cf1b313`: **2,873 save/reopen and draft-recovery attempts
-complete**, with **29 failures** in each scenario. Text edit/save/undo/redo completes in **2,277**,
-with **592 exclusions and 33 failures**. The run exposed missing-image-type and damaged-package
-regressions fixed in `bc3a04e`; 12 affected/locked-control inputs subsequently complete **28 operations**
-and explicitly exclude **8**. Their comparable saved states introduce no additional diagnostics.
+The pinned 2,902-file full run uses writer `5f11b84`, with focused corrections in `51460e8` and
+`5f2e5f6`. **2,880 save/reopen and draft-recovery attempts complete**, with **22 failures** in each
+scenario. Text edit/save/undo/redo completes in **2,281**, with **599 exclusions and 22 failures**.
+The 22 inputs are password-protected, malformed or mislabeled files. There are no new driver failures
+against the preceding full run; 18 formerly failed operations complete and seven are explicit exclusions.
 
-The full package/SDK comparison reports **2,622 OK and 280 failed**; **206** files add diagnostics.
-A correction pass over those 206 files cleared **177**; the drawing/table/watermark group resolves
-**26 of the remaining 29**. Three malformed inputs still expand invalid run properties when their
-runs are split (`tdf115212`, `tdf91095`, `tdf57589_hashColor`); these remain failed comparisons.
-Corrections cover paragraph order, document-wide binding relationships, revision-ID collisions,
-point-comment ranges and redundant VML type definitions. Diagnostic comparison follows style IDs
-and unchanged property content when positions move, while retaining occurrence counts. The full
-Quire rerun and Office batch 2 are pending; these focused results do not replace the full totals.
+The frozen full package/SDK comparison covers **19,028 emitted/attempted states**: **18,020 OK,
+409 failed and 599 excluded**. Save/reopen alone reports **2,823 OK and 79 failed**. Failed or
+unopenable originals stay in those totals. Four files exposed two implementation defects: duplicate
+compatibility attributes after draft recovery and a generated drawing identity colliding with a
+retained group. Both are fixed; all **14 focused correction states** pass package/SDK comparison.
+Six malformed-formatting inputs remain exceptions: `Tdf147485`, `tdf147485-forcepoint`, `tdf115212`,
+`tdf91095`, `tdf57589_hashColor`, and the edited `tdf149198`. Reordering or splitting their already
+invalid properties adds diagnostics; these are failed comparisons, not passes. Diagnostic matching
+follows style IDs and unchanged property content when positions move, while retaining occurrence counts.
 Newly generated drawings reserve both document drawing IDs and part-local shape IDs, so converting
 one object cannot collide with the identity of an unrelated retained group.
 
-The feature inventory compares **2,858 readable pairs**, with **44 failed attempts**. It retains
-**776,195 of 776,857 counted words**; **2,805 documents** keep every counted word. Data-bound values,
+The feature inventory compares **2,864 readable pairs**, with **38 failed attempts**. It retains
+**776,207 of 776,869 counted words**; **2,811 documents** keep every counted word. Data-bound values,
 malformed input, unreferenced stories and unsupported markup remain exceptions.
 
 | Status | Feature | Current measured result / limit |
 |---|---|---|
-| Kept | Package metadata, custom XML and templates | 965/965 custom-XML relationships and property dependencies; 352/352 typed custom-property bags, 102/102 template links, 17/17 VBA and 1/1 label relationships |
+| Kept, with approved Strict conversions | Package metadata, custom XML and templates | 965/965 custom-XML graphs and property dependencies (960 exact, 5 namespace conversions); 353/353 typed custom-property bags, 102/102 template links (one namespace conversion), 17/17 VBA and 1/1 label relationships |
 | Kept, with source exceptions | Glossary, embedded fonts and identity metadata | 193/195 glossary relationships (two missing original dependencies), 20/20 referenced fonts, 95/95 people and 15/15 comment-identity relationships; 3 orphan font parts are not reattached |
 | Kept, with a remaining exception | Content controls | 2,675/2,676 wrappers; inline, block, row and cell controls retain properties and scalar bindings |
 | Kept | OLE, SmartArt, charts and embedded documents | 516/516 OLE/object inventory nodes, 39/39 SmartArt data parts, 133/133 chart parts and 4/4 altChunk blocks; geometry edits retain payloads |
-| Kept | Text effects, pictures in page backgrounds and drawing properties while untouched | 205/205 Word 2010 effect entries, 62/62 backgrounds, 1,053/1,053 text boxes and 1,802/1,802 DrawingML shape entries |
+| Kept | Text effects, pictures in page backgrounds and drawing properties while untouched | 205/205 Word 2010 effect entries, 62/62 backgrounds, 1,054/1,054 text boxes and 1,803/1,803 DrawingML shape entries |
 | Kept, with range/story exceptions | Comments, notes, bookmarks and permissions | 1,404/1,421 comments, 674/684 footnotes, 57/57 endnotes, 4,870/4,965 bookmarks and 50/54 permission ranges |
-| Kept, with remaining losses | Revisions, fields, pictures and tables | 1,385/1,427 insertions/deletions, 1,084/1,103 formatting revisions, 2,590/2,711 fields, 1,218/1,235 pictures and 1,603/1,604 tables |
+| Kept, with remaining losses | Revisions, fields, pictures and tables | 1,385/1,427 insertions/deletions, 1,085/1,103 formatting revisions, 2,590/2,711 fields, 1,239/1,242 pictures and 1,605/1,606 tables |
 | Converted when edited | Unsupported contents inside an opaque frame; typed/complex controls | Edited or ungrouped converted content uses the model representation; incompatible typed-control edits unbind and report the conversion |
 | Mostly converted | Smart tags and inline custom-XML markup | 18/519 original wrappers remain; their text is represented as ordinary content |
-| Kept; Office review pending | Per-property drawing edits, row/cell alternatives and watermarks | 48 focused save/edit/history/draft states pass package/SDK comparison; full corpus update pending |
+| Kept; Office review pending | Per-property drawing edits, row/cell alternatives and watermarks | 62 focused checks and 48 save/edit/history/draft states pass; full corpus completed; all 15 Office batch 2 files pass package/SDK and LibreOffice checks |
 
 Package counts verify bytes, types, rIds and targets; unreferenced parts have separate loss entries.
+The raw carry audit reports 2,795 exact passes and 107 findings: 38 failed driver/package reads,
+67 approved Strict conversions and two incomplete glossary graphs. An independent namespace-aware
+comparison confirms that the converted graphs retain their other content and targets. All 2,653
+web-settings relationships survive (2,586 exact and 67 converted).
+The edited inventory compares 2,270 readable pairs and retains 2,505/2,505 control wrappers,
+809/809 text boxes and 1,046/1,046 DrawingML shape entries. Its 632 missing/unreadable copies include
+the driver's 599 deliberately excluded edits; they are not counted as successful comparisons.
 The user accepted the bound-text, formatted-effects, resized-SmartArt, pasted-OLE, macro and namespace
-samples in Office batch 1. All 15 suite batch files open in LibreOffice with unchanged counts. Strict
+samples in Office batch 1. All 15 batch 2 files open in LibreOffice with unchanged counts. Strict
 conversion passes **67 documents / 268 emitted states** against original package/SDK diagnostics and
-keeps its notice through draft recovery; Office review of that conversion belongs to a later batch.
-Reports and historical figures: `~/corpora/results/next-plan-head-2026-10-08/` and
-`~/corpora/results/strict-transitional-2026-10-08/`.
+keeps its notice through draft recovery; its Office review is included in batch 2.
+Current reports, failed attempts and historical figures: `~/corpora/results/quire-remainder-2026-10-08/`.
+The Office checklist is `~/Downloads/lossless-check/office-batch-2/CHECKLIST.md`; acceptance is pending.
 
 ### Content controls: edit behavior
 

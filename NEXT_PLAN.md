@@ -9,7 +9,8 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 - the shared preservation core;
 - Lectern media;
 - whole-file parts in all three apps;
-- Quire content controls, text properties, and embedded objects.
+- Quire content controls, text/drawing properties, embedded objects, row/cell alternatives and
+  watermarks (Office batch 2 pending).
 
 **Not done:**
 - Ledger and Lectern object-level features.
@@ -145,7 +146,7 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
 
 ## Current execution
 
-- Office batch 1 is ready: `~/Downloads/lossless-check/office-batch-1/CHECKLIST.md` (15 Office files).
+- Office batch 1 is accepted: `~/Downloads/lossless-check/office-batch-1/CHECKLIST.md` (15 Office files).
   It covers the requested features, namespace forms, the two corrected Word conventions and a tracked
   hyperlink. The video fixture is saved as PPTM from an authored PPTX; a separate authored PPTM tests VBA.
 - All 15 batch files save/reopen, introduce no package/SDK diagnostics and open in LibreOffice with
@@ -156,12 +157,19 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   validation rows, including edit/history/draft states. App docs now have one current save table and
   edit-behavior tables; historical sections are archived with the reports. Preservation contracts
   moved from AGENTS.md to docs/suite.md.
-- Strict-to-Transitional output and initial measured regressions are fixed in `bc3a04e`. A correction
-  pass over Quire's 206 newly diagnosed saves clears 177; 29 findings remain for the Quire group.
+- Strict-to-Transitional output and initial measured regressions are fixed in `bc3a04e`.
 - Quire drawing-property merges, row/cell alternatives (including empty choices), and original
   watermarks are implemented. Eight focused cases pass 62 checks and 48 package/SDK comparisons;
-  65 unit tests pass. Revision/comment identity and VML type fixes clear 26 of the 29 validation
-  findings. Three malformed-input cases still expand invalid source run properties and remain
-  explicit exceptions, not passes. Reports: `~/corpora/results/quire-remainder-2026-10-08/`.
-- Next: full Quire rerun and Office batch 2. Office batch 1 permits the step; later groups still
-  need their own acceptance batches.
+  66 unit tests pass after the full-run corrections. The full Quire run at `5f11b84` completes all
+  8,706 attempts: save/draft 2,880 OK and 22 failed each; text 2,281 OK, 599 excluded and 22 failed.
+  Its 19,028 package/SDK states have 18,020 OK, 409 failed and 599 excluded. Duplicate compatibility
+  attributes in three recovered drafts and a converted-shape ID collision are fixed in `51460e8`
+  and `5f2e5f6`; all 14 affected correction states pass. Six malformed-formatting inputs remain
+  explicit exceptions. Markdown checks pass unchanged. Reports: `~/corpora/results/quire-remainder-2026-10-08/`.
+- Office batch 2 is ready: `~/Downloads/lossless-check/office-batch-2/CHECKLIST.md` (15 files).
+  Every file passes package/SDK and LibreOffice checks, with unchanged page/slide counts. The
+  comparison against writer `4c47a1d` has only explained differences. Office acceptance is pending.
+- Next: Office batch 2 review, then Ledger pivot implementation. The pivot behavior matrix is
+  written in docs/ledger.md before code changes, as step 6 requires. The source inventory finds
+  105 pivot workbooks, including 14 with shared caches; name/consolidation source fixtures remain
+  to be authored. No Ledger preservation-feature code has started ahead of the Office gate.
