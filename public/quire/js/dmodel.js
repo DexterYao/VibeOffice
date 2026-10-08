@@ -887,7 +887,7 @@
     t.full = { snap: D.snapshot(D.doc) };
     t.global = true;
   };
-  const DOC_KEYS = ['main', 'sect', 'styles', 'defaults', 'numbering', 'hf', 'fn', 'en', 'comments', 'settings', 'props', 'custom', 'theme', 'bg', 'watermark'];
+  const DOC_KEYS = ['main', 'sect', 'styles', 'defaults', 'numbering', 'hf', 'fn', 'en', 'comments', 'settings', 'props', 'custom', 'theme', 'bg', 'watermark', 'keep', 'losses', 'ooxmlFormat'];
   D.snapshot = (doc) => { const o = {}; for (const k of DOC_KEYS) o[k] = doc[k]; return L.clone(o); };
   D.restoreSnapshot = (doc, s) => { const c = L.clone(s); for (const k of DOC_KEYS) doc[k] = c[k]; doc._idxDirty = true; D.stylesChanged(); };
 

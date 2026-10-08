@@ -70,7 +70,10 @@ async function run(o) {
   const bytes = Uint8Array.from(atob(o.data), c => c.charCodeAt(0));
   const format = o.name.split('.').pop().toLowerCase();
   const read = async data => o.app === 'quire' ? (await L.docx.read(data)).doc : o.app === 'ledger' ? L.xlsxRead.read(data) : L.pptx.read(data);
-  const write = doc => o.app === 'quire' ? L.docx.write(doc, { format, template: /^dot/.test(format) }) : o.app === 'ledger' ? L.xlsxWrite.write(doc, { type: format }) : L.pptx.write(doc, { format });
+  const write = doc => {
+    const type = doc.ooxmlFormat || format;
+    return o.app === 'quire' ? L.docx.write(doc, { format: type }) : o.app === 'ledger' ? L.xlsxWrite.write(doc, { type }) : L.pptx.write(doc, { format: type });
+  };
   const encode = async blob => { const b = new Uint8Array(await blob.arrayBuffer()); let s = ''; for (let i = 0; i < b.length; i += 32768) s += String.fromCharCode(...b.subarray(i, i + 32768)); return btoa(s); };
   const save = async (kind, doc) => { const blob = await write(doc); if (o.save) artifacts[kind] = await encode(blob); return blob; };
   try {

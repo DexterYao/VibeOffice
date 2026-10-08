@@ -43,12 +43,81 @@ test('opaque backlinks follow a renamed regenerated part; unfilled claims fail e
   assert.throws(() => w.claim('b.xml', 'regenerated', 'new.xml'), /collision/);
 });
 
+test('copying an opaque notes page redirects its slide backlink and shares immutable targets', async () => {
+  const p = await pkg({ 'slide.xml': '<slide/>', 'notes.xml': '<notes/>', 'master.xml': '<master/>',
+    '_rels/notes.xml.rels': rels(rel('slide', N.rel + '/slide', 'slide.xml') + rel('master', N.rel + '/notesMaster', 'master.xml')) });
+  const w = new K.Writer(p); w.claim('slide.xml'); w.put('slide.xml', '<slide/>', 'application/xml'); w.put('copy.xml', '<slide/>', 'application/xml');
+  w.carry(p, 'notes.xml'); w.copyPart(p, 'notes.xml', 'copied-notes.xml', { 'slide.xml': 'copy.xml' });
+  assert.deepEqual(w.parts.get('copied-notes.xml'), p.bytes('notes.xml'));
+  assert.match(text(w.parts.get('_rels/copied-notes.xml.rels')), /Id="slide"[^>]+Target="copy.xml"/);
+  assert.match(text(w.parts.get('_rels/copied-notes.xml.rels')), /Id="master"[^>]+Target="master.xml"/);
+  assert.doesNotThrow(() => w.finish());
+});
+
+test('failed carry leaves no partial output and respects regenerated dependency boundaries', async () => {
+  const p = await pkg({ 'good.xml': '<good/>', 'broken.xml': '<broken/>',
+    '_rels/broken.xml.rels': rels(rel('one', 'urn:child', 'good.xml') + rel('two', 'urn:child', 'absent.xml')) });
+  const w = new K.Writer(p), names = [...w.names], mapping = [...w.mapping];
+  assert.throws(() => w.carry(p, 'broken.xml'), /Missing dependency: absent.xml/);
+  assert.equal(w.parts.size, 0); assert.equal(w.carried.size, 0);
+  assert.deepEqual([...w.names], names); assert.deepEqual([...w.mapping], mapping);
+  w.claim('broken.xml'); w.put('broken.xml', '<converted/>', 'application/xml');
+  assert.equal(w.carry(p, 'broken.xml'), 'broken.xml');
+  assert.equal(w.parts.get('broken.xml'), '<converted/>');
+  assert.doesNotThrow(() => w.finish());
+});
+
 test('rId allocation reserves original gaps and preserves aliases for one shared target', () => {
   const r = new K.Rels([{ id: 'rId83', type: 'urn:a', target: 'a.xml' }, { id: 'rId2', type: 'urn:a', target: 'a.xml' }]);
   assert.equal(r.add('urn:a', 'a.xml'), 'rId83');
   assert.equal(r.add('urn:a', 'a.xml', false, 'rId2'), 'rId2');
   assert.equal(r.add('urn:other', 'b.xml'), 'rId84');
   assert.throws(() => r.add('urn:wrong', 'x.xml', false, 'rId2'), /rebound/);
+});
+
+test('output aliases preserve opaque relationship IDs without overwriting their graphs', async () => {
+  const p = await pkg({ 'original/main.xml': '<main/>', 'original/theme.xml': '<theme/>', 'original/data.xml': '<data/>',
+    '_rels/.rels': rels(rel('main40', N.rel + '/officeDocument', 'original/main.xml')),
+    'original/_rels/main.xml.rels': rels(rel('theme7', N.rel + '/theme', '/original/theme.xml')),
+    'original/_rels/theme.xml.rels': rels(rel('original-id', 'urn:data', 'data.xml')) });
+  const out = K.output(p, { consumes: (base, r) => r.type === N.rel + '/officeDocument' });
+  out.bind('generated/main.xml', p.main);
+  out.bind('generated/theme.xml', 'original/theme.xml', 'opaque');
+  out.rels('').add(N.rel + '/officeDocument', 'generated/main.xml');
+  assert.equal(out.rels('generated/main.xml').add(N.rel + '/theme', 'theme.xml'), 'theme7');
+  // A native writer can have prepared a different rels file before ownership
+  // decides to carry the opaque target. It must not replace the carried graph.
+  out.rels('generated/theme.xml').add('urn:wrong', 'absent.xml');
+  out.put('generated/theme.xml', '<wrong/>');
+  out.put('generated/main.xml', '<main edited="1"/>', 'application/xml');
+  const result = out.finish();
+  assert.equal(result.dropped.length, 0);
+  assert.equal(out.writer.rels('original/main.xml').list.length, 1);
+  assert.deepEqual(out.writer.parts.get('original/theme.xml'), p.bytes('original/theme.xml'));
+  assert.deepEqual(out.writer.parts.get('original/_rels/theme.xml.rels'), p.bytes('original/_rels/theme.xml.rels'));
+  assert.equal(out.writer.parts.has('generated/main.xml'), false);
+});
+
+test('draft recovery retains unacknowledged conversions after the source parts are gone', () => {
+  const original = {}, w = new K.Writer(null, { doc: original });
+  w.loss({ id: 'converted:1', what: 'Converted object', where: 'Object 1', action: 'conversion' });
+  K.loss(original, { id: 'edited:2', what: 'Edited object', action: 'drop' });
+  K.acknowledge(original, original.losses.slice(1));
+  const recovered = {};
+  K.recoverLosses(recovered, JSON.parse(JSON.stringify(K.lossState(original))));
+  new K.Writer(null, { doc: recovered });
+  assert.equal(recovered.losses.length, 2);
+  assert.deepEqual(K.pendingLosses(recovered).map(e => e.id), ['converted:1']);
+});
+
+test('rewritten roots retain their original entity prolog and Strict namespace form', () => {
+  const original = '<?xml version="1.0"?><!DOCTYPE root [<!ENTITY name "A &amp; B">]><?before keep?><root>&name;</root><?after keep?>';
+  const output = K.partXML(original, '<root changed="1">&name;</root>');
+  assert.equal(output, original.replace('<root>', '<root changed="1">'));
+  const strict = K.strictXML(`<w:document xmlns:w="${N.w}" xmlns:r="${N.rel}"><w:body note="${N.w}"/></w:document>`);
+  assert.match(strict, /xmlns:w="http:\/\/purl.oclc.org\/ooxml\/wordprocessingml\/main"/);
+  assert.match(strict, /xmlns:r="http:\/\/purl.oclc.org\/ooxml\/officeDocument\/relationships"/);
+  assert.ok(strict.includes(`note="${N.w}"`)); // ordinary values are not URI declarations
 });
 
 test('identity scopes survive transfers, explicit index maps and bounded slide/master ranges', () => {
@@ -151,7 +220,36 @@ test('the loss ledger acknowledges each entry independently and reports invalida
   K.attach(doc, p); assert.equal(JSON.parse(JSON.stringify(doc)).pkg, undefined); assert.equal(doc.pkg, p);
 });
 
+test('save losses are recomputed without clearing reader or edit losses and their acknowledgements', () => {
+  const doc = {};
+  K.loss(doc, { id: 'edited', what: 'The user replaced an unsupported object.', action: 'conversion' });
+  const first = new K.Writer(null, { doc });
+  first.loss({ id: 'macro', what: 'The selected format does not support macros.', action: 'drop' });
+  K.acknowledge(doc, K.pendingLosses(doc));
+  new K.Writer(null, { doc });
+  assert.deepEqual(doc.losses.map(e => e.id), ['edited']);
+  assert.deepEqual(K.pendingLosses(doc), []);
+  const next = new K.Writer(null, { doc });
+  next.loss({ id: 'new', what: 'A new object cannot be saved.', action: 'drop' });
+  assert.deepEqual(K.pendingLosses(doc).map(e => e.id), ['new']);
+});
+
+test('property bags keep lexical unknown values, types and IDs while owned entries change', () => {
+  const xml = '<Properties xmlns="urn:p"><property name="int" pid="7"><i4>12</i4></property><!--retained--><property name="text" pid="14"><s>old</s></property><unknown flag=\'yes\'/></Properties>';
+  const out = K.mergeBag(xml, { text: '<property name="text" pid="14"><s>new</s></property>', added: '<property name="added" pid="15"><b>true</b></property>' }, e => e.getAttribute('name'));
+  assert.equal(out, xml.replace('<s>old</s>', '<s>new</s>').replace('</Properties>', '<property name="added" pid="15"><b>true</b></property></Properties>'));
+  assert.equal(K.mergeBag('<Properties xmlns="urn:p"/>', { x: '<child/>' }), '<Properties xmlns="urn:p"><child/></Properties>');
+  assert.equal(K.relationshipType(N.strictRel + '/extendedProperties'), N.rel + '/extended-properties');
+  assert.equal(K.relationshipType(N.strictRel + '/customProperties'), N.rel + '/custom-properties');
+  assert.equal(K.relationshipType('urn:vendor/customProperties'), 'urn:vendor/customProperties');
+  const a = K.attributes('<settings foo="foo" other=\'untouched\'><unknown/></settings>', { foo: null, added: '1' });
+  assert.equal(a, '<settings  other=\'untouched\' added="1"><unknown/></settings>');
+  assert.equal(K.attributes('<settings a=\'old\'/>', { a: 'new' }), '<settings a=\'new\'/>');
+});
+
 test('schema merge replaces just the changed property and keeps extensions at their original anchor', () => {
+  const untouched = `<w:settings xmlns:w="${N.w}"><w:zoom/><w:view/><w:vendor/></w:settings>`;
+  assert.equal(K.merge(untouched, {}, 'w:CT_Settings'), untouched);
   const xml = `<a:spPr xmlns:a="${N.a}" xmlns:v="urn:vendor"><a:xfrm/><v:unknown flag="yes"/><a:solidFill><a:srgbClr val="FF0000"/></a:solidFill><!--kept--><a:effectLst><a:glow rad="12700"/></a:effectLst><a:sp3d/></a:spPr>`;
   const out = K.merge(xml, { ['{' + N.a + '}solidFill']: [], ['{' + N.a + '}noFill']: '<a:noFill/>' }, 'a:CT_ShapeProperties');
   assert.deepEqual(children(out), ['xfrm', 'unknown', 'noFill', 'effectLst', 'sp3d']);
@@ -178,6 +276,21 @@ test('editing a Strict property replaces it once and retains Strict namespace an
   assert.ok(nodes.every(e => e.namespaceURI === ns));
   assert.equal(nodes[1].getAttribute('blurRad'), '99');
   assert.match(out, /glow rad="3"/); assert.match(out, /reflection blurRad="5"/);
+});
+
+test('all Office variants retain their distinct main content type and macro-enabled MIME', async () => {
+  assert.equal(Object.keys(K.formats).length, 14);
+  assert.equal(new Set(Object.values(K.formats).map(f => f.contentType)).size, 14);
+  for (const [extension, info] of Object.entries(K.formats)) {
+    const p = await pkg({ 'main.xml': '<main/>', '_rels/.rels': rels(rel('main', N.rel + '/officeDocument', 'main.xml')),
+      '[Content_Types].xml': types.replace('</Types>', `<Override PartName="/main.xml" ContentType="${info.contentType}"/></Types>`) });
+    assert.equal(K.variant(p), extension);
+    assert.equal(K.format({ pkg: p }, null, 'docx').ext, extension);
+    assert.equal(info.macro, extension.endsWith('m'));
+    assert.equal(info.mime.includes('macroEnabled.12'), info.macro);
+    assert.equal(K.format({ pkg: p }, 'xlsx', 'docx').ext, 'xlsx');
+  }
+  assert.equal(K.formats.dotm.contentType, 'application/vnd.ms-word.template.macroEnabledTemplate.main+xml');
 });
 
 test('Word anchor position and extent update while wrapping and picture offsets survive', () => {

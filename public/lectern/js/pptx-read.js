@@ -844,13 +844,14 @@
 
     /* document properties */
     try {
-      const core = await xml('docProps/core.xml');
+      const propertyPart = (type, fallback) => pkg?.rels('').find(r => L.opc.relationshipType(r.type) === type)?.part || fallback;
+      const core = await xml(propertyPart(L.opc.NS.pkg + '/metadata/core-properties', 'docProps/core.xml'));
       if (core) {
         const g = (n) => { const e = desc(core, n); return e ? e.textContent : ''; };
         Object.assign(pres.props, { title: g('title'), subject: g('subject'), author: g('creator'), keywords: g('keywords'), comments: g('description'), category: g('category'), created: g('created') || pres.props.created });
         pres.title = pres.props.title;
       }
-      const app = await xml('docProps/app.xml');
+      const app = await xml(propertyPart(L.opc.NS.rel + '/extended-properties', 'docProps/app.xml'));
       if (app) { const c = desc(app, 'Company'); if (c) pres.props.company = c.textContent; }
     } catch (e) { /* optional parts */ }
     /* show settings */
@@ -970,6 +971,7 @@
       const themeRel = Object.values(mr).find((r) => r.type === 'theme');
       const theme = await loadTheme(themeRel ? themeRel.target : '');
       const design = L.model.buildDesign('default', W, H);
+      design.keep = { source: pkg?.id, part: p, theme: themeRel?.target, layouts: {} };
       design.name = theme.name || 'Imported Design';
       design.key = 'imported';
       design.colors = Object.assign({}, design.colors, theme.colors);
@@ -1546,8 +1548,8 @@
           try { bytes = await f.bytes(); } catch (e) { text = text.replace(ref, ''); continue; }
           parts.push({ id, fullType: rel.fullType, type: rel.type, name: rel.target.split('/').pop(), bytes, ct: await contentType(rel.target) });
         }
-        /* Strict OOXML charts are rewritten in the transitional form the rest of the file is saved in */
-        if (text && text.indexOf('purl.oclc.org/ooxml') < 0) model.srcId = L.chart.keep({ xml: text, parts });
+        /* The package writer carries the original graph, including Strict charts. */
+        if (text) model.srcId = L.chart.keep({ xml: text, parts, source: pkg?.id, part: p, owner: ctx.partPath });
       } catch (e) { /* the chart is then written from its model */ }
       return model;
     }
@@ -1831,6 +1833,8 @@
       /* animations */
       try { slide.anims = timingFrom(kid(sx, 'timing'), slide); } catch (e) { console.warn('timing skipped', e); slide.anims = []; }
       if (original(sp)) L.preserve.slide(slide, original(sp).tree, pkg, sp, at(sldIds[n - 1], 'id'), sx);
+      if (lay && design.keep) design.keep.layouts[slide.layout + (slide.lkey ? '|' + slide.lkey : '')] = lay.path;
+      if (nr && slide.keep) slide.keep.notes = { part: nr.target, text: slide.notes };
       pathToId.set(sp, slide.id);
       pres.slides.push(slide);
       } catch (e) {
@@ -1866,6 +1870,8 @@
     for (const d of Object.values(pres.designs)) [d.deco, d.titleDeco].concat(d.layoutDecos ? Object.values(d.layoutDecos) : []).forEach((list) => list && L.model.walk(list, pick));
     for (const sh of clearPics) { const v = await L.media.withTransparent(sh.media, sh.img.clear, 3); if (v) sh.img.view = v; }
     L.preserve.seal(pres);
+    pres.keep = { values: L.preserve.values(pres), media: Object.fromEntries(Array.from(mediaCache, ([part, id]) => [id, part])) };
+    pres.ooxmlFormat = L.opc.variant(pres.pkg, 'pptx');
     return pres;
   }
 

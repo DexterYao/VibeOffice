@@ -132,9 +132,9 @@ content types and internal relationship URIs share one decoded identity; output 
 remaps copied definitions and references together; `export`/`import` transport dependency bytes for a
 cross-document clipboard. `finish()` checks relationship targets and returns `{files, dropped}`.
 Loss acknowledgement is per entry; autosave must neither show a dialog nor acknowledge entries.
-The core is implemented; app reader/writer, clipboard and save-dialog integration is still in progress.
+Package ownership and save-dialog integration are implemented in all three apps; remaining object preservation is still in progress.
 
-`opc-order.js` contains ordering and ID-bound facts for 26 types, generated from the official
+`opc-order.js` contains ordering and ID-bound facts for 27 types, generated from the official
 [ECMA-376 Part 4 schemas](https://ecma-international.org/publications-and-standards/standards/ecma-376/).
 The archive stays outside git; its SHA-256 is recorded in the generated file. Regenerate with:
 
@@ -206,6 +206,44 @@ The media stage retains reports and saved files in `~/corpora/results/lectern-me
 app screenshots, 32 Node tests and the unchanged 24-file Markdown checks. The full 844-file Lectern
 run has no new diagnostics, with malformed originals and the password exclusion still accounted for.
 Office samples live in `~/Downloads/lossless-check/lectern/media/`; PowerPoint acceptance is pending.
+
+### Package preservation and save flows
+
+`node tools/ooxml/save-matrix.mjs OUTDIR` exercises the actual app Save and Save As dialogs,
+download cancellation, all 14 variants, MIME/main-part types, encrypted draft recovery and the
+Compatibility Checker. It intercepts the final download handoff and disables recent-file bookkeeping
+in its own tabs. Fixtures for the format matrix are synthetic blank documents; authored-file fidelity
+is measured separately. `--macro-files FILE.json` accepts an app-to-file mapping for authored VBA
+samples and checks cancelled and approved macro-free Save As. `--checker-only` runs just the checker
+and pending-loss recovery checks.
+
+`python3 tools/ooxml/package-carry.py ORIGINALS SAVED RESULTS.jsonl OUT.jsonl` independently verifies
+selected package features, including dependency bytes, content types, original rIds and intended
+targets. It stops at model-owned boundaries and does not treat a preserved pivot part as proof that
+pivot editing works. Driver failures and malformed originals remain explicit failed/excluded rows.
+Corpus writers select the source main-part variant, including inputs with a misleading extension.
+
+The package stage reports are in `~/corpora/results/package-preservation-2026-10-08/`:
+
+| App | Save/reopen OK | Failed / excluded | Package/SDK OK | Failed / excluded |
+|---|---:|---:|---:|---:|
+| Quire | 2,880 | 22 / 0 | 2,792 | 110 / 0 |
+| Ledger | 935 | 11 / 5 | 910 | 36 / 5 |
+| Lectern | 840 | 3 / 1 | 822 | 21 / 1 |
+
+The recorded 14-variant matrix passes 420 assertions; checker and authored macro cases pass too.
+A focused follow-up checks that recovery retains pending compatibility entries without warning at
+open. Metadata stored alongside a draft carries these entries and acknowledgements; they do not
+become document content. The Markdown fixtures remain 24/24 unchanged and 24/24 edits confined to
+their edited block. All three app/checker views load without console errors; the existing Google
+Fonts requests remain the only external requests in those runs.
+
+Office handoffs cover 32 package features under `~/Downloads/lossless-check/<app>/package/`, with
+original and saved copies, and edited copies when the fixture has editable text. Acceptance is
+pending. Three representative macro-enabled samples (one per app) open in LibreOffice with unchanged
+page/slide counts. Full-corpus LibreOffice rendering and the remaining object-level preservation gates are
+unfinished. Further testing is focused on changed behavior and observed failures, rather than
+repeating the complete matrix after unrelated changes.
 
 `python3 tools/ooxml/samples.py ~/corpora /tmp/lossless ~/Downloads/lossless-check/baseline`
 selects small independently authored files for each carried-feature test, copies original/saved/edited

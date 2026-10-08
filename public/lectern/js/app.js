@@ -329,6 +329,7 @@
     E.idx = 0; E.sel = []; E.tool = null; E.view = 'normal'; E.masterSlide = null;
     A.slideSel = new Set([0]);
     A.fileName = name || 'Presentation1';
+    A.fileType = pres.ooxmlFormat || 'pptx';
     A.saved = !!(opts && opts.saved);
     A.view = 'x';
     A.setView('normal');
@@ -339,7 +340,7 @@
   async function confirmDiscard() {
     if (!L.hist.dirty) return true;
     const r = await ui.msg(`Do you want to save the changes you made to ${A.fileName}?`, { icon: 'warn', buttons: ['&Yes', '&No', 'Cancel'] });
-    if (r === 0) { await A.save(); return true; }
+    if (r === 0) return await A.save() === 'saved';
     if (r === 1 && window.VO) VO.discard(L.pres);   // its unsaved version goes too
     return r === 1;
   }
@@ -388,13 +389,13 @@
       }
       if (!pres.slides.length) pres.slides.push(M.newSlide(pres, 'title', Object.keys(pres.designs)[0]));
       A.loadPres(pres, file.name.replace(/\.(pptx|ppsx|potx|pptm|ppsm|potm)$/i, ''), { saved: true });
-      A.fileType = /\.ppsx$/i.test(file.name) ? 'ppsx' : /\.potx$/i.test(file.name) ? 'potx' : 'pptx';
+      A.fileType = pres.ooxmlFormat || 'pptx';
       if (window.VO) VO.opened(file, L.pres);
       ui.busy(false);
       if (pres.repaired) {
         const lost = pres.repaired.parts.filter((p) => /slides\/slide\d+\.xml$/.test(p)).length;
         ui.msg(`${L.APP} found a problem with content in ${file.name} and repaired the presentation.` + (lost ? `\n${lost} slide${lost > 1 ? 's' : ''} could not be recovered.` : '\nCheck the slides before you save over the original.'), { icon: 'warn' });
-      } else if (/\.ppsx$/i.test(file.name)) L.show.start({ from: 0 });
+      } else if (/\.pps[xm]$/i.test(file.name)) L.show.start({ from: 0 });
     } catch (e) {
       ui.busy(false);
       console.error(e);
@@ -406,7 +407,13 @@
     if (!A.saved) return A.saveAs();
     return A.exportAs(A.fileType || 'pptx', A.fileName);
   };
-  A.saveAs = function () { return new Promise((res) => L.dlg.saveAs(async (name, type) => { if (['pptx', 'ppsx', 'potx'].includes(type)) { A.fileName = name; A.fileType = type; A.saved = true; A.updateTitle(); } await A.exportAs(type, name); res(); })); };
+  A.saveAs = function () {
+    return new Promise(resolve => {
+      let writing = false;
+      const dialog = L.dlg.saveAs(async (name, type) => { writing = true; resolve(await A.exportAs(type, name)); });
+      dialog.done.then(() => { if (!writing) resolve('declined'); });
+    });
+  };
   A.exportAs = async function (type, name) {
     name = name || A.fileName;
     if (TE.active()) TE.sync();
@@ -414,15 +421,19 @@
     ui.busy(true, 'Saving...');
     try {
       let blob, ext = type;
-      if (type === 'pptx' || type === 'ppsx' || type === 'potx') blob = await L.pptx.write(L.pres, { format: type });
+      if (/^(pptx|pptm|ppsx|ppsm|potx|potm)$/.test(type)) blob = await L.pptx.write(L.pres, { format: type });
       else if (type === 'html') blob = await A.buildWebPage();
       else if (type === 'png') blob = await A.slideToPNG(E.slide() || L.pres.slides[0], Math.round(L.pres.W * 2.6667));
       else if (type === 'pdf') blob = await A.buildPDF('slides');
       else if (type === 'txt') blob = new Blob([A.outlineText()], { type: 'text/plain' });
       ui.busy(false);
       if (!blob) return;
+      const losses = L.opc.formats[type] ? await ui.compatibility(L.pres, blob.dropped) : [];
+      if (losses === null) return 'declined';
       const r = await L.saveFile(`${name}.${ext}`, blob);
-      if (r === 'saved' && ['pptx', 'ppsx', 'potx'].includes(type)) { L.hist.dirty = false; A.status(`Saved ${name}.${ext}`); if (window.VO) VO.saved(`${name}.${ext}`, blob, L.pres); }
+      if (r === 'saved') L.opc.acknowledge(L.pres, losses);
+      if (r === 'saved' && /^(pptx|pptm|ppsx|ppsm|potx|potm)$/.test(type)) { A.fileName = name; A.fileType = type; A.saved = true; A.updateTitle(); L.hist.dirty = false; A.status(`Saved ${name}.${ext}`); if (window.VO) VO.saved(`${name}.${ext}`, blob, L.pres); }
+      return r;
     } catch (e) {
       ui.busy(false);
       console.error(e);
@@ -2118,11 +2129,12 @@ addEventListener('resize',fit);fit();show(0);<\/script></body></html>`], { type:
     if (window.VO) VO.attach('lectern', {
       async open(f, o) {
         await A.openFile(f);
+        if (o?.draft) L.opc.recoverLosses(L.pres, o.lossState);
         /* an unsaved version: the changes are not saved yet, and a never-saved presentation still needs Save As */
-        if (o && o.draft) { L.hist.dirty = true; A.saved = !!o.saved; A.fileName = o.name.replace(/\.(pptx|ppsx|potx|pptm)$/i, ''); A.updateTitle(); A.status('Recovered the unsaved changes. Save the presentation to keep them.'); ui.refresh(); }
+        if (o && o.draft) { L.hist.dirty = true; A.saved = !!o.saved; A.fileName = o.name.replace(/\.(pptx|ppsx|potx|pptm|ppsm|potm)$/i, ''); A.updateTitle(); A.status('Recovered the unsaved changes. Save the presentation to keep them.'); ui.refresh(); }
       },
-      snapshot: (p) => L.pptx.write(p, { format: 'pptx' }),
-      docInfo: () => ({ name: A.fileName + '.' + (A.fileType || 'pptx'), draftName: A.fileName + '.pptx' }),
+      snapshot: (p) => L.pptx.write(p, { format: L.opc.formats[A.fileType] ? A.fileType : p.ooxmlFormat || 'pptx' }),
+      docInfo: () => ({ name: A.fileName + '.' + (A.fileType || L.pres.ooxmlFormat || 'pptx'), lossState: L.opc.lossState(L.pres) }),
       isDirty: (p) => p === L.pres && !!L.hist.dirty,
       current: () => L.pres,
       showRecovery() { A.opts.taskOpen = true; L.$('#taskpane').hidden = false; L.panes.task.show('recovery'); },

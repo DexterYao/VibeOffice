@@ -690,7 +690,7 @@
 
   /* ---------- undo / redo ---------- */
   const H = (L.hist = { undo: [], redo: [], limit: 100, dirty: false, lastLabel: '' });
-  H.snapshot = () => JSON.stringify({ W: L.pres.W, H: L.pres.H, firstNum: L.pres.firstNum, designs: L.pres.designs, slides: L.pres.slides, show: L.pres.show, hf: L.pres.hf, props: L.pres.props, title: L.pres.title, losses: L.pres.losses || [], shapeDefaults: L.pres.shapeDefaults, lineDefaults: L.pres.lineDefaults });
+  H.snapshot = () => JSON.stringify({ W: L.pres.W, H: L.pres.H, firstNum: L.pres.firstNum, designs: L.pres.designs, slides: L.pres.slides, show: L.pres.show, hf: L.pres.hf, props: L.pres.props, title: L.pres.title, keep: L.pres.keep, ooxmlFormat: L.pres.ooxmlFormat, losses: L.pres.losses || [], shapeDefaults: L.pres.shapeDefaults, lineDefaults: L.pres.lineDefaults });
   H.restore = (snap) => { Object.assign(L.pres, JSON.parse(snap)); };
   /** Record state before a mutation. coalesceKey merges rapid repeats (typing). */
   H.push = (label, coalesceKey) => {

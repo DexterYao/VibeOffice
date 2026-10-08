@@ -205,7 +205,9 @@ class Package:
                         if both:
                             self.issue('duplicate-' + kind + '-id', part, key[2], path)
                     definitions[key].append((part, path, branches))
-                if at(el, 'spid') is not None:
+                # PresentationML spid targets cNvPr. VML o:spid is the shape's
+                # own identity, not a reference into DrawingML's ID space.
+                if ns in P and at(el, 'spid') is not None:
                     references.append((part, 'shape', at(el, 'spid'), path, branches))
                 if tag in ('stCxn', 'endCxn') and ns in A:
                     references.append((part, 'shape', at(el, 'id'), path, branches))

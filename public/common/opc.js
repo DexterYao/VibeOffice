@@ -29,6 +29,43 @@
     c16: 'http://schemas.microsoft.com/office/drawing/2014/chart', v: 'urn:schemas-microsoft-com:vml',
     o: 'urn:schemas-microsoft-com:office:office', x: 'urn:schemas-microsoft-com:office:excel',
   });
+  // Main-part types distinguish templates and macro/slideshow variants even when
+  // a file was renamed. These are file-format facts, independent of an app UI.
+  K.formats = Object.freeze(Object.fromEntries([
+    ['docx', 'wordprocessingml.document', 'ms-word.document', false, false],
+    ['docm', 'wordprocessingml.document', 'ms-word.document', true, false],
+    ['dotx', 'wordprocessingml.template', 'ms-word.template', false, true],
+    ['dotm', 'wordprocessingml.template', 'ms-word.template', true, true],
+    ['xlsx', 'spreadsheetml.sheet', 'ms-excel.sheet', false, false],
+    ['xlsm', 'spreadsheetml.sheet', 'ms-excel.sheet', true, false],
+    ['xltx', 'spreadsheetml.template', 'ms-excel.template', false, true],
+    ['xltm', 'spreadsheetml.template', 'ms-excel.template', true, true],
+    ['pptx', 'presentationml.presentation', 'ms-powerpoint.presentation', false, false],
+    ['pptm', 'presentationml.presentation', 'ms-powerpoint.presentation', true, false],
+    ['ppsx', 'presentationml.slideshow', 'ms-powerpoint.slideshow', false, false],
+    ['ppsm', 'presentationml.slideshow', 'ms-powerpoint.slideshow', true, false],
+    ['potx', 'presentationml.template', 'ms-powerpoint.template', false, true],
+    ['potm', 'presentationml.template', 'ms-powerpoint.template', true, true],
+  ].map(([ext, standard, enabled, macro, template]) => {
+    const stem = macro ? 'application/vnd.' + enabled : 'application/vnd.openxmlformats-officedocument.' + standard;
+    return [ext, Object.freeze({ ext, macro, template, family: standard.split('.')[0],
+      contentType: stem + (macro ? ext === 'dotm' ? '.macroEnabledTemplate.main+xml' : '.macroEnabled.main+xml' : '.main+xml'),
+      mime: stem + (macro ? '.macroEnabled.12' : '') })];
+  })));
+  K.variant = (pkg, fallback) => Object.values(K.formats).find(f => f.contentType === pkg?.type(pkg.main))?.ext || fallback;
+  K.relationshipType = type => {
+    if (type === NS.strictRel + '/extendedProperties') return NS.rel + '/extended-properties';
+    if (type === NS.strictRel + '/customProperties') return NS.rel + '/custom-properties';
+    return type?.replace(NS.strictRel + '/', NS.rel + '/');
+  };
+  const strictURI = uri => uri.replace(/^http:\/\/schemas\.openxmlformats\.org\/(officeDocument|wordprocessingml|drawingml|spreadsheetml|presentationml)\/2006\/(.*)$/, (_, family, rest) =>
+    'http://purl.oclc.org/ooxml/' + family + '/' + rest.replace(/(^|\/)(extended-properties|custom-properties)$/, (m, slash, name) => slash + (name === 'extended-properties' ? 'extendedProperties' : 'customProperties')));
+  K.strictXML = xml => xml.replace(/(\b(?:xmlns(?::[\w.-]+)?|uri|Type)\s*=\s*)(["'])(.*?)\2/g, (_, key, quote, uri) => key + quote + strictURI(uri) + quote);
+  K.format = (doc, requested, fallback) => {
+    const type = requested || doc.ooxmlFormat || K.variant(doc.pkg, fallback);
+    if (!K.formats[type]) throw new Error('Unsupported Office file variant: ' + type);
+    return K.formats[type];
+  };
   const esc = K.esc = XML.esc;
   const uuid = () => root.crypto?.randomUUID ? root.crypto.randomUUID() : Date.now().toString(36) + '-' + Math.random().toString(36).slice(2) + Math.random().toString(36).slice(2);
   const elements = el => Array.from(el.children || []);
@@ -44,6 +81,10 @@
       text = text.slice(0, c.start) + c.value + text.slice(c.end); end = c.start;
     }
     return text;
+  };
+  K.partXML = function (original, root) {
+    const before = XML.source.get(K.parse(original)), after = XML.source.get(K.parse(root));
+    return original.slice(0, before.start) + root.slice(after.start, after.end) + original.slice(before.end);
   };
   // Carry all in-scope bindings, including prefixes that appear only inside values
   // (Requires, xsi:type, vendor attributes). Inner redeclarations keep their scope.
@@ -325,14 +366,23 @@
     return entry;
   };
   const lossKey = e => JSON.stringify([e.id, e.what, e.where || '', e.action]);
-  K.pendingLosses = doc => (doc.losses || []).filter(e => !(doc.acknowledgedLosses || []).includes(lossKey(e)));
+  K.pendingLosses = (doc, entries = doc.losses || []) => entries.filter(e => !(doc.acknowledgedLosses || []).includes(lossKey(e)));
   K.acknowledge = (doc, entries) => { doc.acknowledgedLosses = Array.from(new Set([...(doc.acknowledgedLosses || []), ...entries.map(lossKey)])); };
+  K.lossState = doc => ({ entries: doc.losses || [], acknowledged: doc.acknowledgedLosses || [] });
+  K.recoverLosses = function (doc, state) {
+    if (!state) return;
+    // A draft may already contain a conversion. Its original save-time loss can
+    // no longer be rediscovered from that package, so keep it after recovery.
+    for (const entry of state.entries || []) K.loss(doc, { ...entry, phase: 'recovery' });
+    doc.acknowledgedLosses = Array.from(new Set([...(doc.acknowledgedLosses || []), ...(state.acknowledged || [])]));
+  };
 
   /** Replace owned children only; preserve every other child and its relative anchor.
    * replacements: expanded element name -> XML string(s), or [] to remove that property.
    * type: generated schema type, e.g. 'a:CT_ShapeProperties'.
    */
   K.merge = function (xml, replacements, type) {
+    if (!Object.keys(replacements).length) return xml;
     const tree = K.parse(xml), pos = XML.source.get(tree), slots = K.schema?.types[type];
     if (!slots) throw new Error('No schema order for ' + type);
     const aliases = Object.fromEntries(['w', 'p', 'a', 's', 'rel'].map(k => [NS[k], 'http://purl.oclc.org/ooxml/' + ({ w: 'wordprocessingml/main', p: 'presentationml/main', a: 'drawingml/main', s: 'spreadsheetml/main', rel: 'officeDocument/relationships' })[k]]));
@@ -364,6 +414,70 @@
     }
     const inner = entries.sort((a, b) => a.order - b.order || a.serial - b.serial).map(e => e.text).join('');
     return self ? xml.slice(0, pos.openEnd - 2) + '>' + inner + '</' + tree.nodeName + '>' + xml.slice(pos.end) : xml.slice(0, pos.openEnd) + inner + xml.slice(closeAt);
+  };
+
+  // Unordered settings/property bags only. Content and ordered schema elements
+  // use model generation or merge() with its schema table instead.
+  K.mergeBag = function (xml, replacements, key = el => '{' + el.namespaceURI + '}' + el.localName) {
+    const tree = K.parse(xml), pos = XML.source.get(tree), edits = [], seen = new Set();
+    for (const el of elements(tree)) {
+      const id = key(el);
+      if (!Object.prototype.hasOwnProperty.call(replacements, id)) continue;
+      const p = XML.source.get(el), value = seen.has(id) ? '' : [replacements[id]].flat().join('');
+      seen.add(id); edits.push({ start: p.start, end: p.end, value });
+    }
+    const extra = Object.entries(replacements).filter(([id]) => !seen.has(id)).flatMap(([, value]) => [value].flat()).join('');
+    if (extra) {
+      const self = xml[pos.openEnd - 2] === '/';
+      const at = self ? pos.openEnd - 2 : pos.end - tree.nodeName.length - 3;
+      edits.push({ start: at, end: self ? pos.openEnd : at, value: self ? '>' + extra + '</' + tree.nodeName + '>' : extra });
+    }
+    return K.patch(xml, edits);
+  };
+
+  // Settings attributes are a property bag too. Keep unknown attributes and
+  // children lexically, including the original prefixes and quote style.
+  K.attributes = function (xml, changes) {
+    const tree = K.parse(xml), pos = XML.source.get(tree), edits = [], added = [];
+    for (const [name, value] of Object.entries(changes)) {
+      const a = pos.attrs.find(a => a.name === name);
+      if (a) {
+        if (value == null) {
+          const start = xml.lastIndexOf(name, a.start - 2);
+          edits.push({ start, end: a.end + 1, value: '' });
+        } else edits.push({ start: a.start, end: a.end, value: esc(value) });
+      } else if (value != null) added.push(' ' + name + '="' + esc(value) + '"');
+    }
+    if (added.length) {
+      const at = pos.openEnd - (xml[pos.openEnd - 2] === '/' ? 2 : 1);
+      edits.push({ start: at, end: at, value: added.join('') });
+    }
+    return K.patch(xml, edits);
+  };
+  const equal = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  K.properties = function (xml, generated, current, previous, owned) {
+    const replacements = {}, old = elements(K.parse(xml)), fresh = elements(K.parse(generated));
+    for (const [key, tag] of Object.entries(owned)) if (!equal(current?.[key], previous?.[key])) {
+      const a = old.find(e => e.localName === tag), b = fresh.find(e => e.localName === tag), node = a || b;
+      if (node) replacements['{' + node.namespaceURI + '}' + tag] = b ? K.raw(b) : [];
+    }
+    return K.mergeBag(xml, replacements);
+  };
+  K.customProperties = function (xml, generated, current = {}, previous = {}) {
+    const tree = K.parse(xml), fresh = elements(K.parse(generated)), replacements = {}, names = new Set();
+    let pid = Math.max(1, ...elements(tree).map(e => +e.getAttribute('pid') || 0));
+    for (const el of elements(tree)) {
+      const name = el.getAttribute('name'); names.add(name);
+      if (!Object.prototype.hasOwnProperty.call(current, name)) replacements[name] = [];
+      else if (!equal(current[name], previous[name])) {
+        const node = fresh.find(e => e.getAttribute('name') === name);
+        if (node) { node.setAttribute('pid', el.getAttribute('pid')); replacements[name] = K.serialize(node); }
+      }
+    }
+    for (const el of fresh) if (!names.has(el.getAttribute('name'))) {
+      el.setAttribute('pid', String(++pid)); replacements[el.getAttribute('name')] = K.serialize(el);
+    }
+    return K.mergeBag(xml, replacements, e => e.getAttribute('name'));
   };
 
   const direct = (el, name) => elements(el).find(e => e.localName === name);
@@ -518,6 +632,9 @@
     constructor(pkg, options = {}) {
       this.pkg = pkg; this.doc = options.doc || {}; this.parts = new Map(); this.types = new Map();
       this.contentType = options.contentType;
+      // Save-time losses are recomputed. Cancelling a macro-free Save As must
+      // not warn again when the next save keeps the original macro variant.
+      this.doc.losses = (this.doc.losses || []).filter(e => e.phase !== 'save');
       this.names = new Set((pkg?.names || []).map(n => n.toLowerCase())); this.mapping = new Map();
       this.classes = new Map(); this.omitted = new Set(); this.carried = new Set(); this.relationships = new Map(); this.emitted = new Set();
       this.ids = new Identities();
@@ -535,6 +652,7 @@
         for (const [name, mode] of Object.entries(options.classes || {})) this.claim(name, mode);
       }
     }
+    loss(entry) { return K.loss(this.doc, { ...entry, phase: 'save' }); }
     key(pkg, part) { return JSON.stringify([pkg.id, part]); }
     name(dir, base, ext) {
       dir = dir ? dir.replace(/\/$/, '') + '/' : ''; ext = ext ? '.' + ext.replace(/^\./, '') : '';
@@ -568,7 +686,7 @@
     omit(part, why, pkg = this.pkg) {
       const key = this.key(pkg, part); this.omitted.add(key);
       const target = this.mapping.get(key); if (target) { this.parts.delete(target); this.relationships.delete(target); }
-      K.loss(this.doc, { id: 'part:' + key, what: why, where: part, action: 'drop' });
+      this.loss({ id: 'part:' + key, what: why, where: part, action: 'drop' });
     }
     put(name, data, type) {
       if (data == null) throw new Error('No bytes for ' + name);
@@ -591,7 +709,7 @@
       const pkg = packages.get(dep.source) || this.pkg;
       if (!pkg || !dep.type) throw new Error('Unresolved relationship ' + (dep.id || '') + ' in ' + (dep.owner || owner));
       if (signatureRel(dep.type)) {
-        K.loss(this.doc, { id: 'signature:' + pkg.id, what: 'The digital signature becomes invalid when this file is saved.', where: dep.owner || '/', action: 'drop' });
+        this.loss({ id: 'signature:' + pkg.id, what: 'The digital signature becomes invalid when this file is saved.', where: dep.owner || '/', action: 'drop' });
         return null;
       }
       let target = dep.target;
@@ -608,6 +726,23 @@
       for (const r of pkg.rels(from)) if (predicate(r)) this.keepRel(owner, { source: pkg.id, owner: from, ...r });
     }
     carry(pkg, part) {
+      // Check the whole opaque graph before mutating the output. A malformed
+      // source may need a model conversion; a failed carry must not leave half
+      // a graph behind and poison that otherwise valid fallback.
+      if (this.omitted.has(this.key(pkg, part))) return null;
+      const seen = new Set(), pending = [part];
+      while (pending.length) {
+        const name = pending.pop(), key = this.key(pkg, name);
+        if (seen.has(key)) continue;
+        seen.add(key);
+        if (this.omitted.has(key)) throw new Error('Cannot preserve ' + part + ': deleted dependency ' + name);
+        if (!pkg.has(name)) throw new Error('Missing dependency: ' + name);
+        if (this.mode(pkg, name) !== 'opaque') continue;
+        for (const r of pkg.rels(name)) if (!r.external && !signatureRel(r.type)) pending.push(r.part);
+      }
+      return this._carry(pkg, part);
+    }
+    _carry(pkg, part) {
       const key = this.key(pkg, part), dest = this.target(pkg, part);
       if (!dest || this.carried.has(key)) return dest;
       if (!pkg.has(part)) throw new Error('Missing dependency: ' + part);
@@ -619,9 +754,9 @@
         if (signatureRel(r.type)) {
           this.keepRel(dest, { source: pkg.id, owner: part, ...r }); continue;
         }
-        const target = r.external ? r.target : this.carry(pkg, r.part);
+        const target = r.external ? r.target : this._carry(pkg, r.part);
         if (target == null) {
-          K.loss(this.doc, { id: 'dependency:' + key + ':' + r.id, what: 'A preserved part refers to a deleted part.', where: part, action: 'drop' });
+          this.loss({ id: 'dependency:' + key + ':' + r.id, what: 'A preserved part refers to a deleted part.', where: part, action: 'drop' });
           throw new Error('Cannot preserve ' + part + ': deleted dependency ' + r.part);
         }
         rewritten.push({ ...r, target: r.external ? r.target : escapedURI(dest === part && target === r.part ? r.target : K.relative(dest, target) + (r.fragment || '')) });
@@ -636,6 +771,19 @@
       }
       return dest;
     }
+    copyPart(pkg, part, dest, references = {}) {
+      if (!pkg.has(part)) throw new Error('Missing dependency: ' + part);
+      const rels = new Rels();
+      for (const r of pkg.rels(part)) {
+        if (signatureRel(r.type)) { this.keepRel(dest, { source: pkg.id, owner: part, ...r }); continue; }
+        const target = r.external ? r.target : references[r.part] || this.carry(pkg, r.part);
+        if (!target) throw new Error('Cannot copy ' + part + ': deleted dependency ' + r.part);
+        rels.add(r.type, r.external ? target : K.relative(dest, target) + (r.fragment || ''), r.external, r.id);
+      }
+      this.put(dest, pkg.bytes(part), pkg.type(part));
+      if (rels.list.length) this.put(K.relsPath(dest), rels.xml(), 'application/vnd.openxmlformats-package.relationships+xml');
+      return dest;
+    }
     emit(fragment, owner, options = {}) {
       const record = fragment.record && JSON.stringify([owner, fragment.record]);
       if (record && this.emitted.has(record)) return '';
@@ -646,7 +794,7 @@
         const available = new Set(definitions.concat(options.references || []).map(i => this.ids.key(i.source, i.scope, i.kind, i.id)));
         const unresolved = fragment.ids.find(i => !i.definition && ['shape', 'timing'].includes(i.kind) && i.scope === fragment.part && !available.has(this.ids.key(i.source, i.scope, i.kind, i.id)));
         if (unresolved) {
-          K.loss(this.doc, { id: 'copy-reference:' + fragment.source + ':' + fragment.part + ':' + unresolved.kind + ':' + unresolved.id, what: 'The copied object refers to an object outside the copied selection.', where: owner, action: 'conversion' });
+          this.loss({ id: 'copy-reference:' + fragment.source + ':' + fragment.part + ':' + unresolved.kind + ':' + unresolved.id, what: 'The copied object refers to an object outside the copied selection.', where: owner, action: 'conversion' });
           const error = new Error('Unresolved copied ' + unresolved.kind + ' target: ' + unresolved.id);
           error.code = 'OOXML_COPY_REFERENCE'; throw error;
         }
@@ -677,7 +825,7 @@
       if (this.pkg) for (const name of this.pkg.names) {
         if (name === '[Content_Types].xml' || name.endsWith('.rels') || this.mode(this.pkg, name) !== 'opaque') continue;
         if (!this.parts.has(this.mapping.get(this.key(this.pkg, name))) && !this.omitted.has(this.key(this.pkg, name))) {
-          K.loss(this.doc, { id: 'unreferenced:' + this.pkg.id + ':' + name, what: 'This preserved part has no remaining reference in the saved file.', where: name, action: 'drop' });
+          this.loss({ id: 'unreferenced:' + this.pkg.id + ':' + name, what: 'This preserved part has no remaining reference in the saved file.', where: name, action: 'drop' });
         }
       }
       const overrides = [];
@@ -692,6 +840,110 @@
     }
   }
   K.Writer = Writer;
+
+  // Bridge canonical generator paths to original OPC names. Apps provide their
+  // ownership table and settings merge; content remains model-generated.
+  K.output = function (pkg, options = {}) {
+    const writer = new Writer(pkg, options), names = new Map(), originals = new Map(), modes = new Map(), views = new Map();
+    const strict = pkg?.main && pkg.xml(pkg.main)?.namespaceURI?.startsWith('http://purl.oclc.org/ooxml/');
+    const bind = (base, original, mode = 'regenerated') => {
+      if (original && pkg?.has(original)) {
+        let target = writer.target(pkg, original);
+        if (target === original && pkg.names.some(n => n !== original && n.toLowerCase() === original.toLowerCase())) {
+          const slash = original.lastIndexOf('/'), dot = original.lastIndexOf('.');
+          target = writer.name(original.slice(0, Math.max(0, slash)), original.slice(slash + 1, dot).replace(/\d+$/, ''), original.slice(dot + 1));
+        }
+        names.set(base, target); originals.set(base, original); modes.set(base, mode); writer.claim(original, mode, target);
+      }
+    };
+    const part = base => {
+      if (!base) return '';
+      if (base.endsWith('.rels')) return K.relsPath(part(K.owner(base)));
+      if (!names.has(base)) {
+        const slash = base.lastIndexOf('/'), dot = base.lastIndexOf('.');
+        const name = writer.names.has(base.toLowerCase()) ? writer.name(base.slice(0, Math.max(0, slash)), base.slice(slash + 1, dot < slash ? undefined : dot).replace(/\d+$/, ''), dot > slash ? base.slice(dot + 1) : '') : base;
+        names.set(base, name); writer.names.add(name.toLowerCase());
+      }
+      return names.get(base);
+    };
+    const rels = base => {
+      const owner = part(base);
+      if (!views.has(base)) {
+        const r = writer.rels(owner);
+        const add = (type, target, external, preferred) => {
+          const mapped = value => {
+            if (external) return value;
+            const resolved = K.resolve(base, value);
+            return K.relative(owner, part(resolved.part)) + (resolved.fragment || '');
+          };
+          if (typeof target === 'function') return r.add(strict ? strictURI(type) : type, () => mapped(target()), external, preferred);
+          let destination = mapped(target);
+          const source = base ? originals.get(base) : '';
+          const original = source !== undefined && pkg?.rels(source).find(rel =>
+            K.relationshipType(rel.type) === K.relationshipType(type) && !!rel.external === !!external &&
+            (external ? rel.target === destination : writer.target(pkg, rel.part) === K.resolve(owner, destination).part && (rel.fragment || '') === K.resolve(owner, destination).fragment));
+          if (original && preferred == null) {
+            preferred = original.id;
+            if (owner === source && (external || writer.target(pkg, original.part) === original.part)) destination = original.target;
+          }
+          return r.add(strict ? strictURI(type) : type, destination, external, preferred);
+        };
+        views.set(base, { base, owner, list: r.list, add, xml: () => r.xml() });
+      }
+      return views.get(base);
+    };
+    const put = (base, data, type) => {
+      if (base === '[Content_Types].xml') return;
+      if (base.endsWith('.rels')) {
+        const ownerBase = K.owner(base), owner = part(ownerBase);
+        if (modes.get(ownerBase) === 'opaque') return;
+        if (writer.relationships.has(owner)) return;
+        const rels = writer.rels(owner), tree = K.parse(typeof data === 'string' ? data : XML.decode(data));
+        for (const r of elements(tree)) {
+          const external = r.getAttribute('TargetMode') === 'External', target = r.getAttribute('Target');
+          rels.add(r.getAttribute('Type'), external ? target : K.relative(owner, part(K.resolve(ownerBase, target).part)), external, r.getAttribute('Id'));
+        }
+        return;
+      }
+      const original = originals.get(base), mode = modes.get(base), target = part(base);
+      if (original && mode === 'opaque') {
+        try { writer.carry(pkg, original); writer.relationships.delete(target); return; }
+        catch (error) {
+          const converted = options.convert?.(base, original, data, error);
+          if (converted == null) throw error;
+          data = converted; modes.set(base, 'regenerated'); writer.claim(original, 'regenerated', target);
+          writer.loss({ id: 'converted-part:' + original, what: 'The part was converted because its original dependencies are incomplete: ' + error.message, where: original, action: 'conversion' });
+        }
+      }
+      if (original && mode === 'merged') {
+        data = options.merge(base, original, data, writer);
+        // A part's declaration, internal entity definitions, and processing
+        // instructions are outside its root fragment but still belong to it.
+        data = K.partXML(pkg.text(original), data);
+      }
+      writer.put(target, strict && typeof data === 'string' ? K.strictXML(data) : data, type || pkg?.type(original));
+    };
+    const finish = () => {
+      if (pkg) {
+        for (const [base, source] of [['', ''], ...originals]) {
+          const owner = base ? part(base) : '';
+          if (base && !writer.parts.has(owner)) continue;
+          if (modes.get(base) === 'opaque') continue;
+          for (const rel of pkg.rels(source)) {
+            const type = K.relationshipType(rel.type);
+            if (options.format && !options.format.macro && /\/vbaProject$/.test(type)) { writer.omit(rel.part, 'Macros cannot be saved in the selected file type.'); continue; }
+            if (options.consumes?.(base, rel, type)) continue;
+            try { writer.keepRel(owner, { source: pkg.id, owner: source, ...rel }); }
+            catch (error) { writer.loss({ id: 'relationship:' + source + ':' + rel.id, what: 'The original relationship could not be retained: ' + error.message, where: source || '/', action: 'drop' }); }
+          }
+        }
+      }
+      return writer.finish();
+    };
+    const use = name => { names.set(name, name); writer.names.add(name.toLowerCase()); return name; };
+    return { writer, bind, use, part, rels, put, finish, originals };
+  };
+
   K.emit = (fragment, writer, owner, options) => writer.emit(fragment, owner, options);
 
   // Clipboard transport is explicit: bytes never enter model/history JSON.

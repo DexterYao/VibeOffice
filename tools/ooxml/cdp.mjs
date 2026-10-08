@@ -55,7 +55,7 @@ export async function openPage(app, options = {}) {
         vo = value;
         let attach;
         Object.defineProperty(value, 'attach', { configurable: true, get: () => attach, set(fn) {
-          attach = function(app, hooks) { window.__corpusHooks = hooks; return fn(app, hooks); };
+          attach = function(app, hooks) { window.__corpusHooks = hooks; return ${options.persistence === false ? 'undefined' : 'fn(app, hooks)'}; };
         }});
       }});` });
     await send('Page.navigate', { url: base + '/' + app + '/?new' });

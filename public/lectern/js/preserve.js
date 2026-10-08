@@ -10,6 +10,51 @@
   const GEOMETRY = ['x', 'y', 'w', 'h', 'rot', 'flipH', 'flipV'];
   const CONTENT = ['type', 'media', 'svgMedia', 'linkUrl'];
   const PROPERTIES = ['crop', 'img', 'geom', 'adj', 'path', 'line', 'shadow', 'name', 'alt', 'hidden', 'link'];
+  const RT = name => N.rel + '/' + name;
+  const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  P.parts = Object.freeze([
+    ['ppt/presProps.xml', RT('presProps'), 'merged'],
+    ['ppt/viewProps.xml', RT('viewProps'), 'opaque'],
+    ['ppt/tableStyles.xml', RT('tableStyles'), 'opaque'],
+    ['ppt/notesMasters/notesMaster1.xml', RT('notesMaster'), 'opaque'],
+    ['docProps/core.xml', N.pkg + '/metadata/core-properties', 'merged', true],
+    ['docProps/app.xml', RT('extended-properties'), 'merged', true],
+  ]);
+  P.values = pres => JSON.parse(JSON.stringify({ props: pres.props, W: pres.W, H: pres.H, firstNum: pres.firstNum, show: pres.show }));
+  P.designValues = design => JSON.stringify(Object.fromEntries(Object.entries(design).filter(([key]) => key !== 'keep')));
+  P.begin = function (pres, format) {
+    const pkg = pres.pkg;
+    const consumed = new Set([RT('officeDocument'), ...P.parts.map(p => p[1]), ...['slide', 'slideMaster', 'slideLayout', 'notesSlide', 'theme', 'image', 'chart', 'hyperlink'].map(RT)]);
+    const output = K.output(pkg, { doc: pres, format, contentType: P.mediaType,
+      consumes: (base, rel, type) => consumed.has(type),
+      convert: (base, source, data) => /^ppt\/(theme\/|notesMasters\/|notesSlides\/|viewProps\.xml$|tableStyles\.xml$)/.test(base) ? data : null,
+      merge: (base, source, data, writer) => P.mergePackage(pres, base, source, data, writer) });
+    output.bind('ppt/presentation.xml', pkg?.main, 'merged');
+    for (const [base, type, mode, root] of P.parts) {
+      const rel = pkg?.rels(root ? '' : pkg.main).find(r => K.relationshipType(r.type) === type && !r.external);
+      output.bind(base, rel?.part, mode);
+    }
+    return output;
+  };
+  P.mergePackage = function (pres, base, source, generated, writer) {
+    const fragment = K.fragment(writer.pkg.xml(source), { pkg: writer.pkg, part: source });
+    const before = pres.keep?.values || {}, fresh = K.parse(generated);
+    let xml = fragment.xml;
+    if (base === 'ppt/presentation.xml') {
+      const replacements = {};
+      const replace = tag => { replacements['{' + N.p + '}' + tag] = kids(fresh).filter(e => e.localName === tag).map(K.raw); };
+      for (const tag of ['sldMasterIdLst', 'notesMasterIdLst', 'sldIdLst']) replace(tag);
+      if (pres.W !== before.W || pres.H !== before.H) replace('sldSz');
+      xml = K.merge(xml, replacements, 'p:CT_Presentation');
+      if (pres.firstNum !== before.firstNum) xml = K.attributes(xml, { firstSlideNum: pres.firstNum || 1 });
+    } else if (base === 'ppt/presProps.xml') {
+      if (!same(pres.show, before.show)) xml = K.merge(xml, { ['{' + N.p + '}showPr']: kids(fresh).filter(e => e.localName === 'showPr').map(K.raw) }, 'p:CT_PresentationProperties');
+    } else {
+      const owned = base === 'docProps/core.xml' ? { title: 'title', subject: 'subject', author: 'creator', keywords: 'keywords', comments: 'description', category: 'category', created: 'created', revision: 'revision' } : { company: 'Company' };
+      xml = K.properties(xml, generated, pres.props, before.props, owned);
+    }
+    return writer.emit(K.slice(fragment, xml), source);
+  };
   P.mutations = Object.freeze({ text: 'keep', geometry: 'update', crop: 'replace crop', shadow: 'replace outerShdw', picture: 'conversion', duplicate: 'remap', delete: 'drop', undo: 'restore' });
   P.anims = slide => JSON.stringify(slide.anims || []);
   P.mediaType = (pkg, part) => ({ avi: 'video/x-msvideo', mp3: 'audio/mpeg', mp4: 'video/mp4', wav: 'audio/wav', wmv: 'video/x-ms-wmv', wma: 'audio/x-ms-wma', mov: 'video/quicktime' })[part.split('.').pop().toLowerCase()];
@@ -38,6 +83,10 @@
     }
   };
   P.seal = function (pres) {
+    for (const d of Object.values(pres.designs)) if (d.keep) {
+      d.keep.themeValues = JSON.stringify([d.colors, d.fonts]);
+      d.keep.values = P.designValues(d);
+    }
     for (const slide of pres.slides) L.model.walk(slide.shapes, shape => {
       if (shape.keep) shape.keep.metadata = Object.fromEntries(['name', 'alt', 'hidden', 'link'].map(k => [k, JSON.stringify(shape[k] ?? null)]));
       if (shape.keep?.media) {
@@ -133,7 +182,7 @@
     if (!ctx.writer || !shape.keep?.sound) return generated;
     const absent = missing(shape.keep.identity);
     if (absent) {
-      K.loss(ctx.writer.doc, { id: 'action-sound:' + shape.id, what: 'The action sound refers to a part missing from the original file.', where: shape.name + ': ' + (absent.part || absent.id), action: 'drop' });
+      ctx.writer.loss({ id: 'action-sound:' + shape.id, what: 'The action sound refers to a part missing from the original file.', where: shape.name + ': ' + (absent.part || absent.id), action: 'drop' });
       return generated;
     }
     let xml = ctx.writer.emit(shape.keep.identity, ctx.part);
@@ -147,7 +196,7 @@
     const keep = shape.keep?.media;
     if (!keep) return null;
     if (!P.valid(shape)) {
-      K.loss(ctx.writer.doc, { id: 'media:' + shape.id, what: missing(keep.frame) ? 'The media object refers to data missing from the original file.' : 'Replacing this media picture converts it to a picture without playback.', where: shape.name, action: 'conversion' });
+      ctx.writer.loss({ id: 'media:' + shape.id, what: missing(keep.frame) ? 'The media object refers to data missing from the original file.' : 'Replacing this media picture converts it to a picture without playback.', where: shape.name, action: 'conversion' });
       return null;
     }
     let xml = ctx.writer.emit(keep.frame, ctx.part);

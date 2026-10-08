@@ -13,7 +13,7 @@ if (args[0] === '--worker') {
     const [file, scenario, save] = args.slice(1), type = path.extname(file).slice(1).toLowerCase();
     const result = { status: 'ok' };
     const write = async (kind, wb) => {
-      const bytes = await L.xlsxWrite.bytes(wb, { type });
+      const bytes = await L.xlsxWrite.bytes(wb, { type: wb.ooxmlFormat || type });
       if (save) { const dir = path.join(save, kind === 'saved' ? scenario : scenario + '-' + kind); fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, path.basename(file)), bytes); }
       return bytes;
     };

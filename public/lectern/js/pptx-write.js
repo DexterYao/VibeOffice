@@ -322,8 +322,21 @@
     const c = sh.chart || L.chart.sample();
     /* a chart read from a file and not edited here is written back as it came, with its workbook and styles */
     const src = c.srcId && !c.edited && L.chart.src ? L.chart.src.get(c.srcId) : null;
-    const n = src ? ctx.addChart(HEAD + String(src.xml).replace(/^﻿/, '').replace(/^<\?xml[^>]*\?>\s*/, ''), src.parts) : ctx.addChart(chartXML(c, design));
-    const rid = ctx.rels.add(RT('chart'), ctx.part ? K.relative(ctx.part, `ppt/charts/chart${n}.xml`) : `../charts/chart${n}.xml`);
+    const source = src?.source && K.package(src.source);
+    let rid, converted = false;
+    if (source && ctx.writer) {
+      try {
+        const owner = sh.keep?.part || src.owner, rel = source.rels(owner).find(r => r.part === src.part && K.relationshipType(r.type) === RT('chart'));
+        rid = ctx.writer.keepRel(ctx.part, { source: source.id, owner, ...rel });
+      } catch (error) {
+        converted = true;
+        ctx.writer.loss({ id: 'chart:' + src.source + ':' + src.part, what: 'The chart was converted because its original dependencies are incomplete: ' + error.message, where: src.part, action: 'conversion' });
+      }
+    }
+    if (!rid) {
+      const n = src && !converted ? ctx.addChart(HEAD + String(src.xml).replace(/^﻿/, '').replace(/^<\?xml[^>]*\?>\s*/, ''), src.parts) : ctx.addChart(chartXML(c, design));
+      rid = ctx.rels.add(RT('chart'), ctx.part ? K.relative(ctx.part, `ppt/charts/chart${n}.xml`) : `../charts/chart${n}.xml`);
+    }
     return `<p:graphicFrame><p:nvGraphicFramePr>${cNvPr(id, sh, ctx)}<p:cNvGraphicFramePr/>${phXML(sh.ph)}</p:nvGraphicFramePr>${xfrm(sh, 'p:xfrm')}<a:graphic><a:graphicData uri="${NS_C}"><c:chart xmlns:c="${NS_C}" r:id="${rid}"/></a:graphicData></a:graphic></p:graphicFrame>`;
   }
   /** chart XML from the chart model: charts made or edited in Lectern */
@@ -691,13 +704,14 @@
   /* ---------- main ---------- */
   async function write(pres, opts) {
     opts = opts || {};
-    const writer = new K.Writer(pres.pkg, { doc: pres, contentType: L.preserve.mediaType });
+    const format = K.format(pres, opts.format, 'pptx'), pack = L.preserve.begin(pres, format), writer = pack.writer;
+    const freshName = (dir, base, ext) => pack.use(writer.name(dir, base, ext));
     const files = [];
     const add = (name, data) => files.push({ name, data });
     const overrides = [];
     const defaults = new Map([['rels', 'application/vnd.openxmlformats-package.relationships+xml'], ['xml', 'application/xml']]);
-    const mainCT = opts.format === 'ppsx' ? CT.show : opts.format === 'potx' ? CT.tmpl : CT.pres;
-    const presRels = new Rels();
+    const mainCT = format.contentType;
+    const presRels = pack.rels('ppt/presentation.xml');
     const mediaMap = new Map(); /* media id → {name} */
     let chartN = 0;
     const charts = [];
@@ -717,7 +731,8 @@
     };
     const slideParts = allSlides.map(s => {
       const original = pres.pkg && s.keep?.source === pres.pkg.id && !s.keep.copy ? s.keep.part : null;
-      return original ? writer.claim(original, 'regenerated') : writer.name('ppt/slides', 'slide', 'xml');
+      if (original) { pack.bind(original, original); return original; }
+      return freshName('ppt/slides', 'slide', 'xml');
     });
     const slideIndex = (id) => allSlides.findIndex((s) => s.id === id);
     /* designs used, in order of first use */
@@ -739,12 +754,14 @@
     for (const id of designIds) { const d = pres.designs[id]; if (!d) continue; scanFill(d.bg); scanFill(d.titleBg); (d.deco || []).forEach(scanShape); (d.titleDeco || []).forEach(scanShape); if (d.layoutDecos) Object.values(d.layoutDecos).forEach((a) => a.forEach(scanShape)); if (d.layoutBgs) Object.values(d.layoutBgs).forEach(scanFill); }
     const preloaded = new Map();
     for (const id of usedMedia) preloaded.set(id, await mediaBytes(id));
-    const mediaSync = (rels, owner = 'ppt/slides/slide1.xml') => (id) => {
+    const mediaSync = (rels, owner = rels.base || 'ppt/slides/slide1.xml') => (id) => {
       if (!id) return null;
       if (!mediaMap.has(id)) {
         const mb = preloaded.get(id);
         if (!mb) { mediaMap.set(id, null); return null; }
-        const name = writer.name('ppt/media', 'image', mb.ext).split('/').pop();
+        const name = freshName('ppt/media', 'image', mb.ext).split('/').pop();
+        const origin = pres.keep?.media?.[id], bytes = origin && pres.pkg?.bytes(origin);
+        if (bytes && bytes.length === mb.bytes.length && bytes.every((b, i) => b === mb.bytes[i])) pack.bind('ppt/media/' + name, origin);
         add('ppt/media/' + name, mb.bytes);
         defaults.set(mb.ext, mb.type);
         mediaMap.set(id, { name });
@@ -754,11 +771,11 @@
     };
     /* SVG pictures: the PNG copy goes in r:embed, the vector original in the svgBlip extension */
     const svgMap = new Map();
-    const svgSync = (rels, owner = 'ppt/slides/slide1.xml') => (id) => {
+    const svgSync = (rels, owner = rels.base || 'ppt/slides/slide1.xml') => (id) => {
       const mb = id ? preloaded.get(id) : null;
       if (!mb || !mb.svg) return null;
       if (!svgMap.has(id)) {
-        const name = writer.name('ppt/media', 'vector', 'svg').split('/').pop();
+        const name = freshName('ppt/media', 'vector', 'svg').split('/').pop();
         add('ppt/media/' + name, mb.svg);
         defaults.set('svg', 'image/svg+xml');
         svgMap.set(id, name);
@@ -767,17 +784,36 @@
     };
 
     /* masters & layouts */
-    let nextMasterId = 2147483648;
     const masterIdList = [];
     const layoutPartOf = new Map(); /* designId|layoutKey|lkey -> layout file number */
     let layoutN = 0;
     const masterN = new Map();
     designIds.forEach((did, mi) => {
       const d = pres.designs[did] || L.model.buildDesign('default', pres.W, pres.H);
-      const mRels = new Rels();
       const mNum = mi + 1;
+      const original = d.keep?.source === pres.pkg?.id && d.keep?.values === L.preserve.designValues(d);
+      const used = allSlides.filter(s => s.design === did).map(s => s.layout + (s.lkey ? '|' + s.lkey : ''));
+      if (original && used.every(key => d.keep.layouts[key])) {
+        try {
+          const part = writer.carry(pres.pkg, d.keep.part);
+          pack.bind(`ppt/slideMasters/slideMaster${mNum}.xml`, d.keep.part, 'opaque');
+          pack.bind(`ppt/theme/theme${mNum}.xml`, d.keep.theme, 'opaque');
+          const dep = pres.pkg.rels(pres.pkg.main).find(r => r.part === d.keep.part && K.relationshipType(r.type) === RT('slideMaster'));
+          const id = Array.from(pres.pkg.xml(pres.pkg.main).getElementsByTagName('*')).find(e => e.localName === 'sldMasterId' && Array.from(e.attributes).some(a => a.localName === 'id' && a.namespaceURI?.includes('relationships') && a.value === dep?.id))?.getAttribute('id');
+          const rid = writer.rels(presRels.owner).add(dep?.type || RT('slideMaster'), K.relative(presRels.owner, part), false, dep?.id);
+          masterIdList.push({ id: id || writer.ids.fresh('presentation', 'sldMasterId'), rid });
+          for (const key of used) layoutPartOf.set(did + '|' + key, { original: d.keep.layouts[key] });
+          masterN.set(did, mNum);
+          return;
+        } catch (error) {
+          writer.loss({ id: 'design:' + d.keep.part, what: 'The design was converted because its original dependencies are incomplete: ' + error.message, where: d.keep.part, action: 'conversion' });
+        }
+      }
+      pack.bind(`ppt/slideMasters/slideMaster${mNum}.xml`, d.keep?.part);
+      pack.bind(`ppt/theme/theme${mNum}.xml`, d.keep?.theme, d.keep?.themeValues === JSON.stringify([d.colors, d.fonts]) ? 'opaque' : 'regenerated');
+      const mRels = pack.rels(`ppt/slideMasters/slideMaster${mNum}.xml`);
       masterN.set(did, mNum);
-      const mid = nextMasterId++;
+      const mid = writer.ids.fresh('presentation', 'sldMasterId');
       const keys = new Set(['title', 'text', 'blank', 'titleOnly', 'content']);
       for (const s of allSlides) if (s.design === did) keys.add(s.layout + (s.lkey ? '|' + s.lkey : ''));
       const layoutIds = [];
@@ -785,14 +821,15 @@
         const [key, lkey] = k.split('|');
         const n = ++layoutN;
         layoutPartOf.set(did + '|' + k, n);
-        const lRels = new Rels();
+        pack.bind(`ppt/slideLayouts/slideLayout${n}.xml`, d.keep?.layouts?.[k]);
+        const lRels = pack.rels(`ppt/slideLayouts/slideLayout${n}.xml`);
         lRels.add(RT('slideMaster'), `../slideMasters/slideMaster${mNum}.xml`);
         const lctx = { rels: lRels, media: mediaSync(lRels), slideIndex, nextId: null, idOf: () => null, fieldId: fieldIds(`ppt/slideLayouts/slideLayout${n}.xml`) };
         add(`ppt/slideLayouts/slideLayout${n}.xml`, layoutXML(d, key, lkey, lctx));
         add(`ppt/slideLayouts/_rels/slideLayout${n}.xml.rels`, lRels.xml());
         overrides.push([`/ppt/slideLayouts/slideLayout${n}.xml`, CT.layout]);
         const rid = mRels.add(RT('slideLayout'), `../slideLayouts/slideLayout${n}.xml`);
-        layoutIds.push({ id: nextMasterId++, rid });
+        layoutIds.push({ id: writer.ids.fresh('presentation', 'sldLayoutId'), rid });
       }
       const themeN = mNum;
       mRels.add(RT('theme'), `../theme/theme${themeN}.xml`);
@@ -807,13 +844,21 @@
 
     /* notes master */
     const notesThemeN = designIds.length + 1;
+    const sourceNotesMaster = pack.originals.get('ppt/notesMasters/notesMaster1.xml');
+    let keptNotesMaster = false;
+    if (sourceNotesMaster) {
+      try { writer.carry(pres.pkg, sourceNotesMaster); keptNotesMaster = true; }
+      catch (_) { /* The normal generated fallback below reports the conversion. */ }
+    }
+    if (!keptNotesMaster) {
     add(`ppt/theme/theme${notesThemeN}.xml`, themeXML(pres.designs[designIds[0]] || L.model.buildDesign('default', pres.W, pres.H), 'Notes Theme'));
     overrides.push([`/ppt/theme/theme${notesThemeN}.xml`, CT.theme]);
     add('ppt/notesMasters/notesMaster1.xml', notesMasterXML(pres));
-    const nmRels = new Rels();
+    const nmRels = pack.rels('ppt/notesMasters/notesMaster1.xml');
     nmRels.add(RT('theme'), `../theme/theme${notesThemeN}.xml`);
     add('ppt/notesMasters/_rels/notesMaster1.xml.rels', nmRels.xml());
     overrides.push(['/ppt/notesMasters/notesMaster1.xml', CT.notesMaster]);
+    }
     const notesMasterRid = presRels.add(RT('notesMaster'), 'notesMasters/notesMaster1.xml');
 
     /* slides */
@@ -822,10 +867,13 @@
       const n = i + 1;
       const part = slideParts[i];
       const d = pres.designs[s.design] || pres.designs[designIds[0]];
-      const sRels = writer.rels(part);
+      const sRels = pack.rels(part);
       const lk = s.design + '|' + s.layout + (s.lkey ? '|' + s.lkey : '');
       const ln = layoutPartOf.get(lk) || layoutPartOf.get(designIds[0] + '|text') || 1;
-      sRels.add(RT('slideLayout'), K.relative(part, `ppt/slideLayouts/slideLayout${ln}.xml`));
+      if (ln.original) {
+        const dep = pres.pkg.rels(s.keep?.part || '').find(r => r.part === ln.original && K.relationshipType(r.type) === RT('slideLayout'));
+        writer.rels(sRels.owner).add(dep?.type || RT('slideLayout'), K.relative(sRels.owner, writer.target(pres.pkg, ln.original)), false, dep?.id);
+      } else sRels.add(RT('slideLayout'), K.relative(part, `ppt/slideLayouts/slideLayout${ln}.xml`));
       let rootId = s.keep?.rootId || '1'; writer.ids.reserve(part, 'shape', rootId);
       // Some source decks reuse the structural spTree ID for an actual shape.
       // Keep the visible shape's identity (timing may target it) and repair the root.
@@ -870,14 +918,21 @@
       if (s.hidden) attrs.push('show="0"');
       if (s.hideMaster) attrs.push('showMasterSp="0"');
       const xml = HEAD + `<p:sld ${NSDECL}${attrs.length ? ' ' + attrs.join(' ') : ''}><p:cSld>${s.bg ? bgXML(s.bg, ctx, d) : ''}<p:spTree>${GRP.replace('id="1"', 'id="' + rootId + '"')}${tree}</p:spTree></p:cSld><p:clrMapOvr><a:masterClrMapping/></p:clrMapOvr>${transition}${timing}</p:sld>`;
-      if (s.notes && s.notes.trim()) {
-        const nRels = new Rels();
+      if (s.notes && s.notes.trim() || s.keep?.notes) {
+        if (s.keep?.copy && s.keep.notes?.text === s.notes && pres.pkg?.has(s.keep.notes.part)) {
+          const target = pack.part(`ppt/notesSlides/notesSlide${n}.xml`);
+          writer.copyPart(pres.pkg, s.keep.notes.part, target, { [s.keep.part]: part });
+          sRels.add(RT('notesSlide'), K.relative(part, `ppt/notesSlides/notesSlide${n}.xml`));
+        } else {
+        pack.bind(`ppt/notesSlides/notesSlide${n}.xml`, s.keep?.notes?.part, s.keep?.notes?.text === s.notes ? 'opaque' : 'regenerated');
+        const nRels = pack.rels(`ppt/notesSlides/notesSlide${n}.xml`);
         nRels.add(RT('notesMaster'), '../notesMasters/notesMaster1.xml');
         nRels.add(RT('slide'), K.relative(`ppt/notesSlides/notesSlide${n}.xml`, part));
         add(`ppt/notesSlides/notesSlide${n}.xml`, notesXML(pres, s.notes));
         add(`ppt/notesSlides/_rels/notesSlide${n}.xml.rels`, nRels.xml());
         overrides.push([`/ppt/notesSlides/notesSlide${n}.xml`, CT.notes]);
         sRels.add(RT('notesSlide'), K.relative(part, `ppt/notesSlides/notesSlide${n}.xml`));
+        }
       }
       add(part, xml);
       add(K.relsPath(part), sRels.xml());
@@ -943,7 +998,7 @@
     add('docProps/app.xml', HEAD + `<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes"><TotalTime>0</TotalTime><Words>${words}</Words><Application>Lectern 2003 Web Edition</Application><PresentationFormat>${X(fmtName)}</PresentationFormat><Paragraphs>0</Paragraphs><Slides>${allSlides.length}</Slides><Notes>${allSlides.filter((s) => s.notes && s.notes.trim()).length}</Notes><HiddenSlides>${allSlides.filter((s) => s.hidden).length}</HiddenSlides><MMClips>0</MMClips><ScaleCrop>false</ScaleCrop><Company>${X(p.company || '')}</Company><LinksUpToDate>false</LinksUpToDate><SharedDoc>false</SharedDoc><HyperlinksChanged>false</HyperlinksChanged><AppVersion>11.0000</AppVersion></Properties>`);
     overrides.push(['/docProps/app.xml', CT.app]);
 
-    const rootRels = new Rels();
+    const rootRels = pack.rels('');
     rootRels.add(RT('officeDocument'), 'ppt/presentation.xml');
     rootRels.add('http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties', 'docProps/core.xml');
     rootRels.add(RT('extended-properties'), 'docProps/app.xml');
@@ -953,21 +1008,16 @@
       Array.from(defaults.entries()).map(([e, t]) => `<Default Extension="${e}" ContentType="${t}"/>`).join('') +
       overrides.map(([pn, t]) => `<Override PartName="${pn}" ContentType="${t}"/>`).join('') + '</Types>';
     files.unshift({ name: '[Content_Types].xml', data: ct });
-    const mime = opts.format === 'ppsx' ? 'application/vnd.openxmlformats-officedocument.presentationml.slideshow'
-      : opts.format === 'potx' ? 'application/vnd.openxmlformats-officedocument.presentationml.template'
-        : 'application/vnd.openxmlformats-officedocument.presentationml.presentation';
+    const mime = format.mime;
     const types = new Map(overrides.map(([name, type]) => [name.slice(1), type]));
-    for (const file of files) if (file.name !== '[Content_Types].xml') {
-      if (pres.pkg?.has(file.name)) writer.claim(file.name, 'regenerated');
-      writer.put(file.name, file.data, types.get(file.name) || defaults.get(file.name.split('.').pop()));
-    }
-    const result = writer.finish();
+    for (const file of files) pack.put(file.name, file.data, types.get(file.name) || defaults.get(file.name.split('.').pop()));
+    const result = pack.finish();
     const blob = await L.zip.write(result.files, mime);
     blob.dropped = result.dropped;
     /* a password to open: the package is encrypted (AES-256) inside a compound file, as PowerPoint 2013 and later do */
     if (pres.password && L.officeCrypto) {
       const enc = await L.officeCrypto.encrypt(new Uint8Array(await blob.arrayBuffer()), pres.password);
-      return new Blob([enc], { type: mime });
+      const encrypted = new Blob([enc], { type: mime }); encrypted.dropped = result.dropped; return encrypted;
     }
     return blob;
   }

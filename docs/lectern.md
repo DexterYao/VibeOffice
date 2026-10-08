@@ -26,7 +26,7 @@ The app is `public/lectern/` (`python3 tools/serve.py`, then http://127.0.0.1:87
 | `js/dialogs.js` | Font, Bullets, Format AutoShape, Fill Effects, Header & Footer, Options (with Security), etc. |
 | `js/panes.js` | Slides/Outline tab, notes, sorter, notes page, print preview, task panes |
 | `js/slideshow.js` | Full-screen show, 58 transitions, 50+ entrance/emphasis/exit/motion-path effects, pen, rehearse timings |
-| `js/preserve.js` | Model-attached media frames, sound properties, playback timing, property invalidation and clipboard dependency transport |
+| `js/preserve.js` | Package ownership and settings merges; model-attached media, playback, property invalidation and clipboard dependencies |
 | `js/pptx-read.js` | PresentationML import (themes, masters, layouts, placeholders, table styles, charts, SmartArt, custom geometry, animations; repairs damaged packages) |
 | `js/pptx-write.js` | PresentationML export (validated against the OOXML schema) |
 | `js/commands.js` | Every menu/toolbar command |
@@ -100,10 +100,36 @@ To run the harness: serve Lectern (`python3 tools/serve.py`) and the folder abov
 ## What a save keeps, converts and drops
 
 Lectern regenerates slide content from its model and carries original media properties alongside it.
-The media stage below measures the current implementation. Other unsupported features remain subject
-to the losses in the baseline tables; package and general object preservation are still in progress.
+The media and package stages below measure the current implementation. General object preservation
+is still in progress; the older baseline tables remain relevant to those unfinished paths.
 `tools/lectern/test/loss-audit.py` compares original and saved packages feature by feature and word by
 word (`python3 tools/lectern/test/loss-audit.py corpus/ saved/ out.json`).
+
+### Package preservation (2026-10-08)
+
+Save, Save As and draft recovery keep all six variants: `.pptx`, `.pptm`, `.ppsx`, `.ppsm`, `.potx`,
+`.potm`. Password-protected drafts remain encrypted. VBA is preserved in macro-enabled formats;
+macro-free Save As reports its removal in the Compatibility Checker before download. A cancelled
+save neither changes the file identity nor acknowledges the warning.
+
+Custom XML, tags, custom-property types/pids, labels, embedded fonts, comment authors, handout and
+notes masters are carried through their original relationships. Unedited notes pages keep their
+header/footer text; duplicating a slide copies its notes page and redirects the backlink. Unedited
+designs used by slides retain their original master, all its layouts and theme. Carrying masters that
+no slide uses, design-edit invalidation, section/custom-show edits and general opaque frames remain
+work for the next Lectern stage.
+
+The pinned run remains **840 save/reopen, 3 failed, 1 excluded**. Package/SDK comparison remains
+**822 OK, 21 failed, 1 excluded**, with no additional diagnostics in that measured run. Independent
+checks retain **111 custom XML, 70 custom-property, 33 tag, 29 comment-author, 12 font, 7 VBA and 1
+label relationships**, plus **97 handout-master and 932 notes-master references**, with their bytes,
+content types, rIds and targets intact. The repeated media check passes **110 of 110** operations.
+
+The checker reports entries recorded by the implemented preservation paths. Complete reporting of
+content conversions depends on the remaining object work. Reports are retained in
+`~/corpora/results/package-preservation-2026-10-08/`; samples are in
+`~/Downloads/lossless-check/lectern/package/`. PowerPoint acceptance and the slide-6 repair diagnosis
+remain pending. Full-corpus LibreOffice rendering has not been completed.
 
 The following older baseline used 1,652 decks, before preservation was added. Its media counts have
 not been remeasured on that larger corpus; the pinned three-source corpus below is reproducible.
@@ -230,7 +256,7 @@ this stage.
 
 ## Known limits
 
-* Legacy binary `.ppt` files must be re-saved as `.pptx` first. Macros in `.pptm` files are not kept; the file is saved as `.pptx`. See *What a save keeps, converts and drops* for everything else a save leaves out.
+* Legacy binary `.ppt` files must be re-saved as `.pptx` first. Macro-enabled OOXML variants keep their VBA; see *What a save keeps, converts and drops* for the remaining preservation gaps.
 * SmartArt imports as grouped shapes. When a file carries only the diagram data (PowerPoint 2007 saved no drawing), Lectern lays it out itself with one of its built-in layout families, so unusual layouts look simpler than in PowerPoint.
 * 3-D charts are drawn in a fixed oblique view (no perspective, no lighting); surface charts, trendlines and error bars are not drawn (they are kept in unedited charts).
 * Embedded OLE objects and ActiveX controls import as their preview pictures.

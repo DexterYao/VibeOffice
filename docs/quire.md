@@ -1,7 +1,7 @@
 # Quire 2003 — Web Edition
 
 A Word 2003–style word processor written in plain HTML and vanilla JavaScript (no build step, no
-libraries). It reads and writes Office Open XML (`.docx`) files.
+libraries). It reads and writes Office Open XML (`.docx`, `.docm`, `.dotx`, `.dotm`) files.
 
 ## Running it
 
@@ -114,10 +114,48 @@ Checks (tools in docs/testing.md):
 
 ## What a save keeps, converts and drops
 
-Quire reads a document into its own model and writes a new file from it, so anything the model has no
-place for is left out of the saved file, and today there is no warning when that happens (the one
-exception: embedded HTML/RTF documents are reported when the file opens). `tools/quire/test/loss-audit.py` measures
-it by comparing each of 2,778 test documents with Quire's saved copy, feature by feature and word by word
+Quire regenerates document content from its model and carries original package dependencies alongside
+it. Package preservation is implemented; content controls, opaque objects and unknown run/paragraph
+properties are still being integrated. The Compatibility Checker reports recorded losses before a
+user save. Its coverage is incomplete until those remaining object paths populate the loss ledger.
+
+### Package preservation (2026-10-08)
+
+Save, Save As and draft recovery support `.docx`, `.docm`, `.dotx` and `.dotm`, including encryption.
+The main-part content type determines the imported variant. Macros remain in macro-enabled saves;
+choosing a macro-free type reports their removal before download. Cancelling keeps the current file
+identity and does not acknowledge the loss.
+
+The pinned 2,902-file run saves and reopens **2,880**, with the same **22 failures** as the baseline.
+Package/SDK comparison reports **2,792 OK and 110 failed**, up from 2,768 OK. Failed originals and
+remaining content-writer diagnostics are counted, not accepted as passes. The independent package
+audit checks original bytes, content types and relationship identities:
+
+| Package feature | Preserved relationships |
+|---|---:|
+| Custom XML stores / their property parts | 965 / 965 each |
+| Custom document properties, including empty bags and original types/pids | 353 / 353 |
+| Attached templates | 102 / 102 |
+| Referenced embedded fonts | 20 / 20 |
+| VBA projects | 17 / 17 |
+| Glossary | 193 / 195 |
+| People / comment identity parts | 95 / 95; 15 / 15 |
+| Sensitivity labels | 1 / 1 |
+
+The two glossary exceptions have missing source dependencies. Orphaned parts with no incoming
+relationship (including three font files) are not reattached; drops are recorded. Settings retain
+unowned children, font-table entries retain embedding metadata, and existing comment paragraph IDs
+and special footnote/endnote entries survive. General drawing/bookmark identity preservation remains
+part of the next object stage.
+
+Reports: `~/corpora/results/package-preservation-2026-10-08/`. Word samples are in
+`~/Downloads/lossless-check/quire/package/`; Office acceptance is pending. The 24 Markdown fixtures
+still save byte for byte unchanged, and each scripted edit stays within its edited block.
+
+### Historical feature baseline
+
+The following larger-corpus figures predate package preservation. `tools/quire/test/loss-audit.py`
+compared 2,778 test documents with saved copies, feature by feature and word by word
 (`python3 tools/quire/test/loss-audit.py originals/ saved/ out.json`, standard library only).
 
 **Kept.** The text: 2,724 documents keep every word, and over the whole set 666,082 of 666,941 words
@@ -251,11 +289,12 @@ rich text, and RC4-encrypted files from Office 97–2003.
 | --- | --- |
 | `index.html` | Window chrome, CSS (Office 2003 Luna Blue), script order |
 | `../common/core.js`, `../common/zip.js` | Utilities, colour maths, storage, ZIP reader/writer, PDF writer, downloads |
-| `../common/xml.js`, `../common/opc.js`, `../common/opc-order.js` | Shared OOXML preservation core and original AlternateContent capture; writer integration is in progress |
+| `../common/xml.js`, `../common/opc.js`, `../common/opc-order.js` | Shared OOXML package graph, identity reservations, AlternateContent capture and schema-order merges |
 | `../common/sha.js`, `../common/crypto.js` | Password-protected documents: compound-file reader/writer, AES, ECMA-376 agile and standard encryption |
 | `js/dmodel.js`, `js/ops.js` | Document model (paragraphs, runs, tables, sections, styles, numbering), undo history, editing operations |
 | `js/render.js`, `js/layout.js` | Paragraph/run rendering, pagination, headers/footers, footnotes, columns, floats |
 | `js/editor.js` | contentEditable bridge: selection mapping, typing, IME, clipboard, keyboard |
+| `js/preserve.js` | Package ownership and settings, font-table and document-property merges |
 | `js/docx-read.js`, `js/docx-write.js`, `../common/dml.js` | `.docx` import/export, DrawingML/VML shapes, charts, themes |
 | `js/rtf.js`, `js/htmlio.js` | RTF and HTML import/export |
 | `js/markdown.js`, `js/mdio.js` | Markdown reader (CommonMark + GitHub extensions, with source lines; also loads in Node) and Markdown/`.zip` import and export |

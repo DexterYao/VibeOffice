@@ -54,6 +54,10 @@ test('timing and connector targets must identify existing shapes and timing node
   assert.equal(codes.filter(c => c === 'unresolved-shape-id').length, 2);
   assert.ok(codes.includes('unresolved-timing-id'));
 });
+test('VML spid defines the VML shape rather than referring to a DrawingML shape', async () => {
+  const file = await pkg('vml', { 'drawing.xml': '<v:shape xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" id="Watermark" o:spid="_x0000_s2050"/>' });
+  assert.equal(run('check', file).status, 'ok');
+});
 test('content types and pivot cache identities are checked', async () => {
   const ns = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';
   const file = await pkg('pivot', { 'xl/workbook.xml': `<workbook xmlns="${ns}"><pivotCaches><pivotCache cacheId="1"/></pivotCaches></workbook>`, 'xl/pivot.xml': `<pivotTableDefinition xmlns="${ns}" cacheId="2"/>`, 'raw.bin': new Uint8Array([0, 1]) });
