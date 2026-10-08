@@ -657,11 +657,13 @@
 
     /* ---- story parsing ---- */
     let fid = 0;
-    function storyCtx(partPath, relMap, story) { return { part: partPath, rels: relMap, story, stores, fstack: [], dropFids: new Set(), cmtOpen: new Set(), pendingBm: [], hyper: new Map() }; }
+    function storyCtx(partPath, relMap, story) { return { part: partPath, rels: relMap, story, stores, vmlTypes, fstack: [], dropFids: new Set(), cmtOpen: new Set(), pendingBm: [], hyper: new Map() }; }
 
     function parseBlocks(el, ctx, out) {
       out = out || [];
+      const ac = L.preserve.readAlternates(el, out, ctx, doc, 'block');
       for (const c of el.children) {
+        const from = out.length;
         switch (c.localName) {
           case 'p': { const p = parseP(c, ctx); if (p) out.push(p); break; }
           case 'tbl': { const t = parseTbl(c, ctx); if (t) out.push(t); break; }
@@ -683,10 +685,12 @@
           case 'bookmarkEnd': case 'permEnd': { const last = lastParaIn(out), item = L.preserve.rangeMarker(c, { pkg: doc.pkg, part: ctx.part }); if (last) last.runs.push(item); else ctx.pendingBm.push(item); break; }
           case 'commentRangeStart': ctx.pendingBm.push(D.item('cs', { id: at(c, 'id') })); break;
           case 'commentRangeEnd': { const last = lastParaIn(out); const it = D.item('ce', { id: at(c, 'id') }); if (last) last.runs.push(it); else ctx.pendingBm.push(it); break; }
-          case 'altChunk': ctx.altChunk = true; break;
+          case 'altChunk': out.push(L.preserve.opaqueBlock(c, ctx, doc, 'Embedded document')); break;
           default: break;
         }
+        ac.add(c, from);
       }
+      ac.finish();
       return out;
     }
     const lastParaIn = (bl) => { for (let i = bl.length - 1; i >= 0; i--) { if (bl[i].t === 'p') return bl[i]; if (bl[i].t === 'tbl') return D.lastPara([bl[i]]); } return null; };
@@ -716,7 +720,9 @@
 
     /* inline content */
     function parseInline(el, p, ctx, inh) {
+      const ac = L.preserve.readAlternates(el, p.runs, ctx, doc, 'inline', inh);
       for (const c of el.children) {
+        const from = p.runs.length;
         switch (c.localName) {
           case 'r': parseRun(c, p, ctx, inh); break;
           case 'hyperlink': {
@@ -764,7 +770,9 @@
           case 'r_': break;
           default: break;
         }
+        ac.add(c, from);
       }
+      ac.finish();
     }
     function mathItem(c) {
       const text = descAll(c, 't').map((t) => t.textContent).join('');
@@ -798,9 +806,11 @@
         if (inInstr(ctx) && it.t !== 'fb' && it.t !== 'fs' && it.t !== 'fe') return;
         p.runs.push(it);
       };
-      const text = (s) => { if (!s) return; const last = p.runs[p.runs.length - 1]; if (last && last.t === 'text' && last.rPr === base && !inInstr(ctx)) last.text += s; else push(D.text(s, base)); };
+      const text = s => { if (s) push(D.text(s, base)); };
       let customMark = false;
+      const ac = L.preserve.readAlternates(r, p.runs, ctx, doc, 'run', base);
       for (const c of r.children) {
+        const from = p.runs.length;
         switch (c.localName) {
           case 'rPr': break;
           case 't': {
@@ -885,10 +895,16 @@
             if (!hasStart) { p.runs.push(D.item('cs', { id })); p.runs.push(D.item('ce', { id })); }
             break;
           }
-          case 'drawing': { const it = parseDrawing(c, ctx, base); if (it) push(it); break; }
-          case 'pict': case 'object': { const it = parseVML(c, ctx, base); if (it) push(it); break; }
+          case 'drawing': { const it = parseDrawing(c, ctx, base); push(L.preserve.keepObject(it, c, ctx, doc, it?.diagram ? 'SmartArt' : it?.alt || 'Drawing')); break; }
+          case 'pict': case 'object': {
+            const it = parseVML(c, ctx, base);
+            if (it) push(L.preserve.keepObject(it, c, ctx, doc, c.localName === 'object' ? 'Embedded object' : 'Drawing'));
+            else if (!Array.from(c.getElementsByTagName('*')).some(e => /WaterMark/i.test(at(e, 'id') || ''))) push(L.preserve.keepObject(null, c, ctx, doc, 'Drawing'));
+            break;
+          }
+          case 'control': case 'contentPart': { const it = L.preserve.keepObject(null, c, ctx, doc, c.localName === 'control' ? 'Form control' : 'Embedded content'); it.rPr = base; push(it); break; }
           case 'pgNum': { const f = 'f' + ++fid; push(D.item('fb', { fid: f, instr: ' PAGE ' }, base)); push(D.item('fs', { fid: f }, base)); text('1'); push(D.item('fe', { fid: f }, base)); break; }
-          case 'lastRenderedPageBreak': case 'annotationRef': case 'contentPart': break;
+          case 'lastRenderedPageBreak': case 'annotationRef': break;
           case 'ruby': {
             /* phonetic guide: kept as one inline object (base text with its annotation above) */
             const rb = kid(c, 'rubyBase'), rtEl = kid(c, 'rt');
@@ -903,7 +919,9 @@
           case 'dayShort': case 'monthShort': case 'yearShort': case 'dayLong': case 'monthLong': case 'yearLong': break;
           default: break;
         }
+        ac.add(c, from);
       }
+      ac.finish();
       if (customMark) {
         /* the custom footnote mark is the run's own text */
         const txt = descAll(r, 't').map((x) => x.textContent).join('');
@@ -1734,7 +1752,6 @@
     if (!doc.main.blocks.length || doc.main.blocks[doc.main.blocks.length - 1].t !== 'p') doc.main.blocks.push(D.para());
     if (mctx.pendingBm.length) doc.main.blocks[doc.main.blocks.length - 1].runs.push(...mctx.pendingBm);
     finishStory(doc.main, mctx);
-    if (mctx.altChunk) warnings.push('Embedded documents (altChunk) are not displayed.');
 
     function finishStory(story, ctx) {
       /* drop hyperlink field markers (links live on the runs) and repair unmatched field markers */
@@ -1768,6 +1785,7 @@
     D.walk(doc.main, (b) => { if (b.t === 'p' && b.pPr.num && b.pPr.num.id && b.pPr.num.id !== '0' && !doc.numbering.nums[b.pPr.num.id]) delete b.pPr.num; });
     D.stylesChanged();
     doc._idxDirty = true;
+    L.preserve.finishObjects(doc);
     return { doc, warnings };
   };
 })();

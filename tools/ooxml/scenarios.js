@@ -10,8 +10,9 @@
       const D = L.D;
       D.doc = doc; D.resetHistory();
       let p;
-      const objectScenario = ['geometry', 'delete-object'].includes(scenario);
+      const objectScenario = ['geometry', 'delete-object', 'duplicate'].includes(scenario);
       D.walk(doc.main, b => { if (!p && b.t === 'p' && b.runs.some(r => objectScenario ? ['img', 'shape', 'group', 'chart'].includes(r.t) : r.t === 'text')) p = b; });
+      if (!p && scenario === 'duplicate') D.walk(doc.main, b => { if (!p && b.t === 'p' && b.runs.some(r => r.t === 'text')) p = b; });
       if (!p) skip('No editable paragraph');
       const object = p.runs.find(r => ['img', 'shape', 'group', 'chart'].includes(r.t));
       if (['geometry', 'delete-object'].includes(scenario) && !object) skip('Selected paragraph has no drawing');

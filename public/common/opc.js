@@ -272,6 +272,20 @@
     const isP = ns === NS.p || ns === 'http://purl.oclc.org/ooxml/presentationml/main';
     const isS = ns === NS.s || ns === 'http://purl.oclc.org/ooxml/spreadsheetml/main';
     let kind, scope = part, definition = false;
+    if (isW && tag === 'control' && name === 'name') {
+      const m = /^(.*?)(\d+)$/.exec(a.value), prefix = m ? m[1] : a.value + '_';
+      return { kind: 'controlName:' + prefix, scope: 'document', id: m ? m[2] : '0', prefix, literal: a.value, definition: true };
+    }
+    if (ns === K.KNOWN_NS.v && (tag === 'shapetype' && name === 'id' || name === 'type' && a.value.startsWith('#'))) {
+      const reference = name === 'type', value = a.value.replace(/^#/, ''), m = /^(_x0000_t)(\d+)$/.exec(value);
+      return { kind: m ? 'vmlType:' + m[1] : 'vmlType', scope, id: m ? m[2] : value, prefix: (reference ? '#' : '') + (m?.[1] || ''), definition: !reference };
+    }
+    const vmlDefinition = ns === K.KNOWN_NS.v && (name === 'id' && tag !== 'shapetype' || name === 'spid');
+    const vmlReference = ns === K.KNOWN_NS.o && tag === 'OLEObject' && name === 'ShapeID' || isW && tag === 'control' && name === 'shapeid';
+    if (vmlDefinition || vmlReference) {
+      const m = /^(_x0000_[a-z])(\d+)$/.exec(a.value);
+      return { kind: m ? 'vml:' + m[1] : 'vml', scope, id: m ? m[2] : a.value, prefix: m?.[1] || '', definition: vmlDefinition };
+    }
     if (tag === 'docPr' && name === 'id' && ns.includes('wordprocessingDrawing')) { kind = 'docPr'; scope = 'document'; definition = true; }
     else if (tag === 'cNvPr' && name === 'id') { kind = 'shape'; definition = true; }
     else if (isP && tag === 'cTn' && name === 'id') { kind = 'timing'; definition = true; }
@@ -591,10 +605,22 @@
     }
     for (const vml of nodes.vml) {
       let style = vml.getAttribute('style');
+      const setStyle = (name, value) => {
+        const re = new RegExp('(^|;)(\\s*' + name + '\\s*:)[^;]*');
+        style = re.test(style) ? style.replace(re, (_, before, label) => before + label + value) : style + (style.endsWith(';') ? '' : ';') + name + ':' + value;
+      };
       for (const [key, property] of [['x', 'left'], ['y', 'top'], ['w', 'width'], ['h', 'height']]) if (box[key] != null) {
         const name = new RegExp('(?:^|;)\\s*margin-' + property + '\\s*:').test(style) ? 'margin-' + property : property;
         const re = new RegExp('(^|;)(\\s*' + name + '\\s*:)[^;]*');
         style = re.test(style) ? style.replace(re, (_, before, label) => before + label + box[key] + 'pt') : style + (style.endsWith(';') ? '' : ';') + name + ':' + box[key] + 'pt';
+      }
+      if (box.x != null) setStyle('mso-position-horizontal', 'absolute');
+      if (box.y != null) setStyle('mso-position-vertical', 'absolute');
+      if (box.rot != null) setStyle('rotation', box.rot);
+      if (box.flipH != null || box.flipV != null) {
+        const old = /(?:^|;)\s*flip\s*:([^;]*)/.exec(style)?.[1] || '';
+        const h = box.flipH ?? old.includes('x'), v = box.flipV ?? old.includes('y');
+        setStyle('flip', (h ? 'x' : '') + (v ? 'y' : '') || 'none');
       }
       attr(vml, 'style', style);
       walk(vml, el => {
@@ -798,6 +824,8 @@
       const copy = options.copy || fragment.copy;
       const definitions = fragment.copyDefinitions || fragment.ids.filter(i => i.definition);
       if (copy) this.ids.copy(copy, definitions);
+      const localCopy = i => i.copy ? (copy ? copy + ':' : '') + i.copy : copy;
+      for (const key of new Set(fragment.ids.map(i => i.copy).filter(Boolean))) this.ids.copy((copy ? copy + ':' : '') + key, definitions.filter(i => i.copy === key));
       if (fragment.source !== this.pkg?.id || owner !== fragment.part) {
         const available = new Set(definitions.concat(options.references || []).map(i => this.ids.key(i.source, i.scope, i.kind, i.id)));
         const unresolved = fragment.ids.find(i => !i.definition && ['shape', 'timing'].includes(i.kind) && i.scope === fragment.part && !available.has(this.ids.key(i.source, i.scope, i.kind, i.id)));
@@ -810,9 +838,10 @@
       const dependencies = fragment.deps.map(d => {
         const id = this.keepRel(owner, d); if (!id) throw new Error('Fragment dependency was removed'); return id;
       });
-      const ids = fragment.ids.map(i => this.ids.resolve(i.source, i.scope, i.kind, i.id, {
-        primary: this.pkg?.id, copy, scope: i.scope === fragment.part ? owner : i.scope,
-      }));
+      const ids = fragment.ids.map(i => {
+        const value = this.ids.resolve(i.source, i.scope, i.kind, i.id, { primary: this.pkg?.id, copy: localCopy(i), scope: i.scope === fragment.part ? owner : i.scope });
+        return i.literal && value === i.id ? i.literal : (i.prefix || '') + value;
+      });
       let xml = fragment.xml.replace(/\u0001(rel|id):(\d+)\u0001/g, (_, kind, n) => {
         const value = (kind === 'rel' ? dependencies : ids)[+n];
         if (value == null) throw new Error('Invalid fragment token'); return esc(value);

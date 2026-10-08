@@ -115,9 +115,10 @@ Checks (tools in docs/testing.md):
 ## What a save keeps, converts and drops
 
 Quire regenerates document content from its model and carries original package dependencies alongside
-it. Package preservation, content-control boundaries, run/paragraph properties, permission ranges and
-page backgrounds are implemented. Opaque objects are still being integrated. The Compatibility Checker reports recorded losses before a
-user save. Its coverage is incomplete until those remaining object paths populate the loss ledger.
+it. Package preservation, content-control boundaries, run/paragraph properties, permission ranges,
+page backgrounds and opaque drawing frames are implemented. Drawing-property edits and some
+compatibility-wrapper positions remain unfinished. The Compatibility Checker reports recorded
+losses before a user save; coverage of the remaining conversion paths is incomplete.
 
 ### Package preservation (2026-10-08)
 
@@ -145,8 +146,8 @@ audit checks original bytes, content types and relationship identities:
 The two glossary exceptions have missing source dependencies. Orphaned parts with no incoming
 relationship (including three font files) are not reattached; drops are recorded. Settings retain
 unowned children, font-table entries retain embedding metadata, and existing comment paragraph IDs
-and special footnote/endnote entries survive. Bookmark and permission identities now survive too;
-general drawing identity preservation remains part of the next object stage.
+and special footnote/endnote entries survive. Bookmark, permission and retained drawing identities
+survive too; copies receive new identities with their references remapped together.
 
 Reports: `~/corpora/results/package-preservation-2026-10-08/`. Word samples are in
 `~/Downloads/lossless-check/quire/package/`; Office acceptance is pending. The 24 Markdown fixtures
@@ -175,7 +176,7 @@ selections keep their text without introducing dangling control or bookmark mark
 The context menu has **Content Control Value…** for dates, lists and checkboxes. Complex XML/Flat OPC
 bindings remain intact while untouched; editing them unbinds the control and reports that conversion.
 Copying a built-in document-property binding to another document also unbinds it and reports it.
-Preserving the wrapper does not yet preserve every unsupported object inside its content.
+The object increment below also retains opaque drawings inside these wrappers.
 
 Focused measurement: **8/8 authored files** retain all **16/16 controls**, including row and cell
 wrappers, with no new package or Open XML SDK diagnostics. Three authored edit fixtures pass **25
@@ -192,8 +193,8 @@ Reports: `~/corpora/results/quire-controls-2026-10-08/`. Review copies:
 Run and paragraph properties retain their original children and attributes, including Word 2010
 glow, reflection, shadow, 3-D text and typography extensions. This applies to direct formatting,
 styles, paragraph marks and numbering-level properties. Compatibility alternatives inside these
-properties are captured before the reader selects a branch. Drawing effects are a separate,
-unfinished object-preservation step.
+properties are captured before the reader selects a branch. Drawing effects survive in retained
+frames; replacing individual drawing properties remains a separate, unfinished step.
 
 | Edit | Preservation behavior |
 |---|---|
@@ -217,6 +218,47 @@ errors; only the existing font requests leave localhost. No full corpus rerun wa
 
 Reports: `~/corpora/results/quire-properties-2026-10-08/`. Word review copies:
 `~/Downloads/lossless-check/quire/properties/`. Office acceptance remains pending.
+
+### Opaque objects and compatibility alternatives (2026-10-08)
+
+Original DrawingML/VML frames, OLE objects, ActiveX controls, SmartArt and embedded-document
+(`altChunk`) blocks travel with their model objects and dependency parts. Embedded documents and
+objects without a usable preview show a placeholder. Compatibility choices and fallbacks are
+captured before normalisation, including choices producing no displayed content; a wrapper that
+produces several items is emitted once. VML shapes, shared shape types and control names receive
+matching fresh identities on copy. Foreign paste carries preview bytes as well as the original
+payload, and remaps SmartArt's implicit drawing link through a private data part when required.
+
+| Edit | Preservation behavior |
+|---|---|
+| Edit surrounding document text | Keep the original object XML and dependency bytes |
+| Move, resize, rotate or flip one object | Update its anchor/transform, including both compatibility branches |
+| Resize a SmartArt preview group | Keep diagram data; accept either scaled children or changed outer extent |
+| Edit/ungroup converted contents or replace the picture | Write the editable conversion and report it |
+| Duplicate or paste into another document | Carry dependencies/previews and remap identities together |
+| Delete an object or part of a multi-item compatibility choice | Never restore deleted content; remove the frame or convert surviving items and report it |
+| Undo and drafts | Restore retained frames and dependency references |
+
+Limits: editing a drawing property currently converts its whole frame; per-property effect/crop
+merging is still pending. Changing wrapping or anchor reference mode also converts the frame.
+Moving one of several drawings owned by a single compatibility wrapper converts that wrapper.
+Run, inline and block alternatives are handled; alternatives around table rows/cells and the
+existing watermark conversion path still need integration.
+
+Six authored save fixtures retain **18/18 tracked elements**: four compatibility wrappers, eight
+3-D effect nodes, two SmartArt frames, two controls, one OLE object and one embedded-document block.
+All **15/15 diagram/ActiveX/embedded-object payload parts** are byte-identical. The six final saves
+have no new package/SDK diagnostics. SmartArt geometry, duplicate and deletion edits plus undo/redo
+pass in nine saved states; ActiveX duplicate/undo/redo pass after fixing duplicate VML type IDs and
+control names. Two foreign-clipboard fixtures exercise conversion, undo and drafts; all ten output
+states have no new package/SDK diagnostics. Existing duplicate shape IDs in an original diagram
+remain unchanged. Three object model tests and 26 shared OPC tests pass. These are focused checks,
+not a new full-corpus result. A pasted OLE sample opens in LibreOffice at one page before/after;
+all three apps load without console errors and the embedded-document placeholder was inspected.
+
+Reports, including the initial failures and corrected copies:
+`~/corpora/results/quire-objects-2026-10-08/`. Word review copies:
+`~/Downloads/lossless-check/quire/objects/`. Office acceptance remains pending.
 
 ### Historical feature baseline
 
@@ -360,7 +402,7 @@ rich text, and RC4-encrypted files from Office 97–2003.
 | `js/dmodel.js`, `js/ops.js` | Document model (paragraphs, runs, tables, sections, styles, numbering), undo history, editing operations |
 | `js/render.js`, `js/layout.js` | Paragraph/run rendering, pagination, headers/footers, footnotes, columns, floats |
 | `js/editor.js` | contentEditable bridge: selection mapping, typing, IME, clipboard, keyboard |
-| `js/preserve.js` | Package ownership/merges; content-control wrappers, mutation rules, XML bindings and clipboard dependencies |
+| `js/preserve.js` | Package ownership/merges; controls and XML bindings; property/range preservation; opaque frames, compatibility alternatives and clipboard dependencies |
 | `js/docx-read.js`, `js/docx-write.js`, `../common/dml.js` | `.docx` import/export, DrawingML/VML shapes, charts, themes |
 | `js/rtf.js`, `js/htmlio.js` | RTF and HTML import/export |
 | `js/markdown.js`, `js/mdio.js` | Markdown reader (CommonMark + GitHub extensions, with source lines; also loads in Node) and Markdown/`.zip` import and export |

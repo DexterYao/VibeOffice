@@ -37,6 +37,7 @@
   };
   /** item length in character positions */
   D.ilen = (it) => {
+    if (it.zero) return 0;
     switch (it.t) {
       case 'text': return it.text.length;
       case 'cs': case 'ce': case 'bs': case 'be': case 'fb': case 'fs': case 'fe': case 'perm': case 'sdts': case 'sdte': return 0;
@@ -790,7 +791,7 @@
     for (const it of p.runs) {
       if (it.t === 'text' && !it.text) continue;
       const last = out[out.length - 1];
-      if (last && it.t === 'text' && last.t === 'text' && sameR(last.rPr, it.rPr)) { out[out.length - 1] = Object.assign({}, last, { text: last.text + it.text }); continue; }
+      if (last && it.t === 'text' && last.t === 'text' && !it.keep?.ac && !last.keep?.ac && sameR(last.rPr, it.rPr)) { out[out.length - 1] = Object.assign({}, last, { text: last.text + it.text }); continue; }
       out.push(it);
     }
     p.runs = out;

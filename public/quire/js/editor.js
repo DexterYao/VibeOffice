@@ -763,7 +763,7 @@
     const cd = e.clipboardData;
     let q = null;
     try { q = cd.getData('application/x-quire'); } catch (err) { /* ignore */ }
-    if (q) { try { const o = JSON.parse(q); const blocks = o.preserved ? L.opc.remapSources(o.blocks, L.opc.import(o.preserved)) : o.blocks; E.pasteBlocks(blocks); return; } catch (err) { /* fall through */ } }
+    if (q) { try { const o = JSON.parse(q); const blocks = o.preserved ? await L.preserve.hydrateClipboard(L.opc.remapSources(o.blocks, L.opc.import(o.preserved))) : o.blocks; E.pasteBlocks(blocks); return; } catch (err) { /* fall through */ } }
     const files = Array.from(cd.files || []).filter((f) => /^image\//.test(f.type));
     if (files.length && L.app && L.app.insertPictureFiles) { L.app.insertPictureFiles(files); return; }
     const html = cd.getData('text/html');

@@ -289,6 +289,20 @@
     return out;
   }
   /** XML for a paragraph's runs */
+  function wrapRunGroup(inner, r, ctx) {
+    if (!inner) return '';
+    const { link, ins, del } = r;
+    if (ins) inner = `<w:ins w:id="${ctx.rev()}" w:author="${X(ins.author)}" ${DT(ins.date)}>${inner}</w:ins>`;
+    if (del) inner = `<w:del w:id="${ctx.rev()}" w:author="${X(del.author)}" ${DT(del.date)}>${inner}</w:del>`;
+    if (link) {
+      const a = [];
+      if (link.url) a.push(`r:id="${ctx.rels.add(RT('hyperlink'), link.url, true)}"`);
+      if (link.anchor) a.push(`w:anchor="${X(link.anchor)}"`);
+      if (link.tip) a.push(`w:tooltip="${X(link.tip)}"`);
+      a.push('w:history="1"'); inner = `<w:hyperlink ${a.join(' ')}>${inner}</w:hyperlink>`;
+    }
+    return inner;
+  }
   function runsXML(p, ctx) {
     const items = p.runs;
     let out = '';
@@ -296,6 +310,11 @@
     let i = 0;
     while (i < items.length) {
       const it = items[i];
+      const original = L.preserve.objectXML(it, 'ac', ctx);
+      if (original != null) {
+        if (original) out += it.keep.ac.scope === 'run' ? wrapRunGroup(runWrap(it.rPr, original, ctx), it.rPr || {}, ctx) : wrapRunGroup(original, it.keep.ac.wrapper || {}, ctx);
+        i++; continue;
+      }
       if (it.t === 'sdts') {
         const end = items.findIndex((n, at) => at > i && n.t === 'sdte' && n.key === it.control.key);
         if (end >= 0) { out += L.preserve.controlXML(it.control, runsXML({ ...p, runs: items.slice(i + 1, end) }, ctx), ctx); i = end + 1; continue; }
@@ -309,6 +328,7 @@
       if (link || ins || del) {
         while (j < items.length) {
           const n = items[j], nr = n.rPr || {};
+          if (n.keep?.ac) break;
           if (D.isMarker(n) && n.t !== 'fb' && n.t !== 'fs' && n.t !== 'fe') break;
           if (!sameLink(link, D.ilen(n) ? nr.link : null) || !sameRev(ins, nr.ins) || !sameRev(del, nr.del)) break;
           j++;
@@ -317,17 +337,7 @@
       let inner = '';
       for (let k = i; k < j; k++) inner += itemXML(items[k], p, ctx, !!del);
       /* revision marks sit inside hyperlinks (w:hyperlink may contain w:ins/w:del, not the reverse) */
-      if (ins) inner = `<w:ins w:id="${ctx.rev()}" w:author="${X(ins.author)}" ${DT(ins.date)}>${inner}</w:ins>`;
-      if (del) inner = `<w:del w:id="${ctx.rev()}" w:author="${X(del.author)}" ${DT(del.date)}>${inner}</w:del>`;
-      if (link) {
-        const a = [];
-        if (link.url) a.push(`r:id="${ctx.rels.add(RT('hyperlink'), link.url, true)}"`);
-        if (link.anchor) a.push(`w:anchor="${X(link.anchor)}"`);
-        if (link.tip) a.push(`w:tooltip="${X(link.tip)}"`);
-        a.push('w:history="1"');
-        inner = `<w:hyperlink ${a.join(' ')}>${inner}</w:hyperlink>`;
-      }
-      out += inner;
+      out += wrapRunGroup(inner, { link, ins, del }, ctx);
       i = j;
     }
     return out;
@@ -344,6 +354,8 @@
   }
   function itemXML(it, p, ctx, del) {
     const r = it.rPr || {};
+    const original = L.preserve.objectXML(it, 'opaque', ctx);
+    if (original != null) return original ? runWrap(r, original, ctx) : '';
     switch (it.t) {
       case 'text': return runWrap(r, textXML(it.text, del), ctx);
       case 'tab': return runWrap(r, '<w:tab/>', ctx);
@@ -608,7 +620,7 @@
     return x + '</w:tbl>';
   }
   function blocksXML(blocks, ctx) {
-    return L.preserve.controlSequence(blocks, b => b.t === 'p' ? b.pPr : b.tblPr, b => b.t === 'p' ? paraXML(b, ctx) : b.t === 'tbl' ? tableXML(b, ctx) : '', ctx);
+    return L.preserve.controlSequence(blocks, b => b.t === 'p' ? b.pPr : b.tblPr, b => L.preserve.objectXML(b, 'ac', ctx) ?? L.preserve.objectXML(b, 'opaque', ctx) ?? (b.t === 'p' ? paraXML(b, ctx) : b.t === 'tbl' ? tableXML(b, ctx) : ''), ctx);
   }
 
   /* ================= styles, numbering, settings ================= */
@@ -831,6 +843,7 @@
     const docRels = pack.rels('word/document.xml');
     D.reindex(doc);
     const ranges = L.preserve.prepareRanges(doc);
+    const objects = L.preserve.prepareObjects(doc, pack.writer);
     /* --- context shared by every story --- */
     let revN = 0;
     const bmIds = new Map();
@@ -846,7 +859,7 @@
     const charts = [];
     const usedPaths = new Set();
     const mkCtx = (rels, main) => ({
-      rels, main, doc, ranges, writer: pack.writer, part: rels.owner, mainPart: pack.part('word/document.xml'),
+      rels, main, doc, ranges, objects, writer: pack.writer, part: rels.owner, mainPart: pack.part('word/document.xml'),
       rev: () => ++revN,
       docPrId: () => pack.writer.ids.fresh('document', 'docPr'),
       bmSeen: new Set(),

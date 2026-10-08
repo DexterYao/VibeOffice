@@ -29,7 +29,8 @@
   P.begin = function (doc, format) {
     const pkg = doc.pkg;
     const consumed = new Set([RT('officeDocument'), ...P.parts.filter(p => p[2] !== 'opaque').map(p => p[1]), ...['header', 'footer', 'image', 'chart', 'hyperlink'].map(RT)]);
-    const output = K.output(pkg, { doc, format, consumes: (base, rel, type) => consumed.has(type),
+    const owned = new Set((doc.keep?.objects || []).flatMap(o => o.rels || []).filter(r => r.source === pkg?.id).map(r => r.owner + ':' + r.id));
+    const output = K.output(pkg, { doc, format, consumes: (base, rel, type) => consumed.has(type) || owned.has((output.originals.get(base) || '') + ':' + rel.id),
       merge: (base, source, data, writer) => P.merge(doc, base, source, data, writer) });
     output.bind('word/document.xml', pkg?.main);
     for (const [base, type, mode, root] of P.parts) {
@@ -70,7 +71,15 @@
   P.captureProperties = function (root) {
     // Capture before compatibility choices are normalised. A property fragment
     // belongs to this element, even when the element itself is inside a choice.
-    for (const el of root.getElementsByTagName('*')) if (wordNS(el.namespaceURI) && ['rPr', 'pPr'].includes(el.localName)) originalProperties.set(el, K.raw(el));
+    const nodes = Array.from(root.getElementsByTagName('*'));
+    for (const el of nodes) if (wordNS(el.namespaceURI) && ['rPr', 'pPr', 'drawing', 'pict', 'object', 'control', 'altChunk', 'contentPart'].includes(el.localName)) originalProperties.set(el, K.raw(el));
+    // Leave an anchor when compatibility normalisation selects an empty branch.
+    // captureAC still reads the immutable source text, without this sentinel.
+    for (const el of nodes) if (el.namespaceURI === N.mc && ['Choice', 'Fallback'].includes(el.localName) && !el.children.length) el.appendChild(el.ownerDocument.createElementNS('urn:vibeoffice:keep', 'keep'));
+    for (const el of nodes) if (el.namespaceURI === N.mc && el.localName === 'AlternateContent' && !kids(el).some(c => ['Choice', 'Fallback'].includes(c.localName))) {
+      const fallback = el.ownerDocument.createElementNS(N.mc, 'mc:Fallback');
+      fallback.appendChild(el.ownerDocument.createElementNS('urn:vibeoffice:keep', 'keep')); el.appendChild(fallback);
+    }
   };
   const alternatives = e => e.namespaceURI === N.mc && ['AlternateContent', 'Choice', 'Fallback'].includes(e.localName);
   const propertyChildren = el => kids(el).flatMap(c => alternatives(c) ? propertyChildren(c) : [c]);
@@ -153,6 +162,241 @@
       fragment = K.slice(fragment, K.attributes(K.serialize(tree), { [key]: item.name || '_bm' + item.id }));
     }
     return ctx.writer.emit(fragment, ctx.part);
+  };
+
+  /* Opaque content lives on its displayed model object. Compatibility choices
+     can own several items or blocks; all of them must survive before their
+     original wrapper can be emitted once. Bytes remain in the package graph. */
+  const drawingTypes = new Set(['img', 'shape', 'group', 'chart']);
+  const opaqueStore = object => object.t === 'p' ? object.pPr : object.t === 'tbl' ? object.tblPr : (object.keep || (object.keep = {}));
+  const geometry = it => ({ w: it.w, h: it.h, rot: it.rot || 0, flipH: !!it.flipH, flipV: !!it.flipV,
+    x: it.float?.posH?.off, y: it.float?.posV?.off });
+  const geometryKeys = new Set(['w', 'h', 'x', 'y', 'rot', 'flipH', 'flipV']);
+  P.objectSignature = function (object, scope, scaled = true) {
+    function value(v, key, parent, root = false) {
+      if (v == null || typeof v !== 'object') return v;
+      if (Array.isArray(v)) return v.map(c => value(c, '', v));
+      const drawing = drawingTypes.has(v.t), out = {};
+      for (const k of Object.keys(v).sort()) {
+        if (['keep', 'ac', 'opaque', 'id', 'key', 'paras'].includes(k) || k.startsWith('_') || k === 'x' && v[k]?.fragment) continue;
+        if (drawing && geometryKeys.has(k)) continue;
+        if ((v.opaquePlaceholder || v.zero || root && v.t === 'p' && v.pPr?.opaque) && ['rPr', 'pPr'].includes(k)) continue;
+        if (root && scope === 'run' && k === 'rPr') continue;
+        if (drawing && k === 'float') {
+          const f = L.clone(v.float);
+          for (const side of ['posH', 'posV']) if (f[side]) for (const a of ['off', 'align', 'pct']) delete f[side][a];
+          out.float = f; continue;
+        }
+        if (drawing && k === 'kids') {
+          const w = scaled ? v.w || 1 : 1, h = scaled ? v.h || 1 : 1;
+          out.kids = v.kids.map(c => ({ geometry: [(c.x || 0) / w, (c.y || 0) / h, c.w / w, c.h / h, c.rot || 0, !!c.flipH, !!c.flipV].map(n => typeof n === 'number' ? L.round(n, 5) : n), content: value(c, '', v) }));
+        } else out[k] = value(v[k], k, v);
+      }
+      return out;
+    }
+    return JSON.stringify(value(object, '', null, true));
+  };
+  const objectBoxes = object => {
+    const out = [];
+    const visit = o => {
+      if (!o || typeof o !== 'object') return;
+      if (drawingTypes.has(o.t)) { out.push(geometry(o)); return; }
+      if (Array.isArray(o)) { o.forEach(visit); return; }
+      for (const [k, v] of Object.entries(o)) if (!['keep', 'ac', 'opaque', 'x', 'paras'].includes(k) && !k.startsWith('_')) visit(v);
+    };
+    visit(object); return out;
+  };
+  const objectKey = record => JSON.stringify([record.fragment.source, record.fragment.part, record.fragment.record || record.key, record.fragment.copy || '']);
+  P.registerObject = function (fragment, doc, label, scope = 'run') {
+    const key = fragment.record || D.nid();
+    const record = { key, fragment, label, scope, count: 1, index: 0 };
+    // Word's diagram data may name a drawing relationship on the story part
+    // through dataModelExt@relId, outside the relationships namespace.
+    for (const dep of fragment.deps) if (/\/diagramData$/.test(dep.type || '')) {
+      const pkg = K.package(dep.source), tree = pkg?.xml(dep.part);
+      for (const el of tree?.getElementsByTagName('*') || []) if (el.localName === 'dataModelExt') {
+        const id = attr(el, 'relId'), rel = pkg.rels(fragment.part).find(r => r.id === id);
+        if (rel) (record.related || (record.related = [])).push({ source: dep.source, owner: fragment.part, dataPart: dep.part, ...rel });
+      }
+    }
+    const objects = doc.keep.objects || (doc.keep.objects = []);
+    if (!objects.some(o => o.key === key)) objects.push({ key, part: fragment.part, label, rels: [...fragment.deps, ...(record.related || [])].map(r => ({ source: r.source, owner: r.owner, id: r.id })) });
+    return record;
+  };
+  P.keepObject = function (object, el, ctx, doc, label) {
+    if (!object) object = el.localName === 'pict' && kids(el).every(c => c.localName === 'shapetype') ? D.item('raw', { zero: true }) : D.item('raw', { label: label || 'Embedded object', opaquePlaceholder: true });
+    let xml = originalProperties.get(el) || K.raw(el), tree = K.parse(xml);
+    const addedTypes = new Set();
+    if (ctx.vmlTypes && ['pict', 'object'].includes(el.localName)) {
+      const nodes = [tree, ...tree.getElementsByTagName('*')], present = new Set(nodes.filter(e => e.localName === 'shapetype').map(e => attr(e, 'id'))), types = [];
+      for (const e of nodes) {
+        const id = (e.namespaceURI === K.KNOWN_NS.v && e.getAttribute('type') || '').replace(/^#/, '');
+        if (id && !present.has(id) && ctx.vmlTypes.has(id)) { present.add(id); addedTypes.add(id); types.push(K.raw(ctx.vmlTypes.get(id))); }
+      }
+      if (types.length) { xml = inner(xml, tree, types.join('') + kids(tree).map(K.raw).join('')); tree = K.parse(xml); }
+    }
+    const fragment = K.fragment(tree, { pkg: doc.pkg, part: ctx.part });
+    // A preview may refer to a type defined beside an earlier object. Make the
+    // added definition private to this object, so both the original save and a
+    // partial copy have one complete, unique type definition and matching refs.
+    if (addedTypes.size) {
+      const copy = 'vml-type:' + crypto.randomUUID();
+      for (const id of fragment.ids) if (id.kind.startsWith('vmlType') && addedTypes.has((id.prefix || '').replace(/^#/, '') + id.id)) id.copy = copy;
+    }
+    opaqueStore(object).opaque = P.registerObject(fragment, doc, label || object.name || object.alt || 'Drawing');
+    return object;
+  };
+  P.opaqueBlock = function (el, ctx, doc, label) {
+    const p = D.para([D.item('raw', { label, opaquePlaceholder: true })]);
+    const fragment = K.fragment(K.parse(originalProperties.get(el) || K.raw(el)), { pkg: doc.pkg, part: ctx.part });
+    p.pPr.opaque = P.registerObject(fragment, doc, label, 'block');
+    return p;
+  };
+  P.readAlternates = function (parent, output, ctx, doc, scope, rPr) {
+    const groups = new Map(), parentRecord = K.alternate(parent);
+    return {
+      add(el, from) {
+        const alternate = K.alternate(el);
+        if (!alternate || alternate === parentRecord) return;
+        if (!groups.has(alternate.id)) groups.set(alternate.id, { el, members: [] });
+        const g = groups.get(alternate.id);
+        if (output.length === from) output.push(scope === 'block' ? D.para([D.item('raw', { zero: true })]) : D.item('raw', { zero: true }, rPr));
+        g.members.push(...output.slice(from));
+      },
+      finish() {
+        for (const { el, members } of groups.values()) {
+          const record = P.registerObject(K.fragment(el, { pkg: doc.pkg, part: ctx.part }), doc, 'Compatibility content', scope);
+          if (scope === 'inline') record.wrapper = L.clone(rPr || {});
+          members.forEach((o, index) => { opaqueStore(o).ac = { ...record, index, count: members.length }; });
+        }
+      },
+    };
+  };
+  const objectRecords = doc => {
+    const out = [], visited = new Set();
+    const visit = (object, container, index) => {
+      if (!object || typeof object !== 'object' || visited.has(object)) return;
+      visited.add(object);
+      if (object.t) for (const name of ['ac', 'opaque']) {
+        const record = (object.t === 'p' ? object.pPr : object.t === 'tbl' ? object.tblPr : object.keep)?.[name];
+        if (record) out.push({ object, name, record, container, index });
+      }
+      if (Array.isArray(object)) object.forEach((o, i) => visit(o, object, i));
+      else for (const [k, v] of Object.entries(object)) if (!['keep', 'ac', 'opaque', 'x', 'paras'].includes(k) && !k.startsWith('_')) visit(v);
+    };
+    for (const story of D.stories(doc)) visit(story.blocks);
+    return out;
+  };
+  P.finishObjects = function (doc) {
+    const groups = new Map();
+    for (const entry of objectRecords(doc)) {
+      const { object, record } = entry, key = objectKey(record);
+      record.signature = P.objectSignature(object, record.scope); record.absoluteSignature = P.objectSignature(object, record.scope, false); record.boxes = objectBoxes(object);
+      const previews = new Map();
+      const collect = o => {
+        if (!o || typeof o !== 'object') return;
+        if (o.media && doc.keep.media?.[o.media]) previews.set(o.media, { id: o.media, source: doc.pkg.id, part: doc.keep.media[o.media] });
+        for (const [k, v] of Object.entries(o)) if (!['keep', 'ac', 'opaque', 'x', 'paras'].includes(k) && !k.startsWith('_')) collect(v);
+      };
+      collect(object); if (previews.size) record.previews = [...previews.values()];
+      if (!groups.has(key)) groups.set(key, []); groups.get(key).push(record);
+    }
+    // Field normalisation may remove instruction markers while keeping results.
+    for (const records of groups.values()) records.forEach((r, index) => { r.index = index; r.count = records.length; });
+  };
+  P.hydrateClipboard = async function (blocks) {
+    const entries = objectRecords({ main: { blocks }, hf: {}, fn: {}, en: {}, comments: {} }), loaded = new Map();
+    for (const { record } of entries) for (const ref of record.previews || []) {
+      const key = ref.source + ':' + ref.part;
+      if (loaded.has(key)) continue;
+      const pkg = K.package(ref.source), bytes = pkg?.bytes(ref.part);
+      if (!bytes) continue;
+      const ext = ref.part.split('.').pop().toLowerCase(), mime = pkg.type(ref.part) || L.extToMime(ext);
+      const view = /^(emf|wmf)$/.test(ext) ? await L.metafile.toPNG(bytes, ext, 1600) : null;
+      loaded.set(key, L.media.add(new Blob([bytes], { type: mime }), ref.part.split('/').pop(), view));
+    }
+    for (const { object, record } of entries) {
+      const ids = new Map((record.previews || []).map(r => [r.id, loaded.get(r.source + ':' + r.part)]).filter(([, id]) => id));
+      const replace = o => {
+        if (!o || typeof o !== 'object') return;
+        if (ids.has(o.media)) o.media = ids.get(o.media);
+        for (const [k, v] of Object.entries(o)) if (!['keep', 'ac', 'opaque', 'x', 'paras'].includes(k) && !k.startsWith('_')) replace(v);
+      };
+      replace(object);
+      // Rebind preview handles without treating a pre-copy content edit as if
+      // the original object were still intact.
+      for (const key of ['signature', 'absoluteSignature']) if (record[key]) { const old = JSON.parse(record[key]); replace(old); record[key] = JSON.stringify(old); }
+      for (const ref of record.previews || []) if (ids.has(ref.id)) ref.id = ids.get(ref.id);
+    }
+    return blocks;
+  };
+  P.prepareObjects = function (doc, writer) {
+    const groups = new Map(), seen = new Set();
+    for (const entry of objectRecords(doc)) {
+      const key = objectKey(entry.record);
+      if (!groups.has(key)) groups.set(key, { entries: [], emitted: false });
+      groups.get(key).entries.push(entry); seen.add(entry.record.key);
+    }
+    for (const group of groups.values()) {
+      const records = group.entries.map(e => e.record);
+      group.intact = records.length === records[0].count && new Set(records.map(r => r.index)).size === records.length && group.entries.every(e => e.record.signature === P.objectSignature(e.object, e.record.scope) || e.record.absoluteSignature === P.objectSignature(e.object, e.record.scope, false));
+      group.intact = group.intact && group.entries.every((e, i) => e.record.index === i && e.container === group.entries[0].container && e.index === group.entries[0].index + i);
+      group.boxes = group.entries.flatMap(e => objectBoxes(e.object));
+      const previous = group.entries.flatMap(e => e.record.boxes || []);
+      group.moved = !same(previous, group.boxes);
+      if (group.moved && group.boxes.length !== 1) group.intact = false;
+      if (group.moved && group.boxes.length === 1) group.boxChange = Object.fromEntries(Object.entries(group.boxes[0]).filter(([k, v]) => !same(v, previous[0]?.[k])));
+    }
+    for (const old of doc.keep?.objects || []) if (!seen.has(old.key)) writer.loss({ id: 'object:' + old.key, what: old.label + ' was removed.', where: old.part, action: 'drop' });
+    return groups;
+  };
+  P.objectXML = function (object, name, ctx) {
+    const record = (object.t === 'p' ? object.pPr : object.t === 'tbl' ? object.tblPr : object.keep)?.[name];
+    if (!record) return null;
+    const group = ctx.objects.get(objectKey(record));
+    if (!group?.intact) {
+      ctx.writer.loss({ id: 'object:' + record.key + ':' + (record.fragment.copy || ''), what: record.label + ': editing its converted content replaced the original markup.', where: ctx.part, action: 'conversion' });
+      return null;
+    }
+    if (group.emitted) return '';
+    try {
+      let fragment = record.fragment;
+      const diagrams = new Map();
+      for (const rel of record.related || []) {
+        const id = ctx.writer.keepRel(ctx.part, rel);
+        if (id === rel.id) continue;
+        const key = rel.source + ':' + rel.dataPart;
+        if (!diagrams.has(key)) diagrams.set(key, { source: rel.source, part: rel.dataPart, ids: new Map() });
+        diagrams.get(key).ids.set(rel.id, id);
+      }
+      for (const { source, part, ids } of diagrams.values()) {
+        const pkg = K.package(source), tree = pkg?.xml(part);
+        if (!tree) throw new Error('The copied diagram has no data part.');
+        const cache = ctx.objects.diagrams || (ctx.objects.diagrams = new Map());
+        const key = JSON.stringify([ctx.part, source, part, [...ids]]);
+        let dest = cache.get(key);
+        if (!dest) {
+          let xml = K.raw(tree);
+          const patches = Array.from(K.parse(xml).getElementsByTagName('*')).filter(e => e.localName === 'dataModelExt' && ids.has(attr(e, 'relId'))).map(e => ({ ...location(e), value: K.attributes(K.raw(e), { relId: ids.get(attr(e, 'relId')) }) }));
+          xml = K.patch(xml, patches);
+          const slash = part.lastIndexOf('/');
+          dest = ctx.writer.name(part.slice(0, slash), 'data', 'xml');
+          ctx.writer.copyPart(pkg, part, dest);
+          ctx.writer.put(dest, xml, pkg.type(part)); cache.set(key, dest);
+        }
+        // The implicit dataModelExt link belongs to the destination story. A
+        // private data part keeps another pasted instance/story independent.
+        fragment = K.slice(fragment, fragment.xml.replace(/\u0001rel:(\d+)\u0001/g, (token, index) => {
+          const dep = fragment.deps[+index];
+          return dep.source === source && dep.part === part ? ctx.writer.rels(ctx.part).add(dep.type, K.relative(ctx.part, dest), false) : token;
+        }));
+      }
+      const xml = ctx.writer.emit(fragment, ctx.part, group.moved ? { box: group.boxChange } : {});
+      group.emitted = true; return xml;
+    } catch (error) {
+      ctx.writer.loss({ id: 'object:' + record.key, what: record.label + ' could not be retained: ' + error.message, where: ctx.part, action: 'conversion' });
+      group.intact = false; return null;
+    }
   };
 
   /* Content controls are boundaries, not text. The shell owns its properties and
@@ -488,6 +732,7 @@
       if (!value || typeof value !== 'object') return;
       if (value.source && value.part && value.storeID) refs.push({ source: value.source, part: value.part });
       if (Array.isArray(value.related)) for (const r of value.related) if (!r.external && r.part) refs.push({ source: r.source, part: r.part });
+      if (Array.isArray(value.previews)) for (const r of value.previews) refs.push({ source: r.source, part: r.part });
       if (Array.isArray(value.deps)) for (const d of value.deps) if (!d.external && d.part) refs.push({ source: d.source, part: d.part });
       for (const v of Object.values(value)) visit(v);
     };

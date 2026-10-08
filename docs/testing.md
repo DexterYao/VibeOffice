@@ -264,6 +264,17 @@ diagnostics after fixing the ordering failure caught by the edit. Reports, the i
 its corrected artifacts are under `~/corpora/results/quire-properties-2026-10-08/`. This was a focused
 check; the full corpus was not rerun. Word handoffs are in `~/Downloads/lossless-check/quire/properties/`.
 
+Quire's opaque-object increment adds `node --test tools/quire/test/objects.test.js` for geometry,
+multi-item compatibility wrappers and copied VML identities. `node tools/quire/test/objects.mjs
+~/corpora/word OUTDIR` transfers authored OLE/SmartArt objects between separate browser tabs, then
+edits converted content, undoes it and saves/recovers through the draft hook. It writes one JSONL
+row per saved state for `validate.py`. Six save fixtures retain 18/18 tracked elements and 15/15
+binary/diagram parts; ten clipboard states, nine SmartArt edit/history states and the corrected
+ActiveX copy/history states have no new package/SDK diagnostics. Original diagram identity errors
+are retained and compared, not counted as newly valid files. Reports and initial failures are in
+`~/corpora/results/quire-objects-2026-10-08/`; Word handoffs are in
+`~/Downloads/lossless-check/quire/objects/`. No full corpus or Markdown rerun was made.
+
 `python3 tools/ooxml/samples.py ~/corpora /tmp/lossless ~/Downloads/lossless-check/baseline`
 selects small independently authored files for each carried-feature test, copies original/saved/edited
 variants where available, and writes a manifest. It refuses to replace differing handoff files.

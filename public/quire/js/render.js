@@ -587,8 +587,9 @@
           el.appendChild(mm);
         } else {
           el.style.cssText = R.runCSS(r, mult) + (it.math ? ';font-family:"Cambria Math",Caladea,serif;font-style:italic' : '');
-          el.textContent = it.text || (it.math ? '' : '');
-          if (!it.text) el.classList.add('empty');
+          el.textContent = it.text || it.label || '';
+          if (it.opaquePlaceholder) { el.style.opacity = '0.65'; el.style.border = '1px dotted currentColor'; el.style.padding = '2px 5px'; }
+          if (!it.text && !it.label) el.classList.add('empty');
         }
       } else {
         el = document.createElement('span');
