@@ -408,7 +408,7 @@
     for (const c of cols) {
       s += `<filterColumn colId="${c.col}"${c.hiddenButton ? ' hiddenButton="1"' : ''}>`;
       if (c.values || c.blank || c.dates) {
-        s += `<filters${c.blank ? ' blank="1"' : ''}>` + (c.values || []).map((v) => `<filter val="${esc(v)}"/>`).join('') +
+        s += c.filtersKeep?.values === L.preserve.filterValues(c) ? c.filtersKeep.xml : `<filters${c.blank ? ' blank="1"' : ''}>` + (c.values || []).map((v) => `<filter val="${esc(v)}"/>`).join('') +
           (c.dates || []).map((d) => `<dateGroupItem${attrs({ year: d.y, month: d.g !== 'year' ? d.m || undefined : undefined, day: /day|hour|minute|second/.test(d.g) ? d.d || undefined : undefined, hour: /hour|minute|second/.test(d.g) ? d.H : undefined, minute: /minute|second/.test(d.g) ? d.M : undefined, second: d.g === 'second' ? d.S : undefined, dateTimeGrouping: d.g })}/>`).join('') + '</filters>';
       } else if (c.custom) {
         s += `<customFilters${c.custom.and ? ' and="1"' : ''}>` + c.custom.list.map((x) => `<customFilter${attrs({ operator: x.op && x.op !== 'equal' ? x.op : undefined, val: x.val })}/>`).join('') + '</customFilters>';

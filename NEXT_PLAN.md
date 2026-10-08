@@ -12,8 +12,9 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 - Quire content controls, text/drawing properties, embedded objects, row/cell alternatives and
   watermarks (Office batch 2 accepted, including the comment correction and namespace follow-up).
 
-**Not done:**
-- Ledger and Lectern object-level features.
+**Implemented; Office pending:** Ledger object-level features and the full group measurement.
+
+**Not done:** Lectern object-level remainder and final suite measurement/loss reporting.
 
 **Slide-6 repair: fixed** (60c26b4, confirmed in PowerPoint). Read "Office acceptance" in AGENTS.md
 first: two bugs in the shared save code passed every automated check (master and layout sharing an
@@ -235,6 +236,16 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   LibreOffice with unchanged page counts. All 113 unit tests pass and four pages load. Saving no
   longer mutates table headings, and copied sheet-scoped names now undo correctly. Next: the full
   Ledger group run and Excel batch 3, whose Office acceptance remains pending.
+- The full Ledger run at `8236f3a`, with five correction inputs, now completes all 2,853 attempts.
+  Save/draft each have 935 OK, 11 failed and 5 excluded; cell edits have 933 OK, 11 failed and
+  7 excluded. The 6,589 emitted states have 6,371 passing package/SDK comparisons, 201 failed and
+  17 excluded; none adds diagnostics. Damaged-original recovery and unchanged mixed date/text
+  filter ordering are corrected. Independent save comparison covers 889 workbooks / 1,649,147
+  cells, with 883 exact; existing exceptions remain explicit. All 115 unit tests pass. The audit
+  now excludes ZIP directory markers and identifies intended A1 edits separately. Excel batch 3
+  is ready at `~/Downloads/lossless-check/office-batch-3/CHECKLIST.md`: all 15 pass package/SDK and
+  LibreOffice, with reviewed differences against `f584dd6`. **Excel acceptance is pending.**
+  Reports: `~/corpora/results/ledger-group-2026-10-09/`. Lectern preparation is next.
 
 ## Review of 6d24c43..275406e (2026-10-08)
 Followed well: bounded Office batches with previous-writer comparison, checker rules for the WordArt

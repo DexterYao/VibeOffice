@@ -747,6 +747,8 @@
         if (bool(fs, 'blank', false)) c.blank = true;
         const dg = kids(fs, 'dateGroupItem');
         if (dg.length) c.dates = dg.map((d) => ({ y: num(d, 'year', 0), m: num(d, 'month', 0), d: num(d, 'day', 0), H: num(d, 'hour', 0), M: num(d, 'minute', 0), S: num(d, 'second', 0), g: at(d, 'dateTimeGrouping') }));
+        // Preserve source ordering when a filter mixes date groups with text values.
+        if (c.values.length && c.dates?.length) c.filtersKeep = { xml: XML.serialize(fs), values: L.preserve.filterValues(c) };
       }
       const cf = kid(fc, 'customFilters');
       if (cf) c.custom = { and: bool(cf, 'and', false), list: kids(cf, 'customFilter').map((f) => ({ op: at(f, 'operator') || 'equal', val: at(f, 'val') })) };

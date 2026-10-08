@@ -5,6 +5,7 @@
   const RT = name => N.rel + '/' + name;
   const kids = el => Array.from(el?.children || []);
   const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  P.filterValues = c => JSON.stringify([c.values, c.blank, c.dates]);
   P.parts = Object.freeze([
     ['xl/styles.xml', RT('styles'), 'regenerated'],
     ['xl/sharedStrings.xml', RT('sharedStrings'), 'regenerated'],

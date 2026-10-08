@@ -198,6 +198,11 @@ sheet copy, undo/redo and actual draft recovery.
 history saves (`EXCEL_CORPUS` overrides `~/corpora/excel`).
 `node tools/ledger/test/tables-ui.mjs INPUT.xlsx OUTPUT` checks inserted query columns, sheet
 copy, scoped names, undo/redo and actual draft recovery.
+`recovery.test.js` covers readable cells in damaged packages and unchanged mixed date/text filters.
+For the independent cell audit after `corpus.js --scenarios text`, set `SCENARIO=text` when running
+`tools/ledger/test/loss-audit.py`: only A1 on the first ordinary worksheet is excluded as the intended
+edit. Dependent array-result recalculation still appears in the report. ZIP directory markers are
+excluded from feature-part counts.
 
 Build the SDK validator and install the independent workbook reader in a test environment:
 

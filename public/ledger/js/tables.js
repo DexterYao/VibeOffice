@@ -15,6 +15,7 @@
   const guid = () => '{' + root.crypto.randomUUID().toUpperCase() + '}';
   T.read = function (t, el) {
     const wb = t.sheet.wb, part = t.ooxmlPart;
+    if (!wb.pkg) return; // The reader already reports an unrecoverable package graph.
     t.keep = { fragment: fragment(el, wb, part), values: values(t) };
     kids(kid(el, 'tableColumns'), 'tableColumn').forEach((c, i) => {
       const col = t.columns[i];
@@ -25,6 +26,7 @@
     t.queries = rels(wb.pkg, part);
   };
   T.readWorkbook = function (wb) {
+    if (!wb.pkg) return;
     const original = [];
     for (const t of wb.tables) for (const r of t.queries || []) original.push({ part: r.part, owner: t.ooxmlPart });
     for (const sh of wb.sheets) {

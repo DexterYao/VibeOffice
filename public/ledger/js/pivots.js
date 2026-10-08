@@ -10,6 +10,7 @@
   const state = wb => wb.extra.pivots;
   const sheet = (wb, id) => wb.sheets.find(s => s.id === id);
   const relation = (pkg, part, type) => pkg.rels(part).filter(r => K.relationshipType(r.type) === K.NS.rel + '/' + type && !r.external);
+  const xmlPart = (pkg, part) => { try { return pkg.xml(part); } catch (_) { return null; } };
   const rid = el => el?.getAttributeNS(K.NS.rel, 'id') || el?.getAttributeNS(K.NS.strictRel, 'id');
   const inside = (rg, r, c) => rg && r >= rg.r1 && r <= rg.r2 && c >= rg.c1 && c <= rg.c2;
 
@@ -68,15 +69,19 @@
     if (!pkg) return;
     const caches = [], tables = [];
     for (const el of kids(kid(pkg.xml(pkg.main), 'pivotCaches'), 'pivotCache')) {
-      const rel = pkg.rels(pkg.main).find(r => r.id === rid(el) && !r.external), root = rel && pkg.xml(rel.part);
-      if (!root) continue; // The ordinary graph carry reports incomplete input.
+      const rel = pkg.rels(pkg.main).find(r => r.id === rid(el) && !r.external), root = rel && xmlPart(pkg, rel.part);
+      if (!root) {
+        // Damaged opaque cache bytes must not prevent opening the readable cells.
+        if (rel && pkg.has(rel.part)) caches.push({ id: at(el, 'cacheId'), part: rel.part, kind: 'unknown', sources: [], fields: [], opaque: true });
+        continue; // The ordinary graph carry reports missing parts.
+      }
       const cs = kid(root, 'cacheSource'), kind = at(cs, 'type');
       const sources = kind === 'worksheet' ? kids(cs, 'worksheetSource') : kind === 'consolidation' ? kids(kid(kid(cs, 'consolidation'), 'rangeSets'), 'rangeSet') : [];
       caches.push({ id: at(el, 'cacheId'), part: rel.part, kind, sources: sources.map(s => source(wb, s, rel.part)),
         fields: kids(kid(root, 'cacheFields'), 'cacheField').map(f => at(f, 'name')) });
     }
     for (const sh of wb.sheets) for (const rel of relation(pkg, sh.extra.ooxmlPart || '', 'pivotTable')) {
-      const root = pkg.xml(rel.part), location = kid(root, 'location');
+      const root = xmlPart(pkg, rel.part), location = kid(root, 'location');
       if (!root || !location) continue;
       const used = new Set();
       kids(kid(root, 'pivotFields'), 'pivotField').forEach((f, i) => { if (at(f, 'axis') || /^(1|true)$/.test(at(f, 'dataField'))) used.add(i); });
@@ -230,6 +235,7 @@
     for (const c of p.caches) {
       c.omit = !!c.drop || !retained.has(c.id) && p.tables.some(t => t.cache === c.id);
       if (c.omit) { w.pivotOmitted.add(c.id); w.omit(c.part, c.drop || 'The cache has no remaining pivot tables.'); continue; }
+      if (c.opaque) { w.carry(pkg, c.part); continue; }
       let xml = pkg.text(c.part), tree = K.parse(xml), edits = [], cs = kid(tree, 'cacheSource');
       const elements = c.kind === 'worksheet' ? kids(cs, 'worksheetSource') : kids(kid(kid(cs, 'consolidation'), 'rangeSets'), 'rangeSet');
       c.sources.forEach((s, i) => {
