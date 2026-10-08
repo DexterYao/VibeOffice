@@ -18,9 +18,9 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 first: two bugs in the shared save code passed every automated check (master and layout sharing an
 ID; partial preset adjustment lists).
 
-**Nothing has been opened in Office yet.** 322 sample files wait in
-`~/Downloads/lossless-check/`. That is too many for a person to review, and every new step builds on
-patterns Office has not accepted.
+**The preservation batches are not yet Office-accepted.** The slide-6 diagnostic copies passed
+PowerPoint, but the larger preservation sample collection still needs review. Office batch 1 now
+reduces that collection to 15 files and a checklist.
 
 ## Changed habits
 1. **Office is the gate.**
@@ -110,11 +110,11 @@ Office-authored corpus files never contain. Rerun it on every full corpus run; e
 becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
 
 1. **WordArt fill outside `w14:textFill`** (Quire, 21 files).
-   - Fixed in the working tree: `docx-write.js` wraps the fill.
-   - Add a rule: `w14` fills are only valid inside `textFill` or `textOutline`.
+   - Fixed in `27e9f73`: `docx-write.js` wraps the fill.
+   - The package checker now rejects fills outside `textFill`/`textOutline`, with a regression test.
 2. **Inserted-then-deleted text nested `<w:del><w:ins>`** (Quire, 9 files).
-   - Fixed in the working tree: `wrapRunGroup` now writes `<w:ins><w:del>`, as Word does.
-   - Add a rule and a round-trip test.
+   - Fixed in `27e9f73`: `wrapRunGroup` writes `<w:ins><w:del>`, as Word does.
+   - The package checker rejects reversed nesting, with a regression test and an authored batch-1 save/reopen sample.
 3. **Strict files written with Transitional vocabulary** (67 Word files; also some Excel and PowerPoint).
    - The cause: `K.strictXML` swaps only namespace URIs, so `w:ind w:right`, tab `left`, `0`/`1`
      on/off values and the like are left in Strict files.
@@ -124,7 +124,7 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
        Transitional also accepts Strict's `start`/`end` and `true`/`false`);
      - record a "saved in the standard format" entry in the Compatibility Checker.
    - True Strict output would need a full vocabulary converter, with no validator to check it (the SDK
-     cannot open Strict). **Pending the user's choice.**
+     cannot open Strict). **User approved Transitional output with a notice on 2026-10-08; implementation pending.**
 4. **Fragments repeat root declarations on inner elements.**
    - Each kept fragment re-declares the namespaces and `mc:Ignorable`: Excel `calcPr`, `phoneticPr`
      and other sheet children in 364 of 935 saves; Word footnote separators in 650 of 2,880.
@@ -138,3 +138,15 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
    - Quire WordArt writes `a:normAutofit` (no Office example to compare).
    - Hyperlinks containing `w:del`/`w:ins` (no Office example either way): include one in an Office
      batch.
+
+## Current execution
+
+- Office batch 1 is ready: `~/Downloads/lossless-check/office-batch-1/CHECKLIST.md` (15 Office files).
+  It covers the requested features, namespace forms, the two corrected Word conventions and a tracked
+  hyperlink. The video fixture is saved as PPTM from an authored PPTX; a separate authored PPTM tests VBA.
+- All 15 batch files save/reopen, introduce no package/SDK diagnostics and open in LibreOffice with
+  unchanged page/slide counts. The comparison against writer `ffc6814` has only explained differences.
+  57 unit tests pass and all four pages load. Office results remain pending; this is not an acceptance claim.
+- Reports and exact inputs: `~/corpora/results/next-plan-head-2026-10-08/`.
+- Next: full runs and documentation cleanup while Office batch 1 is reviewed. Do not start step 5
+  until the batch result permits it.

@@ -28,6 +28,7 @@ W = {'http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'http://pur
 P = {'http://schemas.openxmlformats.org/presentationml/2006/main', 'http://purl.oclc.org/ooxml/presentationml/main'}
 A = {'http://schemas.openxmlformats.org/drawingml/2006/main', 'http://purl.oclc.org/ooxml/drawingml/main'}
 S = {'http://schemas.openxmlformats.org/spreadsheetml/2006/main', 'http://purl.oclc.org/ooxml/spreadsheetml/main'}
+W14 = 'http://schemas.microsoft.com/office/word/2010/wordml'
 # each preset shape's adjustment names, from the generated schema facts the apps use
 _ORDER = (Path(__file__).resolve().parents[2] / 'public/common/opc-order.js').read_text()
 PRESET_ADJUST = {k: [n for n, _ in v] for k, v in json.loads(_ORDER[_ORDER.index('= {') + 2:_ORDER.rindex('; })')]).get('presetAdjust', {}).items()}
@@ -177,8 +178,15 @@ class Package:
         caches = set()
         pivot_refs = []
         for part, root in self.xml.items():
+            parents = {child: parent for parent in root.iter() for child in parent}
             for el, path, branches in walk(root):
                 ns, tag = split(el.tag)
+                parent = parents.get(el)
+                if ns == W14 and tag in ('noFill', 'solidFill', 'gradFill', 'blipFill', 'pattFill', 'grpFill'):
+                    if parent is None or parent.tag not in ('{' + W14 + '}textFill', '{' + W14 + '}textOutline'):
+                        self.issue('wordart-fill-outside-property', part, tag, path)
+                if ns in W and tag == 'ins' and parent is not None and parent.tag == '{' + ns + '}del':
+                    self.issue('inserted-inside-deleted', part, 'Word writes the insertion outside the deletion.', path)
                 for key, val in el.attrib.items():
                     ans, name = split(key)
                     if (ans in R or (ans == 'urn:schemas-microsoft-com:office:office' and name == 'relid')) and val and val not in self.rels.get(part, {}):

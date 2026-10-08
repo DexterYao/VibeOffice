@@ -27,7 +27,7 @@ export async function corpus(app, argv = process.argv.slice(2)) {
   const interrupt = async () => { await close(); process.exit(130); };
   process.once('SIGINT', interrupt); process.once('SIGTERM', interrupt);
   const helper = fs.readFileSync(fileURLToPath(new URL('./scenarios.js', import.meta.url)), 'utf8');
-  const fresh = async () => { await page?.close(); page = await openPage(app, { timeout }); await page.evaluate(helper); };
+  const fresh = async () => { await page?.close(); page = await openPage(app, { timeout, persistence: false }); await page.evaluate(helper); };
   try {
     await fresh();
     for (const file of files) {
@@ -101,7 +101,7 @@ async function run(o) {
       result.draftName = info.draftName || info.name;
       result.draftType = draft.type;
       if (o.save) artifacts.draft = await encode(draft);
-      await __corpusHooks.open(new File([draft], result.draftName), { draft: true, name: info.name, saved: true });
+      await __corpusHooks.open(new File([draft], result.draftName), { draft: true, name: info.name, saved: true, lossState: info.lossState });
       const recovered = __corpusHooks.current();
       await save('recovered', o.app === 'ledger' ? recovered.wb : recovered);
     }

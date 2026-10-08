@@ -109,6 +109,13 @@ alternate branches, target swaps and ordered text.
 
 ### Office conventions: tools/ooxml/conventions.py
 
+`node tools/ooxml/office-batch.mjs MANIFEST.json OUTPUT_DIR` makes a review batch of at most 15 Office
+files, its `CHECKLIST.md` and a manifest of hashes, edits and recorded losses. Each input names its app,
+authored source, output filename, edit, feature and inspection instructions. `BASE` can point at an
+isolated previous writer to reproduce the same edits for the required save-to-save comparison.
+Use an empty output directory. Original sources stay outside the batch. A generated batch is pending
+Office review even when SDK and LibreOffice checks pass.
+
 `python3 tools/ooxml/conventions.py ~/corpora/powerpoint SAVED_DIR [--out report.json]` lists markup our
 saved files contain that no Office-authored original in the corpus does: attributes, child elements,
 child order, enumerated values, preset adjustment sets, content-type forms, relationship types. Markup

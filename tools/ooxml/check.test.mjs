@@ -64,6 +64,15 @@ test('a preset shape lists all of its adjustment values or none', async () => {
   assert.equal(run('check', await pkg('adj-none', { 'slide.xml': slide(sp('')) })).status, 'ok');
 });
 
+test('WordArt fill belongs to textFill/textOutline and insertion encloses deletion', async () => {
+  const W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main', W14 = 'http://schemas.microsoft.com/office/word/2010/wordml';
+  const doc = content => `<w:document xmlns:w="${W}" xmlns:w14="${W14}"><w:body><w:p>${content}</w:p></w:body></w:document>`;
+  const bad = await pkg('word-conventions-bad', { 'word/document.xml': doc('<w:del><w:ins><w:r><w:rPr><w14:solidFill/></w:rPr><w:delText>edited</w:delText></w:r></w:ins></w:del>') });
+  assert.deepEqual(run('check', bad).issues.map(i => i.code).sort(), ['inserted-inside-deleted', 'wordart-fill-outside-property']);
+  const good = await pkg('word-conventions-good', { 'word/document.xml': doc('<w:ins><w:del><w:r><w:rPr><w14:textFill><w14:solidFill/></w14:textFill><w14:textOutline><w14:noFill/></w14:textOutline></w:rPr><w:delText>edited</w:delText></w:r></w:del></w:ins>') });
+  assert.equal(run('check', good).status, 'ok');
+});
+
 test('timing and connector targets must identify existing shapes and timing nodes', async () => {
   const file = await pkg('timing', { 'slide.xml': slide(picture(2) + '<p:timing><p:cTn id="1"/><p:spTgt spid="3"/><p:tn val="4"/><a:stCxn id="5"/></p:timing>') });
   const codes = run('check', file).issues.map(i => i.code);
