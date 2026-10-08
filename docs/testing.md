@@ -107,6 +107,14 @@ checked without falsely counting mutually exclusive IDs as duplicates. Output is
 nonzero. `node --test tools/ooxml/*.test.mjs` exercises malformed packages, cycles, shared dependencies,
 alternate branches, target swaps and ordered text.
 
+### Office conventions: tools/ooxml/conventions.py
+
+`python3 tools/ooxml/conventions.py ~/corpora/powerpoint SAVED_DIR [--out report.json]` lists markup our
+saved files contain that no Office-authored original in the corpus does: attributes, child elements,
+child order, enumerated values, preset adjustment sets, content-type forms, relationship types. Markup
+already in a file's own original is not counted. It finds Office-rejected output the SDK accepts (the
+slide-6 repair was such a case); run it with every full corpus run. Findings and fixes: NEXT_PLAN.md.
+
 ### Shared preservation core
 
 `node --test tools/ooxml/opc.test.mjs` tests the Node-safe `L.opc` API: immutable bytes, full relationship

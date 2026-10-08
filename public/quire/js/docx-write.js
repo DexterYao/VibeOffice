@@ -292,8 +292,9 @@
   function wrapRunGroup(inner, r, ctx) {
     if (!inner) return '';
     const { link, ins, del } = r;
-    if (ins) inner = `<w:ins w:id="${ctx.rev()}" w:author="${X(ins.author)}" ${DT(ins.date)}>${inner}</w:ins>`;
+    /* inserted, then deleted: Word nests the deletion inside the insertion */
     if (del) inner = `<w:del w:id="${ctx.rev()}" w:author="${X(del.author)}" ${DT(del.date)}>${inner}</w:del>`;
+    if (ins) inner = `<w:ins w:id="${ctx.rev()}" w:author="${X(ins.author)}" ${DT(ins.date)}>${inner}</w:ins>`;
     if (link) {
       const a = [];
       if (link.url) a.push(`r:id="${ctx.rels.add(RT('hyperlink'), link.url, true)}"`);
@@ -511,7 +512,7 @@
       const baseColor = f.t === 'solid' ? hex(f.c) : f.t === 'grad' && f.stops ? hex(f.stops[0].c) : '3366CC';
       const rp = rPrXML({ font: w.font || 'Arial Black', sz: w.sz || 36, b: w.b || undefined, i: w.i || undefined, color: baseColor }, null, ctx);
       const lines = String(w.text || '').split('\n');
-      const effects = rp.replace('</w:rPr>', ln + w14fill(f) + '</w:rPr>');
+      const effects = rp.replace('</w:rPr>', ln + '<w14:textFill>' + w14fill(f) + '</w14:textFill></w:rPr>');   // the fill only counts inside textFill
       wa = `<wps:txbx><w:txbxContent>${lines.map((t) => `<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r>${effects}${textXML(t)}</w:r></w:p>`).join('')}</w:txbxContent></wps:txbx>`;
     }
     const shapeFill = isWA ? '<a:noFill/>' : isLine ? '<a:noFill/>' : fillXML(it.fill || { t: 'none' }, ctx);
