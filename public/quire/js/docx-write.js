@@ -7,6 +7,9 @@
   const X = L.xesc;
   const W = (L.docx = L.docx || {});
   const emu = L.pt2emu;
+  // Preserved paragraph properties can have namespace/compatibility attributes.
+  // Insert generated content after them, including in paragraphs with IDs.
+  const prependParagraph = (xml, contents) => xml.replace(/<w:p\b[^>]*>(\s*<w:pPr\b[^>]*(?:\/>|>[\s\S]*?<\/w:pPr>))?/, m => m + contents);
   const HEAD = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n';
   const NS = {
     w: 'http://schemas.openxmlformats.org/wordprocessingml/2006/main', r: 'http://schemas.openxmlformats.org/officeDocument/2006/relationships',
@@ -931,7 +934,7 @@
       const ctx = mkCtx(rels, false);
       let body = blocksXML(st.blocks.length ? st.blocks : [D.para()], ctx);
       if (!st.blocks.length || st.blocks[st.blocks.length - 1].t !== 'p') body += '<w:p/>';
-      if (wmHeaders.has(id)) { const wm = watermarkXML(doc.watermark, ctx); body = body.replace(/<w:p>(<w:pPr>.*?<\/w:pPr>)?/, (m) => m + wm); }
+      if (wmHeaders.has(id)) body = prependParagraph(body, watermarkXML(doc.watermark, ctx));
       hfParts.push({ name, rels, isH, body });
       hfRid[id] = docRels.add(RT(isH ? 'header' : 'footer'), name);
     }
@@ -959,7 +962,7 @@
         const st = store[orig];
         if (!st) continue;
         let inner = blocksXML(st.blocks, ctx);
-        if (!/<w:(footnote|endnote)Ref\/>/.test(inner)) inner = inner.replace(/<w:p>(<w:pPr>.*?<\/w:pPr>)?/, (m) => m + `<w:r><w:rPr><w:rStyle w:val="${kind === 'fn' ? 'FootnoteReference' : 'EndnoteReference'}"/></w:rPr><w:${tag}Ref/></w:r><w:r><w:t xml:space="preserve"> </w:t></w:r>`);
+        if (!/<w:(footnote|endnote)Ref\/>/.test(inner)) inner = prependParagraph(inner, `<w:r><w:rPr><w:rStyle w:val="${kind === 'fn' ? 'FootnoteReference' : 'EndnoteReference'}"/></w:rPr><w:${tag}Ref/></w:r><w:r><w:t xml:space="preserve"> </w:t></w:r>`);
         x += `<w:${tag} w:id="${nid}">${inner}</w:${tag}>`;
       }
       return { xml: HEAD + `<w:${tag}s ${NSDECL}>${x}</w:${tag}s>`, rels };
@@ -980,7 +983,7 @@
         const c = doc.comments[orig];
         if (!c) continue;
         let inner = blocksXML(c.blocks, ctx);
-        if (!/annotationRef/.test(inner)) inner = inner.replace(/<w:p>(<w:pPr>.*?<\/w:pPr>)?/, (m) => m + '<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:annotationRef/></w:r>');
+        if (!/annotationRef/.test(inner)) inner = prependParagraph(inner, '<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:annotationRef/></w:r>');
         const pid = c.keep?.paraId || (++paraN).toString(16).toUpperCase().padStart(8, '0');
         paraIds.set(String(orig), pid);
         /* tag the last paragraph with a paraId for threading / done state */

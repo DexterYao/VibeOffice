@@ -120,6 +120,52 @@ test('rewritten roots retain their original entity prolog and Strict namespace f
   assert.ok(strict.includes(`note="${N.w}"`)); // ordinary values are not URI declarations
 });
 
+test('Strict carry converts namespaces and DrawingML percentages, preserving other values and binary bytes', async () => {
+  const a = 'http://purl.oclc.org/ooxml/drawingml/main', w = 'http://purl.oclc.org/ooxml/wordprocessingml/main';
+  const source = `<w:document xmlns:w="${w}" xmlns:a="${a}" note="${w}"><w:body><a:alpha val="37.5%"/><a:lumOff val="-10%"/><a:graphicData uri="${a}"/><w:p w:rsidR="1234"/></w:body></w:document>`;
+  const bytes = new Uint8Array([0, 255, 17]);
+  const p = await pkg({ 'word/document.xml': source, 'word/theme.xml': `<a:theme xmlns:a="${a}"/>`, 'word/embedded.bin': bytes,
+    '_rels/.rels': rels(rel('rId1', N.strictRel + '/officeDocument', 'word/document.xml')),
+    'word/_rels/document.xml.rels': rels(rel('rId7', N.strictRel + '/theme', 'theme.xml') + rel('rId8', N.strictRel + '/oleObject', 'embedded.bin')) });
+  const doc = {}, writer = new K.Writer(p, { doc }); writer.carryRels(p, '');
+  const files = new Map(writer.finish().files.map(f => [f.name, f.data]));
+  const xml = text(files.get('word/document.xml'));
+  assert.match(xml, /val="37500"/); assert.match(xml, /val="-10000"/);
+  assert.ok(xml.includes(`note="${w}"`)); assert.ok(xml.includes(`xmlns:w="${N.w}"`));
+  assert.ok(xml.includes(`uri="${N.a}"`)); assert.ok(!text(files.get('word/theme.xml')).includes('purl.oclc.org'));
+  assert.ok(!text(files.get('word/_rels/document.xml.rels')).includes('purl.oclc.org'));
+  assert.deepEqual(files.get('word/embedded.bin'), bytes);
+  assert.equal(doc.losses.filter(e => e.id === 'ooxml:strict-to-transitional').length, 1);
+  K.acknowledge(doc, doc.losses);
+  const second = new K.Writer(p, { doc }); second.carryRels(p, ''); second.finish();
+  assert.equal(K.pendingLosses(doc).length, 0);
+  const untouched = `<a:x xmlns:a="${N.a}" note="${w}" val="37.5%"/>`;
+  assert.equal(K.transitionalXML(untouched), untouched);
+});
+
+test('Strict Word vocabulary converts table flags, tab measures and relative drawing sizes', () => {
+  const w = 'http://purl.oclc.org/ooxml/wordprocessingml/main';
+  const xml = `<w:p xmlns:w="${w}" xmlns:sl="http://purl.oclc.org/ooxml/schemaLibrary/main" xmlns:wp14="${K.KNOWN_NS.wp14}"><w:pPr><w:cnfStyle w:firstRow="true" w:lastRow="0" w:firstRowLastColumn="1"/><w:tabs><w:tab w:pos="85.05pt"/></w:tabs></w:pPr><wp14:pctWidth>12.5%</wp14:pctWidth><w:r><w:t>12.5%</w:t></w:r></w:p>`;
+  const out = K.transitionalXML(xml);
+  assert.match(out, /w:val="100000001000"/); assert.match(out, /w:pos="1701"/);
+  assert.match(out, /<wp14:pctWidth>12500<\/wp14:pctWidth>/); assert.match(out, /<w:t>12.5%<\/w:t>/);
+  assert.ok(out.includes('http://schemas.openxmlformats.org/schemaLibrary/2006/main'));
+});
+
+test('Strict regeneration and carried references both use Transitional output with original rIds', async () => {
+  const sw = 'http://purl.oclc.org/ooxml/wordprocessingml/main';
+  const p = await pkg({ 'word/document.xml': `<w:document xmlns:w="${sw}"/>`, 'word/theme.xml': '<theme/>',
+    '_rels/.rels': rels(rel('rId3', N.strictRel + '/officeDocument', 'word/document.xml')),
+    'word/_rels/document.xml.rels': rels(rel('rId17', N.strictRel + '/theme', 'theme.xml')) });
+  const o = K.output(p); o.bind('word/document.xml', p.main);
+  assert.equal(o.rels('').add(N.rel + '/officeDocument', 'word/document.xml'), 'rId3');
+  o.put('word/document.xml', `<w:document xmlns:w="${N.w}"><w:body/></w:document>`, p.type(p.main));
+  const files = new Map(o.finish().files.map(f => [f.name, text(f.data)]));
+  assert.ok(files.get('word/document.xml').includes(N.w));
+  assert.ok(files.get('word/_rels/document.xml.rels').includes('Id="rId17"'));
+  assert.ok(!files.get('word/_rels/document.xml.rels').includes('purl.oclc.org'));
+});
+
 test('identity scopes survive transfers, explicit index maps and bounded slide/master ranges', () => {
   const ids = new K.Identities(); ids.reserve('slide2.xml', 'shape', '99');
   assert.equal(ids.resolve('pkg', 'slide1.xml', 'shape', '2', { primary: 'pkg', scope: 'slide2.xml' }), '100');

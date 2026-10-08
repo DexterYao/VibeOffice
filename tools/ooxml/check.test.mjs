@@ -48,6 +48,14 @@ test('IDs in mutually exclusive alternatives may repeat, active duplicate IDs ma
   assert.ok(invalid.issues.some(i => i.code === 'duplicate-shape-id'));
   assert.equal(run('check', await pkg('scoped', { 'one.xml': slide(picture(2)), 'two.xml': slide(picture(2)) })).status, 'ok');
 });
+test('a Strict format conversion matches existing diagnostics but still detects new duplicates', async () => {
+  const original = await pkg('strict-duplicates', { 'slide.xml': slide(picture(2) + picture(2)).replaceAll(P, 'http://purl.oclc.org/ooxml/presentationml/main') });
+  const same = await pkg('transitional-duplicates', { 'slide.xml': slide(picture(2) + picture(2)) });
+  assert.equal(run('check', same).issues.length, 1);
+  assert.equal(run('compare', original, same).newIssues.length, 0);
+  const extra = await pkg('transitional-more-duplicates', { 'slide.xml': slide(picture(2) + picture(2) + picture(2)) });
+  assert.equal(run('compare', original, extra).newIssues.length, 2);
+});
 test('a slide layout may not reuse its master\'s ID', async () => {
   const pres = id => `<p:presentation xmlns:p="${P}" xmlns:r="${R}"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst></p:presentation>`;
   const master = id => `<p:sldMaster xmlns:p="${P}" xmlns:r="${R}"><p:sldLayoutIdLst><p:sldLayoutId id="${id}" r:id="rId1"/></p:sldLayoutIdLst></p:sldMaster>`;

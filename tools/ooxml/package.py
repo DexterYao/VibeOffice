@@ -14,6 +14,7 @@ import io
 import json
 from pathlib import Path
 import posixpath
+import re
 import sys
 from urllib.parse import unquote, urlsplit
 import xml.etree.ElementTree as ET
@@ -40,6 +41,29 @@ def split(tag):
 
 def at(el, name, default=None):
     return next((v for k, v in el.attrib.items() if split(k)[1] == name), default)
+
+def added_issues(original, saved):
+    """Match the same diagnostic after a Strict/Transitional namespace change.
+
+    Keep part names, code, detail and multiplicity significant. For duplicate IDs,
+    the identity and its scope matter; adding a preceding run must not turn the
+    same malformed original identity into a new diagnostic.
+    The actual saved diagnostic is returned, without normalizing the evidence.
+    """
+    def key(issue):
+        item = dict(issue)
+        if 'path' in item:
+            item['path'] = re.sub(r'\{http://purl\.oclc\.org/ooxml/(officeDocument|wordprocessingml|drawingml|spreadsheetml|presentationml|schemaLibrary)/', r'{http://schemas.openxmlformats.org/\1/2006/', item['path'])
+            if item.get('code', '').startswith('duplicate-') and item['code'].endswith('-id'):
+                del item['path']
+        return json.dumps(item, sort_keys=True)
+    remaining = Counter(key(i) for i in original)
+    added = []
+    for issue in saved:
+        k = key(issue)
+        if remaining[k]: remaining[k] -= 1
+        else: added.append(issue)
+    return added
 
 def rels_owner(name):
     if name == '_rels/.rels':
@@ -361,9 +385,7 @@ def compare(a, b, policy):
         count = sum(1 for x in b.xml.values() if split(x.tag)[0] in P and split(x.tag)[1] == 'sld')
         if count != policy['expectedSlides']:
             differences.append(dict(what='slide-count', expected=policy['expectedSlides'], actual=count))
-    ai = Counter(json.dumps(i, sort_keys=True) for i in a.check())
-    bi = Counter(json.dumps(i, sort_keys=True) for i in b.check())
-    new_issues = [json.loads(i) for i, n in (bi - ai).items() for _ in range(n)]
+    new_issues = added_issues(a.check(), b.check())
     return dict(original=a.file, saved=b.file, status='failed' if differences or new_issues else 'ok',
                 summary=dict(summary), differences=differences, newIssues=new_issues)
 

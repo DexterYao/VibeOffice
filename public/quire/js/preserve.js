@@ -30,7 +30,9 @@
     const pkg = doc.pkg;
     const consumed = new Set([RT('officeDocument'), ...P.parts.filter(p => p[2] !== 'opaque').map(p => p[1]), ...['header', 'footer', 'image', 'chart', 'hyperlink'].map(RT)]);
     const owned = new Set((doc.keep?.objects || []).flatMap(o => o.rels || []).filter(r => r.source === pkg?.id).map(r => r.owner + ':' + r.id));
-    const output = K.output(pkg, { doc, format, consumes: (base, rel, type) => consumed.has(type) || owned.has((output.originals.get(base) || '') + ':' + rel.id),
+    const output = K.output(pkg, { doc, format,
+      contentType: (source, part) => { const mime = L.extToMime(part.split('.').pop()); return mime.startsWith('image/') ? mime : undefined; },
+      consumes: (base, rel, type) => consumed.has(type) || owned.has((output.originals.get(base) || '') + ':' + rel.id),
       merge: (base, source, data, writer) => P.merge(doc, base, source, data, writer) });
     output.bind('word/document.xml', pkg?.main);
     for (const [base, type, mode, root] of P.parts) {
@@ -295,7 +297,7 @@
       const previews = new Map();
       const collect = o => {
         if (!o || typeof o !== 'object') return;
-        if (o.media && doc.keep.media?.[o.media]) previews.set(o.media, { id: o.media, source: doc.pkg.id, part: doc.keep.media[o.media] });
+        if (o.media && doc.pkg && doc.keep.media?.[o.media]) previews.set(o.media, { id: o.media, source: doc.pkg.id, part: doc.keep.media[o.media] });
         for (const [k, v] of Object.entries(o)) if (!['keep', 'ac', 'opaque', 'x', 'paras'].includes(k) && !k.startsWith('_')) collect(v);
       };
       collect(object); if (previews.size) record.previews = [...previews.values()];

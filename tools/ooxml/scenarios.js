@@ -17,7 +17,7 @@
       const object = p.runs.find(r => ['img', 'shape', 'group', 'chart'].includes(r.t));
       if (['geometry', 'delete-object'].includes(scenario) && !object) skip('Selected paragraph has no drawing');
       if (!['text', 'format', 'geometry', 'duplicate', 'delete-object'].includes(scenario)) skip('Scenario does not apply to Quire');
-      D.tx('Corpus ' + scenario, () => {
+      const applied = D.tx('Corpus ' + scenario, () => {
         D.touch(p);
         if (scenario === 'text') L.O.insertText(D.pos(p, D.plen(p)), ' LOSSLESS-CHECK');
         if (scenario === 'format') { const r = p.runs.find(r => r.t === 'text'); r.rPr.b = !r.rPr.b; }
@@ -25,6 +25,7 @@
         if (scenario === 'delete-object') p.runs.splice(p.runs.indexOf(object), 1);
         if (scenario === 'duplicate') { D.touchList(doc.main); doc.main.blocks.push(...D.cloneBlocks([p])); }
       });
+      if (applied === false) skip('Content-control lock prevents this edit');
       return { changed: [{ paragraph: p.id, kind: scenario }], undo: () => D.undo(), redo: () => D.redo() };
     }
     if (app === 'ledger') {

@@ -120,9 +120,9 @@ printer itself.
 
 | Format | Open | Save |
 | --- | --- | --- |
-| Excel Workbook `.xlsx`, Macro-Enabled `.xlsm`, Template `.xltx` | yes | yes (VBA projects are kept, not run) |
+| Excel Workbook `.xlsx`, Macro-Enabled `.xlsm`, Templates `.xltx` / `.xltm` | yes | yes (VBA projects are kept, not run) |
 | Password-protected `.xlsx` / `.xlsm` | yes: Office 2007 "standard" and Office 2010+ "agile" encryption (AES with SHA-1/256/384/512) | yes: Tools ▸ Options ▸ Security, or Save As ▸ General Options (AES-256 with SHA-512, as Excel 2013+) |
-| Strict Open XML `.xlsx` | yes | as transitional `.xlsx` |
+| Strict Open XML `.xlsx` | yes | standard Transitional OOXML, with a Compatibility Checker notice |
 | CSV `.csv`, text `.txt` / `.tsv` / `.prn` | yes: UTF-8, UTF-16 and Windows-1252 detected; the Text Import Wizard for delimited and fixed-width text | yes: CSV (UTF-8) and tab-delimited text, what each cell shows, as Excel does |
 | XML Spreadsheet 2003 `.xml` | yes | yes |
 | Web Page `.htm` / `.html` | yes: each table on the page becomes a sheet | yes: one self-contained page per workbook |

@@ -58,6 +58,7 @@ Licences for the word lists are in `public/common/dict/LICENSES.txt`.
 | Format | Open | Save |
 | --- | --- | --- |
 | Word Document `.docx` / `.docm` | yes | yes |
+| Strict Open XML `.docx` | yes | standard Transitional OOXML, with a Compatibility Checker notice |
 | Word Template `.dotx` / `.dotm` | yes | yes |
 | Web Page `.htm` / `.html` | yes | yes (single file, images inlined) |
 | Rich Text Format `.rtf` | yes | yes |

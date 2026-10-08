@@ -38,6 +38,9 @@ The app is `public/lectern/` (`python3 tools/serve.py`, then http://127.0.0.1:87
 
 File ▸ Open, drag a file onto the window, or *Open a presentation* in the Getting Started pane. `.pptx`, `.pptm`, `.ppsx`, `.potx` and their macro variants open; Strict Open XML files open too. Damaged packages are repaired where possible, and legacy binary `.ppt` files get a clear message.
 
+Strict inputs save as standard Transitional OOXML, with a Compatibility Checker notice. Same-format
+saves retain the macro, template or slideshow variant and any opening password.
+
 **Password-protected presentations** ask for the password, as PowerPoint does, and say so when it is wrong. Decryption happens in the browser (Agile encryption from Office 2010 on, Standard encryption from Office 2007). A presentation opened with a password is saved with the same password; Tools ▸ Options ▸ Security sets, changes or removes it (AES-256 with SHA-512, the scheme PowerPoint 2013 and later use).
 
 ## Charts

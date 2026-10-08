@@ -18,9 +18,9 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 first: two bugs in the shared save code passed every automated check (master and layout sharing an
 ID; partial preset adjustment lists).
 
-**The preservation batches are not yet Office-accepted.** The slide-6 diagnostic copies passed
-PowerPoint, but the larger preservation sample collection still needs review. Office batch 1 now
-reduces that collection to 15 files and a checklist.
+**Office batch 1 is accepted.** The user reported all 15 files passed on 2026-10-08, including
+the preservation samples and the namespace/convention checks. The slide-6 diagnostic copies
+also passed PowerPoint. Later feature groups still require their own Office batches.
 
 ## Changed habits
 1. **Office is the gate.**
@@ -118,20 +118,24 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
 3. **Strict files written with Transitional vocabulary** (67 Word files; also some Excel and PowerPoint).
    - The cause: `K.strictXML` swaps only namespace URIs, so `w:ind w:right`, tab `left`, `0`/`1`
      on/off values and the like are left in Strict files.
-   - Proposed fix:
+   - Implemented:
      - save a file opened as Strict in Transitional;
      - convert its preserved fragments Strict→Transitional (namespaces; DrawingML `N%` → thousandths;
        Transitional also accepts Strict's `start`/`end` and `true`/`false`);
      - record a "saved in the standard format" entry in the Compatibility Checker.
-   - True Strict output would need a full vocabulary converter, with no validator to check it (the SDK
-     cannot open Strict). **User approved Transitional output with a notice on 2026-10-08; implementation pending.**
+   - Includes conditional table flags, tab measures and relative drawing percentages. The 175 Strict
+     inputs save/reopen; 700 saved/draft states introduce no package/SDK diagnostics. The SDK does open
+     these Strict originals; malformed/unopenable originals elsewhere remain failures, not passes.
+     **User approved Transitional output with a notice on 2026-10-08.** Office review of the conversion
+     itself will be included in the next bounded batch.
 4. **Fragments repeat root declarations on inner elements.**
    - Each kept fragment re-declares the namespaces and `mc:Ignorable`: Excel `calcPr`, `phoneticPr`
      and other sheet children in 364 of 935 saves; Word footnote separators in 650 of 2,880.
    - This is allowed by the markup-compatibility rules, but Office never writes it.
    - Proposed fix: when emitting a fragment into a part, drop declarations identical to the
      destination root's; add the missing ones, and the union of `mc:Ignorable`, to the root instead.
-   - Office check first: one workbook and one document of each form, in the next Office batch.
+   - Office batch 1 accepted both forms. Retain these valid declarations; no namespace rewrite is
+     needed merely to make serialized fragments resemble Office's formatting.
 5. **Low risk; make them match Office when touching that code:**
    - Lectern `defaultTextStyle` writes `a:ea`/`a:cs typeface="+mn-lt"`; Office writes `+mn-ea`/`+mn-cs`.
    - `p:penClr` uses `a:srgbClr` where Office uses `a:prstClr`.
@@ -146,7 +150,7 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   hyperlink. The video fixture is saved as PPTM from an authored PPTX; a separate authored PPTM tests VBA.
 - All 15 batch files save/reopen, introduce no package/SDK diagnostics and open in LibreOffice with
   unchanged page/slide counts. The comparison against writer `ffc6814` has only explained differences.
-  57 unit tests pass and all four pages load. Office results remain pending; this is not an acceptance claim.
+  57 unit tests pass and all four pages load. The user subsequently reported all 15 passed in Office.
 - Reports and exact inputs: `~/corpora/results/next-plan-head-2026-10-08/`.
-- Next: full runs and documentation cleanup while Office batch 1 is reviewed. Do not start step 5
-  until the batch result permits it.
+- Next: finish full runs and documentation cleanup, then start the Quire remainder (step 5).
+  Office batch 1 permits that step; later feature groups still need their own acceptance batches.
