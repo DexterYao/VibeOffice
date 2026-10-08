@@ -46,6 +46,7 @@
   const rid = (el, n) => (el ? el.getAttributeNS(NS_R, n || 'id') || el.getAttribute('r:' + (n || 'id')) : null);
   const bool = (v) => v === '1' || v === 'true' || v === 'on';
   function resolvePath(base, target) {
+    try { return L.opc.resolve(base, target).part; } catch (e) { /* retain the damaged-package reader's recovery path */ }
     if (/^\//.test(target)) return target.slice(1);
     const parts = base.split('/');
     parts.pop();
@@ -755,11 +756,21 @@
       password = opts.password;
     }
     const damaged = [];
+    const file = part => zip.get(part) || zip.get(L.opc.relative('', part));
+    let pkg = null, packageError = null;
+    try { pkg = await L.opc.open(zip); } catch (e) { packageError = e.message; }
+    const originals = new Map();
+    const original = part => {
+      if (!pkg) return null;
+      if (!originals.has(part)) {
+        try { originals.set(part, L.preserve.originalShapes(pkg, part)); } catch (e) { originals.set(part, null); }
+      }
+      return originals.get(part);
+    };
     const textCache = new Map();
     const getText = async (p) => {
       if (textCache.has(p)) return textCache.get(p);
-      let f = zip.get(p);
-      if (!f) { try { f = zip.get(decodeURIComponent(p)); } catch (e) { f = null; } }
+      const f = file(p);
       let t = null;
       if (f) { try { t = await f.text(); } catch (e) { damaged.push(p); } }
       textCache.set(p, t);
@@ -794,7 +805,7 @@
     const mediaCache = new Map();
     const loadMedia = async (p) => {
       if (mediaCache.has(p)) return mediaCache.get(p);
-      const f = zip.get(p);
+      const f = file(p);
       if (!f) { mediaCache.set(p, null); return null; }
       let bytes;
       try { bytes = await f.bytes(); } catch (e) { damaged.push(p); mediaCache.set(p, null); return null; }
@@ -826,6 +837,8 @@
     const sz = kid(presX, 'sldSz');
     const W = L.round(pt(num(sz, 'cx', 9144000)), 3), H = L.round(pt(num(sz, 'cy', 6858000)), 3);
     const pres = L.model.newPresentation({ w: W, h: H, empty: true });
+    if (pkg) L.opc.attach(pres, pkg);
+    if (packageError) L.opc.loss(pres, { id: 'package:unreadable', what: 'Some original package bytes could not be retained: ' + packageError, where: presPath, action: 'drop' });
     pres.designs = {};
     pres.firstNum = num(presX, 'firstSlideNum', 1);
 
@@ -1090,6 +1103,8 @@
         try {
           const s = await shapeFrom(el, ctx, opts);
           if (!s) continue;
+          const source = original(ctx.partPath);
+          if (source) for (const shape of Array.isArray(s) ? s : [s]) L.preserve.shape(shape, source.map.get(String(shape.numId)), el, pkg, ctx.partPath);
           if (Array.isArray(s)) out.push(...s); else out.push(s);
         } catch (e) { console.warn('shape skipped', e); }
       }
@@ -1525,7 +1540,7 @@
           const ref = new RegExp('<(\\w+:)?(userShapes|externalData)\\b[^>]*?r:id="' + id.replace(/[^\w-]/g, '') + '"[^>]*?(?:/>|>[\\s\\S]*?</(\\w+:)?(userShapes|externalData)>)');
           if (rel.type === 'chartUserShapes') { text = text.replace(ref, ''); continue; }
           if (rel.external) { parts.push({ id, fullType: rel.fullType, target: rel.target, external: true }); continue; }
-          const f = zip.get(rel.target);
+          const f = file(rel.target);
           if (!f) { text = text.replace(ref, ''); continue; }
           let bytes;
           try { bytes = await f.bytes(); } catch (e) { text = text.replace(ref, ''); continue; }
@@ -1748,7 +1763,7 @@
       n++;
       if (opts.progress) opts.progress(n, slidePaths.length);
       const sx = await xml(sp);
-      if (!sx) { if (zip.get(sp)) damaged.push(sp); continue; }
+      if (!sx) { if (file(sp)) damaged.push(sp); continue; }
       try {
       const sr = await rels(sp);
       const layRel = Object.values(sr).find((r) => r.type === 'slideLayout');
@@ -1815,6 +1830,7 @@
       slide.trans = transitionFrom(sx) || slide.trans;
       /* animations */
       try { slide.anims = timingFrom(kid(sx, 'timing'), slide); } catch (e) { console.warn('timing skipped', e); slide.anims = []; }
+      if (original(sp)) L.preserve.slide(slide, original(sp).tree, pkg, sp, at(sldIds[n - 1], 'id'), sx);
       pathToId.set(sp, slide.id);
       pres.slides.push(slide);
       } catch (e) {
@@ -1849,6 +1865,7 @@
     for (const s of pres.slides) L.model.walk(s.shapes, pick);
     for (const d of Object.values(pres.designs)) [d.deco, d.titleDeco].concat(d.layoutDecos ? Object.values(d.layoutDecos) : []).forEach((list) => list && L.model.walk(list, pick));
     for (const sh of clearPics) { const v = await L.media.withTransparent(sh.media, sh.img.clear, 3); if (v) sh.img.view = v; }
+    L.preserve.seal(pres);
     return pres;
   }
 

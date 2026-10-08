@@ -23,6 +23,16 @@ def main():
     p.add_argument('--resume', action='store_true')
     args = p.parse_args()
     rows = [json.loads(l) for l in Path(args.results).read_text().splitlines() if l.strip()]
+    # Each driver transaction can write more than its first save. Validate every
+    # emitted state, including undo/redo and recovered drafts, with the same oracle.
+    expanded = []
+    for row in rows:
+        expanded.append(row)
+        for state in ('before', 'undo', 'redo', 'second', 'draft', 'recovered'):
+            scenario = row.get('scenario', 'save') + '-' + state
+            if (Path(args.saved) / scenario / row['file']).is_file():
+                expanded.append(dict(row, scenario=scenario, _original_count=state in ('before', 'undo')))
+    rows = expanded
     done = set()
     failed = 0
     if args.resume and Path(args.out).exists():
@@ -85,7 +95,8 @@ def main():
                             if not m: raise ValueError('pdfinfo returned no page count')
                             counts.append(int(m[1]))
                         r['pages'] = dict(original=counts[0], saved=counts[1])
-                        expected = row.get('expectedPages')
+                        expected = row.get('expectedPages', row.get('expectedSlides'))
+                        if row.get('_original_count'): expected = counts[0]
                         if expected is None and row.get('scenario', 'save') in ('save', 'repeat'):
                             expected = counts[0]
                         if expected is not None and counts[1] != expected:

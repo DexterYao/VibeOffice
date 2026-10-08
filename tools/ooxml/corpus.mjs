@@ -75,7 +75,7 @@ async function run(o) {
   const save = async (kind, doc) => { const blob = await write(doc); if (o.save) artifacts[kind] = await encode(blob); return blob; };
   try {
     let doc = await read(bytes);
-    if (o.app === 'quire') L.D.doc = doc; else if (o.app === 'lectern') L.pres = doc;
+    if (o.app === 'quire') L.D.doc = doc; else if (o.app === 'lectern') { L.pres = doc; L.hist.clear(); }
     const operation = corpusScenario(o.app, doc, o.scenario);
     result.changed = operation.changed;
     if (operation.expectedSlides !== undefined) result.expectedSlides = operation.expectedSlides;

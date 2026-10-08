@@ -944,7 +944,7 @@ addEventListener('resize',fit);fit();show(0);<\/script></body></html>`], { type:
     if (!shapes.length) return;
     E.commit('Duplicate', () => {
       const slide = E.slide();
-      E.sel = shapes.map((s) => { const c = M.dup(s); M.translate(c, 12, 12); slide.shapes.push(c); return c.id; });
+      E.sel = M.dupMany(shapes).map((c) => { M.translate(c, 12, 12); slide.shapes.push(c); return c.id; });
     });
   };
   A.selectAll = function () {
@@ -1661,7 +1661,12 @@ addEventListener('resize',fit);fit();show(0);<\/script></body></html>`], { type:
       return;
     }
     const c = A.focusArea === 'slides' || A.view === 'sorter' ? A.copySlides(op === 'cut') : A.copyShapes(op === 'cut');
-    if (c && c.text && navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(c.text).catch(() => {});
+    if (c) {
+      pendingClip = c;
+      let copied = false; try { copied = document.execCommand('copy'); } catch (e) { /* browser may disallow clipboard access */ }
+      pendingClip = null;
+      if (!copied && c.text && navigator.clipboard?.writeText) navigator.clipboard.writeText(c.text).catch(() => {});
+    }
   };
   A.paste = function () { if (A.clip) A.pasteItem(A.clip); };
   A.pasteItem = function (c) {
@@ -1686,8 +1691,7 @@ addEventListener('resize',fit);fit();show(0);<\/script></body></html>`], { type:
       if (!slide) return;
       E.commit('Paste', () => {
         const ids = [];
-        for (const s of c.shapes) {
-          const d = M.dup(s);
+        for (const d of M.dupMany(c.shapes)) {
           const clash = slide.shapes.some((x) => Math.abs(x.x - d.x) < 1 && Math.abs(x.y - d.y) < 1);
           if (clash) M.translate(d, 12, 12);
           slide.shapes.push(d);
@@ -1722,13 +1726,14 @@ addEventListener('resize',fit);fit();show(0);<\/script></body></html>`], { type:
   document.addEventListener('cut', (e) => onClipEvent(e, 'cut'));
   function inNativeText(t) { return t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable); }
   function onClipEvent(e, op) {
+    const prepared = typeof pendingClip === 'object' ? pendingClip : null;
     pendingClip = null;
     if (L.show.active || ui.dialogOpen()) return;
     const t = document.activeElement;
     if (TE.active()) { const txt = TE.selectedText(); if (txt) pushClip({ kind: 'text', text: txt, label: txt.slice(0, 80) }); return; }
     if (inNativeText(t)) return;
-    const c = A.focusArea === 'slides' || A.view === 'sorter' ? A.copySlides(op === 'cut') : A.copyShapes(op === 'cut');
-    if (c) { e.preventDefault(); try { e.clipboardData.setData('text/plain', c.text || ''); e.clipboardData.setData('application/x-lectern', c.id); } catch (er) { /* ignore */ } }
+    const c = prepared || (A.focusArea === 'slides' || A.view === 'sorter' ? A.copySlides(op === 'cut') : A.copyShapes(op === 'cut'));
+    if (c) { e.preventDefault(); try { e.clipboardData.setData('text/plain', c.text || ''); e.clipboardData.setData('application/x-lectern', JSON.stringify(L.preserve.clipboard(c))); } catch (er) { e.clipboardData.setData('application/x-lectern', c.id); } }
   }
   document.addEventListener('paste', (e) => {
     pendingClip = null;
@@ -1741,6 +1746,10 @@ addEventListener('resize',fit);fit();show(0);<\/script></body></html>`], { type:
     const marker = dt.getData('application/x-lectern');
     const files = Array.from(dt.files || []).filter((f) => /^image\//.test(f.type));
     const text = dt.getData('text/plain');
+    if (marker.startsWith('{')) {
+      try { A.pasteItem(L.preserve.pasteboard(JSON.parse(marker))); return; }
+      catch (error) { L.opc.loss(L.pres, { id: 'paste:' + L.uid('clip'), what: 'The copied Office data could not be imported: ' + error.message, where: 'Clipboard', action: 'conversion' }); }
+    }
     if (A.clip && (marker === A.clip.id || (text && text === A.clip.text))) { A.pasteItem(A.clip); return; }
     if (files.length) { A.insertPictureFiles(files); return; }
     if (text) { const sel = E.primary(); if (sel && sel.tx && E.sel.length === 1) { TE.begin(sel.id, { atEnd: true }); L.hist.push('Paste'); TE.insertText(text); } else A.pasteText(text); }

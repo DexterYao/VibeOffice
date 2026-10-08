@@ -12,7 +12,7 @@ The app is `public/lectern/` (`python3 tools/serve.py`, then http://127.0.0.1:87
 | `../common/core.js` | Utilities, colors, fonts, file I/O, media store, PDF writer (shared, see docs/suite.md) |
 | `../common/sha.js`, `../common/crypto.js` | Password-protected presentations: ECMA-376 Agile and Standard encryption (AES, SHA-1/SHA-2), read and write |
 | `../common/zip.js` | ZIP reader/writer (CompressionStream with a pure-JS inflate fallback) |
-| `../common/xml.js`, `../common/opc.js`, `../common/opc-order.js` | Shared OOXML preservation core and original AlternateContent capture; writer integration is in progress |
+| `../common/xml.js`, `../common/opc.js`, `../common/opc-order.js` | Shared OOXML preservation graph, identities, namespace capture and schema order |
 | `../common/geometry.js` | 92 AutoShape presets, adjust handles, text rectangles, connectors |
 | `js/model.js` | Presentation model, 14 design templates, 21 slide layouts, undo history |
 | `js/render.js` | DOM/SVG renderer for slides, fills, patterns, gradients, WordArt |
@@ -26,6 +26,7 @@ The app is `public/lectern/` (`python3 tools/serve.py`, then http://127.0.0.1:87
 | `js/dialogs.js` | Font, Bullets, Format AutoShape, Fill Effects, Header & Footer, Options (with Security), etc. |
 | `js/panes.js` | Slides/Outline tab, notes, sorter, notes page, print preview, task panes |
 | `js/slideshow.js` | Full-screen show, 58 transitions, 50+ entrance/emphasis/exit/motion-path effects, pen, rehearse timings |
+| `js/preserve.js` | Model-attached media frames, sound properties, playback timing, property invalidation and clipboard dependency transport |
 | `js/pptx-read.js` | PresentationML import (themes, masters, layouts, placeholders, table styles, charts, SmartArt, custom geometry, animations; repairs damaged packages) |
 | `js/pptx-write.js` | PresentationML export (validated against the OOXML schema) |
 | `js/commands.js` | Every menu/toolbar command |
@@ -63,6 +64,12 @@ File ▸ Page Setup. Choose *Widescreen (16:9)* (13.33 × 7.5 in, today's PowerP
 
 Pictures survive a round trip in every form they come in: SVG pictures keep the vector original next to a PNG copy, linked pictures keep their link, pictures whose image is missing keep their frame, and a transparent colour (Picture toolbar ▸ Set Transparent Color, or `a:clrChange` in a file) is stored as a setting, not baked into the image.
 
+Imported video and audio retain their original media bytes, links, pictures and playback timing on
+save. Lectern displays their poster pictures; playback in PowerPoint still needs Office acceptance.
+Moving, resizing, cropping, duplicating, copying between decks and draft recovery preserve the media.
+Replacing the media picture converts it to an ordinary picture and records that conversion. The
+Compatibility Checker dialog is the next integration stage; these records are not yet shown on Save.
+
 ## Testing against real presentations
 
 The importer was tested on **1,672 distinct presentations (253 MB)** collected from the public test suites and sample folders of 20 open-source projects: LibreOffice (577), Aspose.Slides examples for Java and .NET (346), the Open XML SDK (211), Apache POI (109), pandoc (103), ShapeCrawler (98), python-pptx (66), pptx-automizer (43), Open-Xml-PowerTools (38), Apache Tika (29) and ten smaller ones. Many are deliberately hard: fuzzed and truncated packages, Strict Open XML, password-protected files, decks from PowerPoint 2007 betas, and generator output from a dozen libraries.
@@ -92,7 +99,14 @@ To run the harness: serve Lectern (`python3 tools/serve.py`) and the folder abov
 
 ## What a save keeps, converts and drops
 
-Lectern reads a file into its own model and writes a new file from that model. Whatever the model has no place for is not written, and today that happens without a warning. To measure it, `tools/lectern/test/loss-audit.py` compares each of the 1,652 decks with Lectern's saved copy, feature by feature and word by word (python, standard library only: `python3 tools/lectern/test/loss-audit.py corpus/ saved/ out.json`).
+Lectern regenerates slide content from its model and carries original media properties alongside it.
+The media stage below measures the current implementation. Other unsupported features remain subject
+to the losses in the baseline tables; package and general object preservation are still in progress.
+`tools/lectern/test/loss-audit.py` compares original and saved packages feature by feature and word by
+word (`python3 tools/lectern/test/loss-audit.py corpus/ saved/ out.json`).
+
+The following older baseline used 1,652 decks, before preservation was added. Its media counts have
+not been remeasured on that larger corpus; the pinned three-source corpus below is reproducible.
 
 **Kept.** The words on the slides (all but 24 of 111,243, in two decks: a text box holding an equation, saved as the picture PowerPoint stores for older readers, and text typed into connector-shaped AutoShapes) and in the speaker notes (7,274 of 7,282); pictures, shapes, tables, group structure; animations (2,873 of 2,876 effects) and transitions (143 of 144); links to web pages, e-mail addresses and other slides; unedited charts byte for byte with their workbooks.
 
@@ -163,12 +177,56 @@ has not yet been rendered in LibreOffice. The baseline reports are retained outs
 ### Shared preservation core (2026-10-08)
 
 The reader captures original AlternateContent before selecting a branch and normalising percentages.
-The writer does not yet emit those records, so the feature-loss numbers above still apply. The same
+At this stage the writer did not emit those records, so the feature-loss numbers above still applied. The same
 844 inputs again produced 840 successful open/save/reopen attempts, 3 failures and 1 exclusion.
 All 840 saved outputs completed package/SDK comparisons against the earlier saves with no new
 diagnostics. Twelve LibreOffice samples kept their slide counts relative to the earlier saves;
 the original `tdf173266.pptx` remains outside that comparison because LibreOffice cannot open it.
 Reports: `~/corpora/results/opc-core-2026-10-08/`. PowerPoint acceptance remains pending.
+
+### Media preservation (2026-10-08)
+
+The pinned corpus now keeps **29 of 29 audio/video/media relationships in all 17 relevant decks**,
+up from 0 of 29. Original picture frames include AlternateContent Choice and Fallback, p14 media,
+playback and interactive sequences. All 16 media play/pause behaviors also survive, including
+CD-track audio with no media relationship. Transition sounds, click sounds and external sound URLs are
+carried too. Slide, shape and timing identities stay connected; converted SmartArt children receive
+their own slide IDs instead of reusing the diagram's ID space.
+
+| Edit to a media object | Preserved data |
+|---|---|
+| Text elsewhere on the slide | Keep the frame, effects, media and playback |
+| Move, resize, rotate, or group coordinates | Update the outer transform; keep the media and inner properties |
+| Crop, line, geometry or picture adjustment | Replace that property only |
+| Shadow | Replace `outerShdw`; keep glow, reflection, bevel and 3-D properties |
+| Duplicate or copy into another deck | Import dependencies and remap copied shape/timing identities together |
+| Delete or replace the media picture | Remove its playback; replacement records a conversion |
+| Undo/redo or draft recovery | Restore the preserved properties and dependency references |
+
+Independent ZIP/XML checks pass all **120 real-file operations** (12 media-picture decks × 10
+scenarios), plus **20 operations** on Transitional and Strict AlternateContent/effects fixtures derived
+from an authored deck. They compare media bytes, intended relationship targets, unedited properties, playback and exact
+undo/redo package restoration apart from core timestamps. Keyboard copy transports dependencies into
+a separate browser tab. Another 117 saved states across all 18 decks keep sound properties and bytes
+through repeat-save, text edits and draft recovery.
+
+All 844 corpus attempts retain the baseline result: **840 save/reopen, 3 failed, 1 password exclusion**.
+Package/SDK comparison against originals reports **822 OK, 21 failed, 1 excluded**, with no new
+diagnostics. The 21 include malformed packages and originals the SDK cannot open; they are not counted
+as passes. Across the media operations, 374 of 408 saved states compare successfully; 34 have the same
+unvalidatable original. All 68 AlternateContent fixture states compare successfully. The saved states
+of two malformed media originals (40 artifacts) also pass standalone SDK validation after repairs to
+missing media content types and escaped Unicode part URIs.
+
+LibreOffice opens all **18 of 18** final media samples with unchanged slide counts. Full-corpus
+LibreOffice rendering and PowerPoint acceptance remain pending, including the separate slide-6
+repair report. Reports and saved files are retained in
+`~/corpora/results/lectern-media-2026-10-08/`; Office samples are in
+`~/Downloads/lossless-check/lectern/media/`. The audit compares 827 readable pairs; three bad-CRC
+originals previously counted as readable are now explicit failures. The text-loss inventory is
+unchanged. Transitions improve from 111/112 to 112/112; other unsupported actions and general design,
+object, comment and package preservation follow
+this stage.
 
 ## Known limits
 

@@ -106,7 +106,7 @@ class Package:
             for info in z.infolist():
                 if info.is_dir():
                     continue
-                n = info.filename
+                n = unquote(info.filename)
                 if n in self.data:
                     self.issue('duplicate-part', n)
                 if n.startswith('/') or posixpath.normpath(n) != n or n.startswith('../'):

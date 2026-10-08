@@ -125,7 +125,10 @@ own original parse before the reader normalises the working DOM.
 
 Each app supplies part ownership to `L.opc.Writer`: opaque bytes are carried, merged parts replace
 owned properties in schema order, and regenerated content parts emit model-attached fragments.
-`emit(fragment, owner, {box})` remaps relationships and IDs and optionally changes geometry. `duplicate`
+`emit(fragment, owner, {box})` remaps relationships and IDs and optionally changes geometry. `slice`
+extracts a tokenised property while retaining only its dependencies and identities. ZIP entries,
+content types and internal relationship URIs share one decoded identity; output URIs are escaped.
+`duplicate`
 remaps copied definitions and references together; `export`/`import` transport dependency bytes for a
 cross-document clipboard. `finish()` checks relationship targets and returns `{files, dropped}`.
 Loss acknowledgement is per entry; autosave must neither show a dialog nor acknowledge entries.
@@ -173,10 +176,36 @@ diagnostic identities, not merely a change in count. `--stdin-pairs` accepts JSO
 
 `python3 tools/ooxml/validate.py RESULTS.jsonl ORIGINALS SAVED_ROOT OUT.jsonl --sdk PATH_TO_DLL`
 combines package checks and SDK comparison, accounting for unsuccessful driver attempts as well.
+It validates every emitted artifact, including before-edit, undo, redo, second-save and recovered
+draft states. A diagnostic comparison requires a validatable original; standalone validation of
+repaired output is reported separately when its original cannot be opened by the SDK.
 `--dotnet PATH` selects the SDK runtime. `--lo PDF_DIRECTORY` additionally converts original and saved
 files using LibreOffice with its own temporary profile, checks conversion success and extracts page
 counts with `pdfinfo`. Unedited saves must keep the page count; edit scenarios can record
-`expectedPages`. LibreOffice and the validator cannot certify acceptance by Office itself.
+`expectedPages` or `expectedSlides`. LibreOffice and the validator cannot certify acceptance by Office itself.
+
+### Lectern media preservation
+
+`node tools/lectern/test/media.mjs FILE_OR_LIST OUTDIR` opens authored video/audio decks in Chromium.
+It saves unedited, moves/resizes, changes shadow and crop, duplicates, deletes, replaces, duplicates
+the slide, recovers an actual suite draft and copies through keyboard/native clipboard events into
+another tab. Every mutation that uses history emits its pre-edit, undo and redo state.
+
+`python3 tools/lectern/test/media-check.py ORIGINALS OUTDIR` independently compares media frames,
+bytes, reference targets, playback and exact history restoration (core timestamps excepted).
+`python3 tools/lectern/test/media-check.py --sounds ORIGINALS RESULTS.jsonl SAVED_ROOT` compares
+transition/click sounds and playback through ordinary save/repeat/text/draft corpus scenarios,
+including decks without a media picture. `media-variant.py SOURCE.pptx OUT.pptx` derives an
+AlternateContent/effects fixture from an authored media deck (`--strict` adds a Strict case with an
+existing shadow to replace); keep it outside the repository and
+validate the fixture itself before testing. Feed each driver's report to `validate.py` for all-state
+package and SDK checks.
+
+The media stage retains reports and saved files in `~/corpora/results/lectern-media-2026-10-08/`:
+140 media-operation fidelity checks, 117 sound-state checks, 18 LibreOffice comparisons, all three
+app screenshots, 32 Node tests and the unchanged 24-file Markdown checks. The full 844-file Lectern
+run has no new diagnostics, with malformed originals and the password exclusion still accounted for.
+Office samples live in `~/Downloads/lossless-check/lectern/media/`; PowerPoint acceptance is pending.
 
 `python3 tools/ooxml/samples.py ~/corpora /tmp/lossless ~/Downloads/lossless-check/baseline`
 selects small independently authored files for each carried-feature test, copies original/saved/edited

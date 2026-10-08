@@ -127,12 +127,17 @@
     while (from.length && to.length && from[0] === to[0]) { from.shift(); to.shift(); }
     return '../'.repeat(from.length) + to.map(s => encodeURIComponent(s).replace(/%3A/gi, ':')).join('/');
   };
+  const escapedURI = value => value.replace(/[\u0000-\u0020\u007f-\uffff]+/g, s => encodeURI(s));
   const packages = new Map(), privateData = new WeakMap();
   K.package = id => packages.get(id);
   K.open = async function (zip, options = {}) {
     if (!(zip instanceof Map)) zip = await L.zip.read(zip);
     const bytes = new Map();
-    for (const entry of new Set(zip.values())) if (!entry.name.endsWith('/')) bytes.set(entry.name, (await entry.bytes()).slice());
+    for (const entry of new Set(zip.values())) if (!entry.name.endsWith('/')) {
+      const name = decodeURIComponent(entry.name);
+      if (bytes.has(name)) throw new Error('Duplicate package part URI: ' + name);
+      bytes.set(name, (await entry.bytes()).slice());
+    }
     return makePackage(bytes, options);
   };
   function makePackage(bytes, options = {}) {
@@ -283,6 +288,20 @@
     });
     return { xml: K.patch(xml, changes), deps, ids, source, part, record: ac?.id || null };
   };
+  // Derive a property/subtree from an existing tokenised fragment. Discard metadata
+  // for tokens outside the selection, so copied definitions have the right scope.
+  K.slice = function (fragment, xml) {
+    const deps = [], ids = [], seen = new Map();
+    xml = xml.replace(/\u0001(rel|id):(\d+)\u0001/g, (token, kind, n) => {
+      if (!seen.has(token)) {
+        const input = kind === 'rel' ? fragment.deps : fragment.ids, output = kind === 'rel' ? deps : ids;
+        if (!input[+n]) throw new Error('Invalid fragment token');
+        seen.set(token, '\u0001' + kind + ':' + output.length + '\u0001'); output.push(input[+n]);
+      }
+      return seen.get(token);
+    });
+    return { ...fragment, xml, deps, ids, record: null };
+  };
   K.duplicate = function (object) {
     const copy = JSON.parse(JSON.stringify(object)), fragments = [];
     const visit = v => {
@@ -316,12 +335,17 @@
   K.merge = function (xml, replacements, type) {
     const tree = K.parse(xml), pos = XML.source.get(tree), slots = K.schema?.types[type];
     if (!slots) throw new Error('No schema order for ' + type);
-    const expanded = name => name.startsWith('{') ? name : '{' + K.schema.namespaces[name.split(':')[0]] + '}' + name.split(':')[1];
+    const aliases = Object.fromEntries(['w', 'p', 'a', 's', 'rel'].map(k => [NS[k], 'http://purl.oclc.org/ooxml/' + ({ w: 'wordprocessingml/main', p: 'presentationml/main', a: 'drawingml/main', s: 'spreadsheetml/main', rel: 'officeDocument/relationships' })[k]]));
+    const canonical = name => { for (const [transitional, strict] of Object.entries(aliases)) name = name.replace('{' + strict + '}', '{' + transitional + '}'); return name; };
+    const expanded = name => canonical(name.startsWith('{') ? name : '{' + K.schema.namespaces[name.split(':')[0]] + '}' + name.split(':')[1]);
+    const strict = Object.values(aliases).includes(tree.namespaceURI);
+    const replacement = xml => strict ? xml.replace(/(xmlns(?::[\w.-]+)?\s*=\s*)(["'])(.*?)\2/g, (m, key, quote, uri) => key + quote + (aliases[uri] || uri) + quote) : xml;
+    replacements = Object.fromEntries(Object.entries(replacements).map(([name, values]) => [canonical(name), [values].flat().map(replacement)]));
     const rank = new Map(); slots.forEach((slot, i) => slot.forEach(name => { if (!rank.has(expanded(name))) rank.set(expanded(name), i); }));
     const entries = [], seen = new Set(); let previous = -1, cursor = pos.openEnd, serial = 0;
     const add = (text, order) => { if (text) entries.push({ text, order, serial: serial++ }); };
     for (const child of elements(tree)) {
-      const cp = XML.source.get(child), name = '{' + child.namespaceURI + '}' + child.localName;
+      const cp = XML.source.get(child), name = canonical('{' + child.namespaceURI + '}' + child.localName);
       add(xml.slice(cursor, cp.start), previous);
       const order = rank.get(name) ?? previous;
       if (rank.has(name)) previous = order;
@@ -485,7 +509,7 @@
       this.reserved.add(id); this.list.push({ id, type, target, external: !!external }); return id;
     }
     xml() {
-      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="' + NS.pkg + '">' + this.list.map(r => '<Relationship Id="' + esc(r.id) + '" Type="' + esc(r.type) + '" Target="' + esc(r.target) + '"' + (r.external ? ' TargetMode="External"' : '') + '/>').join('') + '</Relationships>';
+      return '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Relationships xmlns="' + NS.pkg + '">' + this.list.map(r => '<Relationship Id="' + esc(r.id) + '" Type="' + esc(r.type) + '" Target="' + esc(r.external ? r.target : escapedURI(r.target)) + '"' + (r.external ? ' TargetMode="External"' : '') + '/>').join('') + '</Relationships>';
     }
   }
   K.Rels = Rels;
@@ -493,6 +517,7 @@
   class Writer {
     constructor(pkg, options = {}) {
       this.pkg = pkg; this.doc = options.doc || {}; this.parts = new Map(); this.types = new Map();
+      this.contentType = options.contentType;
       this.names = new Set((pkg?.names || []).map(n => n.toLowerCase())); this.mapping = new Map();
       this.classes = new Map(); this.omitted = new Set(); this.carried = new Set(); this.relationships = new Map(); this.emitted = new Set();
       this.ids = new Identities();
@@ -588,7 +613,7 @@
       if (!pkg.has(part)) throw new Error('Missing dependency: ' + part);
       this.carried.add(key); // mark before following edges: layouts can point back at masters
       if (this.mode(pkg, part) !== 'opaque') return dest;
-      this.put(dest, pkg.bytes(part), pkg.type(part));
+      this.put(dest, pkg.bytes(part), pkg.type(part) || this.contentType?.(pkg, part));
       const relationships = pkg.rels(part), rewritten = [];
       for (const r of relationships) {
         if (signatureRel(r.type)) {
@@ -599,7 +624,7 @@
           K.loss(this.doc, { id: 'dependency:' + key + ':' + r.id, what: 'A preserved part refers to a deleted part.', where: part, action: 'drop' });
           throw new Error('Cannot preserve ' + part + ': deleted dependency ' + r.part);
         }
-        rewritten.push({ ...r, target: r.external || dest === part && target === r.part ? r.target : K.relative(dest, target) + (r.fragment || '') });
+        rewritten.push({ ...r, target: r.external ? r.target : escapedURI(dest === part && target === r.part ? r.target : K.relative(dest, target) + (r.fragment || '')) });
       }
       if (relationships.length || pkg.has(K.relsPath(part))) {
         const unchanged = relationships.length === rewritten.length && relationships.every((r, i) => r.target === rewritten[i].target);
@@ -618,11 +643,12 @@
       const definitions = fragment.copyDefinitions || fragment.ids.filter(i => i.definition);
       if (copy) this.ids.copy(copy, definitions);
       if (fragment.source !== this.pkg?.id || owner !== fragment.part) {
-        const available = new Set(definitions.map(i => this.ids.key(i.source, i.scope, i.kind, i.id)));
+        const available = new Set(definitions.concat(options.references || []).map(i => this.ids.key(i.source, i.scope, i.kind, i.id)));
         const unresolved = fragment.ids.find(i => !i.definition && ['shape', 'timing'].includes(i.kind) && i.scope === fragment.part && !available.has(this.ids.key(i.source, i.scope, i.kind, i.id)));
         if (unresolved) {
           K.loss(this.doc, { id: 'copy-reference:' + fragment.source + ':' + fragment.part + ':' + unresolved.kind + ':' + unresolved.id, what: 'The copied object refers to an object outside the copied selection.', where: owner, action: 'conversion' });
-          throw new Error('Unresolved copied ' + unresolved.kind + ' target: ' + unresolved.id);
+          const error = new Error('Unresolved copied ' + unresolved.kind + ' target: ' + unresolved.id);
+          error.code = 'OOXML_COPY_REFERENCE'; throw error;
         }
       }
       const dependencies = fragment.deps.map(d => {
@@ -662,7 +688,7 @@
         overrides.push('<Override PartName="/' + esc(K.relative('', name)) + '" ContentType="' + esc(type) + '"/>');
       }
       this.put('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8"?>\n<Types xmlns="' + NS.ct + '">' + overrides.join('') + '</Types>');
-      return { files: Array.from(this.parts, ([name, data]) => ({ name, data })), dropped: (this.doc.losses || []).slice() };
+      return { files: Array.from(this.parts, ([name, data]) => ({ name: name === '[Content_Types].xml' ? name : K.relative('', name), data })), dropped: (this.doc.losses || []).slice() };
     }
   }
   K.Writer = Writer;

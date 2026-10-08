@@ -169,6 +169,17 @@ test('geometry edits change the outer group transform without rewriting child ge
   assert.throws(() => K.setBox(xml, { w: NaN }), /Invalid box/);
 });
 
+test('editing a Strict property replaces it once and retains Strict namespace and sibling effects', () => {
+  const ns = 'http://purl.oclc.org/ooxml/drawingml/main';
+  const xml = `<a:effectLst xmlns:a="${ns}"><a:glow rad="3"/><a:outerShdw blurRad="4"/><a:reflection blurRad="5"/></a:effectLst>`;
+  const out = K.merge(xml, { ['{' + N.a + '}outerShdw']: `<a:outerShdw xmlns:a="${N.a}" blurRad="99"/>` }, 'a:CT_EffectList');
+  const nodes = K.parse(out).children;
+  assert.deepEqual(nodes.map(e => e.localName), ['glow', 'outerShdw', 'reflection']);
+  assert.ok(nodes.every(e => e.namespaceURI === ns));
+  assert.equal(nodes[1].getAttribute('blurRad'), '99');
+  assert.match(out, /glow rad="3"/); assert.match(out, /reflection blurRad="5"/);
+});
+
 test('Word anchor position and extent update while wrapping and picture offsets survive', () => {
   const wp = 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
   const xml = `<wp:anchor xmlns:wp="${wp}" xmlns:a="${N.a}"><wp:positionH relativeFrom="page"><wp:align>center</wp:align></wp:positionH><wp:positionV relativeFrom="page"><wp:posOffset>12700</wp:posOffset></wp:positionV><wp:extent cx="25400" cy="38100"/><wp:wrapSquare wrapText="bothSides"/><a:xfrm><a:off x="0" y="0"/><a:ext cx="25400" cy="38100"/></a:xfrm></wp:anchor>`;
@@ -193,4 +204,16 @@ test('part URI resolution handles relative, absolute and escaped names without e
   assert.deepEqual(K.resolve('ppt/slides/slide1.xml', '/customXml/item.xml'), { part: 'customXml/item.xml', fragment: '' });
   assert.throws(() => K.resolve('', '../../outside'), /escapes/);
   assert.throws(() => K.resolve('a.xml', 'https://example.invalid/'), /Invalid internal/);
+});
+
+test('escaped ZIP entry names and relationship URIs share one logical part identity', async () => {
+  const p = await pkg({ 'a.xml': '<a/>', 'media/Cort%C3%A1zar%20one.bin': new Uint8Array([7, 8]),
+    '_rels/.rels': rels(rel('rId1', N.rel + '/officeDocument', 'a.xml')),
+    '_rels/a.xml.rels': rels(rel('rId2', N.rel + '/audio', 'media/Cort%C3%A1zar%20one.bin')) });
+  assert.ok(p.has('media/Cortázar one.bin'));
+  const w = new K.Writer(p); w.carryRels(p, '', ''); const result = w.finish();
+  assert.ok(result.files.some(f => f.name === 'media/Cort%C3%A1zar%20one.bin'));
+  const saved = await K.open(new Uint8Array(await (await L.zip.write(result.files)).arrayBuffer()));
+  assert.deepEqual(saved.bytes('media/Cortázar one.bin'), new Uint8Array([7, 8]));
+  assert.equal(saved.rels('a.xml')[0].part, 'media/Cortázar one.bin');
 });
