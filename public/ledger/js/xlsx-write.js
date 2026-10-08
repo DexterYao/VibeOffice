@@ -512,12 +512,13 @@
   const keepXml = (sh, name) => { const k = sh.extra && sh.extra.keep && sh.extra.keep.find((x) => x.name === name); return k ? k.xml : ''; };
 
   /* comments: the comments part and its VML drawing */
-  function commentsXml(sh) {
+  function commentsXml(sh, writer, owner) {
     const list = Array.from(sh.comments.values()).filter((c) => c.r < M.MAXR && c.c < M.MAXC).sort((a, b) => a.r - b.r || a.c - b.c);
     const authors = [];
     const aid = (a) => { a = a || ''; let i = authors.indexOf(a); if (i < 0) { i = authors.length; authors.push(a); } return i; };
     const items = list.map((cm) => {
-      const id = aid(cm.author);
+      const id = aid(L.threads.author(cm));
+      const kept = L.threads.noteXML(cm, id, writer, owner); if (kept) return kept;
       let text;
       if (cm.runs && cm.runs.length) text = cm.runs.map((r) => '<r>' + (r.font ? '<rPr>' + fontXml(Object.assign({ sz: 9, name: 'Tahoma', family: 2 }, r.font), true) + '</rPr>' : '<rPr><sz val="9"/><rFont val="Tahoma"/><family val="2"/></rPr>') + tEl(r.t || '') + '</r>').join('');
       else {
@@ -525,10 +526,10 @@
         const au = cm.author && t.startsWith(cm.author + ':') ? cm.author + ':' : '';
         text = (au ? `<r><rPr><b/><sz val="9"/><rFont val="Tahoma"/><family val="2"/></rPr>${tEl(au)}</r>` : '') + `<r><rPr><sz val="9"/><rFont val="Tahoma"/><family val="2"/></rPr>${tEl(t.slice(au.length))}</r>`;
       }
-      return `<comment ref="${cellName(cm.r, cm.c)}" authorId="${id}"><text>${text}</text></comment>`;
+      return `<comment ref="${cellName(cm.r, cm.c)}" authorId="${id}"${L.threads.noteAttributes(cm)}><text>${text}</text></comment>`;
     });
     if (!authors.length) aid('');
-    return HDR + `<comments xmlns="${NS_MAIN}"><authors>` + authors.map((a) => `<author>${escX(a)}</author>`).join('') + '</authors><commentList>' + items.join('') + '</commentList></comments>';
+    return HDR + `<comments xmlns="${NS_MAIN}"${list.some(L.threads.active) ? L.threads.noteNamespaces : ''}><authors>` + authors.map((a) => `<author>${escX(a)}</author>`).join('') + '</authors><commentList>' + items.join('') + '</commentList></comments>';
   }
   function vmlXml(sh, idmap) {
     const list = Array.from(sh.comments.values()).filter((c) => c.r < M.MAXR && c.c < M.MAXC);
@@ -768,7 +769,7 @@
       if (sh.comments.size) {
         const cPart = `xl/comments${++nComment}.xml`;
         pack.bind(cPart, L.preserve.related(wb, sh.extra.ooxmlPart, 'comments'));
-        add(cPart, commentsXml(sh), CT.comments);
+        add(cPart, commentsXml(sh, pack.writer, pack.part(cPart)), CT.comments);
         rels.add('comments', '../' + cPart.slice(3));
         const vPart = `xl/drawings/vmlDrawing${++nVml}.vml`;
         pack.bind(vPart, L.preserve.related(wb, sh.extra.ooxmlPart, 'vmlDrawing'));
@@ -962,6 +963,7 @@
     ct += '</Types>';
     files.unshift({ name: '[Content_Types].xml', data: ct });
     L.pivots.write(wb, pack);
+    L.threads.write(wb, pack);
     for (const file of files) pack.put(file.name, file.data, overrides.get('/' + file.name) || defaults.get(file.name.split('.').pop()));
     const result = pack.finish();
     const blob = await L.zip.write(result.files, format.mime);

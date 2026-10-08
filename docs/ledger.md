@@ -157,8 +157,8 @@ including 8 saved copies openpyxl cannot read. No blanket lossless claim is made
 | Kept | Custom XML, typed custom properties, external links | 97/97 custom-XML relationships and property dependencies, 114/114 custom-property relationships, 49/49 external links; 97/99 XML parts in the inventory because unreferenced parts are not reattached |
 | Kept | VBA, people, labels and web extensions | 26/26 VBA, 4/4 persons, 2/2 label and 3/3 web-extension relationships |
 | Kept, with source exception | Connections | 35/36 relationships; one original dependency is missing; connections/query-part inventory 58/59 |
-| Kept on an unedited save; edit rules pending | Pivot tables and caches | 156/156 table parts and 131/131 cache definitions; source shifts, refresh flags and deletion rules remain unfinished |
-| Kept on an unedited save; edit rules pending | Threaded comments | 6/6 thread records and their persons; thread/mention identity and reference updates still need integration with edits |
+| Kept; Excel edit acceptance pending | Pivot tables and caches | Frozen inventory: 156/156 tables and 131/131 caches. Ten focused cases / 31 saved states now cover sources, shifts, refresh, copy and deletion; slicer dependencies remain pending |
+| Kept; Excel edit acceptance pending | Threaded comments | 6/6 corpus records across four workbooks; five thread parts and four person parts remain byte-identical. Focused edits retain replies, mentions, person IDs and shifted cell references |
 | Kept | Notes, tables, merges, validation and names | 373/373 notes, 230/230 tables, 56,263/56,263 merges, 258/259 validations, 2,106/2,106 names |
 | Kept, with exceptions | Charts, pictures and shapes | 155/157 charts, 164/165 pictures and 492/493 shapes; unedited raw shapes retain nested compatibility alternatives and relationships |
 | Converted | Newer conditional formatting | 733/752 base conditional-format entries and 7/30 data-bar/icon-set extensions; some newer properties fall back to the base representation |
@@ -201,7 +201,7 @@ and `~/corpora/results/strict-transitional-2026-10-08/`.
 |---|---|
 | No edit to pivot/thread content | Package parts are carried; there is no pivot or threaded-comment editor |
 | Edit pivot source cells, insert/delete rows or columns, rename/delete a sheet | Pivot sources, output locations and shared caches follow the rules below; slicer dependencies are still pending |
-| Move or edit a threaded comment | Threaded-comment reference and content rules are still pending |
+| Move or edit a threaded comment | References follow the note; editing its displayed text converts that thread to an ordinary note with a notice |
 | Edit conditional formatting | The model writes its base form; extended bars and unknown entries need property-level merging |
 | Save a sheet containing controls, OLE or non-comment VML | Their worksheet/VML content still needs integration; retained package parts alone are insufficient |
 | Edit a query table | Modeled table fields are written; query-specific field identity and refresh rules remain pending |
@@ -241,6 +241,26 @@ LibreOffice with the same two-page counts. These are focused measurements, separ
 full-corpus figures above; the Ledger group rerun and Excel batch 3 remain pending. Reports:
 `~/corpora/results/ledger-preservation-2026-10-08/`.
 
+### Threaded comments: edit behavior
+
+| Edit | Save behavior |
+|---|---|
+| Keep the comment text | Carry every reply, mention, person record and unknown child; threads without a legacy note are displayed too |
+| Insert/delete rows or columns, sort or move cells | Every reply follows its owning note's cell; legacy note references and thread links stay consistent |
+| Delete a note or its row | Remove the whole thread; undo restores it |
+| Copy a note or sheet | Give copied comments, parent links, mentions and legacy note identities fresh IDs together; keep shared persons, remapping conflicting person IDs on paste |
+| Paste into another workbook | Include referenced authors and mentioned persons with their original metadata |
+| Edit the displayed comment text | Convert that thread to an ordinary note and report it; other threads stay intact. Undo restores the original thread and clears the conversion |
+| Save or recover a draft | Keep current references, replies and mentions; draft recovery retains the pending notices |
+
+Five focused cases cover the four pinned thread workbooks and an authored mention/no-legacy-note
+fixture. All **16 emitted states** pass package/SDK comparison. Actual browser Paste Special,
+undo/redo and draft recovery keep two threads, four comments and their mention/parent links without
+console errors. Two LibreOffice samples retain their one-page counts. The complete unit set has
+**84 passing tests**; the full Ledger group run and Excel batch 3 remain pending. The authored fixture
+and failed pre-fix SDK attempts are retained with the reports; mention coverage is not claimed from
+the public corpus.
+
 ## Compatibility testing
 
 `tools/corpora.sh` pins the LibreOffice, Apache POI and Open XML SDK inputs used above. The Node and
@@ -276,6 +296,7 @@ support for every formula or external data source.
 | --- | --- |
 | `index.html`, `tools/ledger/build/` | Window chrome, Ledger's CSS after the shared `../common/luna.css`, script order (generated by the build script) |
 | `js/pivots.js` | Preserved pivot/cache identities, source and output edits, shared-cache history and refresh notices |
+| `js/threads.js` | Complete threads beside notes, mentions/persons, copied identities and ordinary-note conversion |
 | `../common/core.js`, `../common/zip.js` | Utilities, file saving, PDF writer, ZIP reader/writer |
 | `../common/xml.js`, `../common/opc.js`, `../common/opc-order.js`, `js/xml.js` | Shared XML parser and OOXML preservation core; `js/xml.js` aliases the shared tree as `L.xml`. Original package ownership, settings merges and style/string identities are implemented. |
 | `../common/sha.js`, `../common/crypto.js` | SHA-1/256/384/512 and AES, Office document encryption (standard and agile) |

@@ -194,7 +194,14 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   checks are now accepted. Ten focused pivot cases and 31 package/SDK states pass; source-edited drafts
   retain refresh notices, and two samples open in LibreOffice with unchanged counts. The complete
   79-test unit set passes. Slicer dependencies will be integrated in step 6(d); full-group measurement
-  and Excel acceptance remain pending. Next: threaded comments, followed by the other Ledger features.
+  and Excel acceptance remain pending.
+- Ledger threads now include every reply, mentions, person metadata and comments without legacy notes.
+  Cell moves, row/column edits and copying update references; editing the displayed text converts only
+  that thread with a notice. Five focused cases / 16 package/SDK states pass, along with actual browser
+  Paste Special, undo/redo and draft recovery; two LibreOffice samples keep their page counts.
+  The complete unit set has 84 passing tests. The four public thread workbooks keep their original
+  thread/person parts byte for byte; mentions additionally use an authored fixture. Excel acceptance
+  remains pending in batch 3. Next: controls, embedded objects and non-comment VML.
 
 ## Review of 6d24c43..275406e (2026-10-08)
 Followed well: bounded Office batches with previous-writer comparison, checker rules for the WordArt

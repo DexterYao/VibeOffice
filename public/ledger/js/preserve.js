@@ -117,6 +117,7 @@
       RT('dialogsheet'), 'http://schemas.microsoft.com/office/2006/relationships/xlMacrosheet', 'http://schemas.microsoft.com/office/2006/relationships/xlIntlMacrosheet',
       ...['worksheet', 'chartsheet', 'externalLink', 'drawing', 'image', 'chart', 'hyperlink', 'comments', 'vmlDrawing', 'table'].map(RT)]);
     const output = K.output(pkg, { doc: wb, format, consumes: (base, rel, type) => consumed.has(type) ||
+      type === 'http://schemas.microsoft.com/office/2017/10/relationships/threadedComment' ||
       (type === RT('pivotTable') && wb.extra.pivots?.tables.some(t => t.part === rel.part)),
       convert: base => base === 'xl/theme/theme1.xml' ? L.xlsxWrite.themeXml(wb) : null,
       merge: (base, source, data, writer) => P.merge(wb, base, source, data, writer) });

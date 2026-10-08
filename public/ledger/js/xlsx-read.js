@@ -703,7 +703,7 @@
     if (cm) await readComments(pkg, cm.target, sh);
     const vmlRel = (() => { const ld = kid(el, 'legacyDrawing'); return ld && rels.get(rid(ld, 'id')); })();
     if (vmlRel) await readVmlNotes(pkg, vmlRel.target, sh);
-    /* threaded comments: authors live at workbook level; legacy comments carry the text already */
+    /* Complete threads, including files without legacy note text. */
     const tcm = relOfType(rels, 'threadedComment');
     if (tcm) await readThreaded(pkg, tcm.target, sh, ctx);
     /* tables */
@@ -901,6 +901,7 @@
       }
       sh.comments.set(M.key(p.r, p.c), { r: p.r, c: p.c, author: authors[num(c, 'authorId', 0)] || '', text, runs: runs.some((x) => x.font) ? runs : undefined, visible: false });
     }
+    L.threads.notes(sh, part);
   }
   async function readVmlNotes(pkg, part, sh) {
     const t = await pkg.text(part);
@@ -927,19 +928,7 @@
     }
   }
   async function readThreaded(pkg, part, sh, ctx) {
-    const el = await pkg.xml(part);
-    if (!el) return;
-    for (const tc of kids(el, 'threadedComment')) {
-      const p = F.parseCell(at(tc, 'ref') || '');
-      if (!p) continue;
-      const cm = sh.comments.get(M.key(p.r, p.c));
-      if (!cm) continue;
-      const pid = at(tc, 'personId');
-      const person = ctx.persons && ctx.persons.get(pid);
-      const text = (kid(tc, 'text') || { textContent: '' }).textContent;
-      if (!cm.thread) cm.thread = [];
-      cm.thread.push({ author: person || '', text, date: at(tc, 'dT') || '', id: at(tc, 'id'), parent: at(tc, 'parentId') || null, done: bool(tc, 'done', false) });
-    }
+    L.threads.read(sh, part, ctx.persons);
   }
   async function readTable(pkg, part, sh, ctx) {
     const el = await pkg.xml(part);

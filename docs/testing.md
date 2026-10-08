@@ -177,6 +177,12 @@ use fresh browser saves, package/SDK comparisons and Office samples for integrat
 Word comment-repair isolation round. Package checks now reject excess comment references beyond
 their matching definitions; comparison also rejects automatic pre-release thread-namespace promotion.
 
+Ledger's `pivots.test.js` and `threads.test.js` use the pinned public inputs (`VO_CORPORA` overrides
+`~/corpora`). `PIVOT_RESULTS=DIR` / `THREAD_RESULTS=DIR` retain the emitted edit/history states and
+their source paths for package/SDK comparisons. The thread test also authors a mention/no-legacy-note
+fixture missing from the public corpus. `node tools/ledger/test/threads-ui.mjs INPUT.xlsx OUTPUT`
+checks the real Paste Special, undo/redo and suite draft/recovery hooks on a thread in the first sheet.
+
 Build the SDK validator and install the independent workbook reader in a test environment:
 
 ```sh

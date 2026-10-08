@@ -1002,6 +1002,7 @@
       copy = wb.addSheet(name, to);
       const snap = snapSheet(sh);
       restoreSheet(copy, snap);
+      copy.comments = new Map(Array.from(copy.comments, ([key, cm]) => [key, L.threads.copy(cm, wb)]));
       copy.wb = wb;
       copy.view = JSON.parse(JSON.stringify(sh.view));
       copy.print = JSON.parse(JSON.stringify(sh.print));
