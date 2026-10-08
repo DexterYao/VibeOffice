@@ -223,6 +223,16 @@
     privateData.set(pkg, { bytes, rels, types, parse }); packages.set(pkg.id, pkg);
     return pkg;
   }
+  /** a preset shape's <a:gd> list: PowerPoint repairs a file whose list names some of the preset's
+      adjustment values but not all, so a non-empty list carries every one, in the preset's order,
+      defaults filled in (an empty list means all defaults) */
+  K.presetAdjust = function (prst, adj) {
+    const keys = adj ? Object.keys(adj).filter((k) => isFinite(adj[k])) : [];
+    if (!keys.length) return '';
+    const preset = K.schema?.presetAdjust?.[prst];
+    const list = preset ? preset.map(([name, value]) => [name, name in adj && isFinite(adj[name]) ? adj[name] : value]) : keys.map((k) => [k, adj[k]]);
+    return list.map(([name, value]) => '<a:gd name="' + esc(name) + '" fmla="val ' + Math.round(value) + '"/>').join('');
+  };
   K.attach = function (doc, pkg) { Object.defineProperty(doc, 'pkg', { value: pkg, configurable: true, writable: true, enumerable: false }); return doc; };
   K.subtree = function (pkg, start) {
     const names = new Set(), pending = [start];
@@ -235,10 +245,12 @@
     return { source: pkg.id, part: start, parts: Array.from(names) };
   };
 
+  const SHARED_SPACE = { sldLayoutId: 'sldMasterId' };
   class Identities {
     constructor() { this.spaces = new Map(); this.mapping = new Map(); this.copies = new Map(); }
     canonical(id) { return /^[+-]?\d+$/.test(String(id)) && Number.isSafeInteger(+id) ? String(+id) : String(id); }
-    space(scope, kind) { const key = JSON.stringify([scope, kind]); if (!this.spaces.has(key)) this.spaces.set(key, { used: new Set(), high: 0 }); return this.spaces.get(key); }
+    // Masters and layouts share one ID space (PowerPoint repairs a deck where a layout reuses a master's ID).
+    space(scope, kind) { const key = JSON.stringify([scope, SHARED_SPACE[kind] || kind]); if (!this.spaces.has(key)) this.spaces.set(key, { used: new Set(), high: 0 }); return this.spaces.get(key); }
     reserve(scope, kind, id) { const s = this.space(scope, kind), value = this.canonical(id); s.used.add(value); if (/^\d+$/.test(value)) s.high = Math.max(s.high, +value); return String(id); }
     fresh(scope, kind) {
       const s = this.space(scope, kind), limits = K.schema?.limits[kind] || { min: 0, max: Number.MAX_SAFE_INTEGER };
@@ -865,14 +877,21 @@
           this.loss({ id: 'unreferenced:' + this.pkg.id + ':' + name, what: 'This preserved part has no remaining reference in the saved file.', where: name, action: 'drop' });
         }
       }
-      const overrides = [];
+      /* As Office writes it: Defaults for .rels, .xml and every extension whose parts all share one type
+         (pictures, fonts…), Overrides for the rest */
+      const typed = [], byExt = new Map([['rels', 'application/vnd.openxmlformats-package.relationships+xml'], ['xml', 'application/xml']]), mixed = new Set();
       for (const [name] of this.parts) {
         if (name === '[Content_Types].xml') continue;
         const type = this.types.get(name) || this.pkg?.type(name);
         if (!type) throw new Error('Missing content type for ' + name);
-        overrides.push('<Override PartName="/' + esc(K.relative('', name)) + '" ContentType="' + esc(type) + '"/>');
+        typed.push([name, type]);
+        const ext = (/\.([^./]+)$/.exec(name) || [])[1]?.toLowerCase();
+        if (ext && ext !== 'xml' && ext !== 'rels' && !mixed.has(ext)) { if (byExt.has(ext) && byExt.get(ext) !== type) { byExt.delete(ext); mixed.add(ext); } else byExt.set(ext, type); }
       }
-      this.put('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8"?>\n<Types xmlns="' + NS.ct + '">' + overrides.join('') + '</Types>');
+      const defaults = Array.from(byExt, ([ext, type]) => '<Default Extension="' + esc(ext) + '" ContentType="' + esc(type) + '"/>');
+      const overrides = typed.filter(([name, type]) => byExt.get((/\.([^./]+)$/.exec(name) || [])[1]?.toLowerCase()) !== type)
+        .map(([name, type]) => '<Override PartName="/' + esc(K.relative('', name)) + '" ContentType="' + esc(type) + '"/>');
+      this.put('[Content_Types].xml', '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Types xmlns="' + NS.ct + '">' + defaults.join('') + overrides.join('') + '</Types>');
       return { files: Array.from(this.parts, ([name, data]) => ({ name: name === '[Content_Types].xml' ? name : K.relative('', name), data })), dropped: (this.doc.losses || []).slice() };
     }
   }

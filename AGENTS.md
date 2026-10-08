@@ -37,6 +37,13 @@ Keep them current: a change to an app's features, formats or source layout updat
 - Preservation changes are measured against the pinned corpus (`tools/corpora.sh`), including edits, undo/redo and drafts. Record failed and excluded attempts, compare validator diagnostics with each original, and keep Office acceptance pending until it has actually been checked. The measurement tools are in `tools/ooxml/`.
 - Shared code lives once, in `public/common/`; never copy it into an app. A change there is checked in all three apps (load each, and screenshot what it touches). What stays app-specific goes through the hooks in docs/suite.md (app config, `ui.hooks`, `L.icons.app`, …), not through app names inside common code.
 
+## Office acceptance (lessons from the slide-6 repair)
+
+- Schema-valid is not Office-valid: the Open XML SDK and LibreOffice passed decks PowerPoint repaired (a preset's partial adjustment list; a master and layout sharing an ID). Write what Office writes, not merely what the schema allows; when unsure, look at how Office-authored files in the corpus do it.
+- Every Office-found defect becomes a `tools/ooxml/package.py` rule with a test, plus a corpus scan for how widespread it is.
+- Before handing files to the user for Office, diff the new save against the previous writer's save of the same input; unexplained differences are suspects. Two overlapping faults made one Office round misleading.
+- Narrow Office failures by bisection: copies that each change one thing, with whole-file controls (without the suspect part, the part alone), at most about 8 per round, each with a checklist.
+
 ## Tools (details in docs/testing.md)
 
 - `tools/serve.py`: no-cache server for `public/` on 127.0.0.1:8760.

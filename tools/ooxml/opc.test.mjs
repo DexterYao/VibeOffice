@@ -128,6 +128,9 @@ test('identity scopes survive transfers, explicit index maps and bounded slide/m
   assert.equal(ids.resolve('pkg', 'styles', 'dxf', '3', { primary: 'pkg' }), '7');
   assert.equal(ids.fresh('presentation', 'sldId'), '256');
   assert.equal(ids.fresh('presentation', 'sldMasterId'), '2147483648');
+  assert.equal(ids.fresh('presentation', 'sldLayoutId'), '2147483649'); // one space for masters and layouts
+  ids.reserve('presentation', 'sldLayoutId', '2147483655');
+  assert.equal(ids.fresh('presentation', 'sldMasterId'), '2147483656');
   ids.reserve('presentation', 'sldId', '2147483647');
   assert.equal(ids.fresh('presentation', 'sldId'), '257');
   ids.reserve('lexical', 'shape', '+001');
@@ -329,4 +332,14 @@ test('escaped ZIP entry names and relationship URIs share one logical part ident
   const saved = await K.open(new Uint8Array(await (await L.zip.write(result.files)).arrayBuffer()));
   assert.deepEqual(saved.bytes('media/Cortázar one.bin'), new Uint8Array([7, 8]));
   assert.equal(saved.rels('a.xml')[0].part, 'media/Cortázar one.bin');
+});
+
+test('a preset shape writes all of its adjustment values or none', () => {
+  // PowerPoint repaired a deck whose rounded callout listed adj1 and adj2 but not adj3
+  assert.equal(K.presetAdjust('wedgeRoundRectCallout', { adj1: -62000, adj2: 48000 }),
+    '<a:gd name="adj1" fmla="val -62000"/><a:gd name="adj2" fmla="val 48000"/><a:gd name="adj3" fmla="val 16667"/>');
+  assert.equal(K.presetAdjust('wedgeRoundRectCallout', {}), '');
+  assert.equal(K.presetAdjust('rect', undefined), '');
+  assert.equal(K.presetAdjust('roundRect', { adj: 30000.4, bogus: 1 }), '<a:gd name="adj" fmla="val 30000"/>');
+  assert.equal(K.presetAdjust('notAPreset', { a: 1 }), '<a:gd name="a" fmla="val 1"/>');
 });

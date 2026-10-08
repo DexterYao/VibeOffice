@@ -48,6 +48,22 @@ test('IDs in mutually exclusive alternatives may repeat, active duplicate IDs ma
   assert.ok(invalid.issues.some(i => i.code === 'duplicate-shape-id'));
   assert.equal(run('check', await pkg('scoped', { 'one.xml': slide(picture(2)), 'two.xml': slide(picture(2)) })).status, 'ok');
 });
+test('a slide layout may not reuse its master\'s ID', async () => {
+  const pres = id => `<p:presentation xmlns:p="${P}" xmlns:r="${R}"><p:sldMasterIdLst><p:sldMasterId id="2147483648" r:id="rId1"/></p:sldMasterIdLst></p:presentation>`;
+  const master = id => `<p:sldMaster xmlns:p="${P}" xmlns:r="${R}"><p:sldLayoutIdLst><p:sldLayoutId id="${id}" r:id="rId1"/></p:sldLayoutIdLst></p:sldMaster>`;
+  const parts = id => ({ 'presentation.xml': pres(), '_rels/presentation.xml.rels': rels(rel('rId1', 'master.xml', 'slideMaster')), 'master.xml': master(id), '_rels/master.xml.rels': rels(rel('rId1', 'layout.xml', 'slideLayout')), 'layout.xml': `<p:sldLayout xmlns:p="${P}"/>` });
+  assert.ok(run('check', await pkg('master-layout-dup', parts('2147483648'))).issues.some(i => i.code === 'duplicate-master-layout-id'));
+  assert.ok(!run('check', await pkg('master-layout-ok', parts('2147483649'))).issues.some(i => i.code.startsWith('duplicate')));
+});
+
+test('a preset shape lists all of its adjustment values or none', async () => {
+  const sp = av => `<p:sp><p:nvSpPr><p:cNvPr id="2" name="Callout"/></p:nvSpPr><p:spPr><a:prstGeom prst="wedgeRoundRectCallout"><a:avLst>${av}</a:avLst></a:prstGeom></p:spPr></p:sp>`;
+  const gd = (n, v) => `<a:gd name="${n}" fmla="val ${v}"/>`;
+  assert.ok(run('check', await pkg('adj-partial', { 'slide.xml': slide(sp(gd('adj1', -62000) + gd('adj2', 48000))) })).issues.some(i => i.code === 'partial-preset-adjust'));
+  assert.equal(run('check', await pkg('adj-full', { 'slide.xml': slide(sp(gd('adj1', -62000) + gd('adj2', 48000) + gd('adj3', 16667))) })).status, 'ok');
+  assert.equal(run('check', await pkg('adj-none', { 'slide.xml': slide(sp('')) })).status, 'ok');
+});
+
 test('timing and connector targets must identify existing shapes and timing nodes', async () => {
   const file = await pkg('timing', { 'slide.xml': slide(picture(2) + '<p:timing><p:cTn id="1"/><p:spTgt spid="3"/><p:tn val="4"/><a:stCxn id="5"/></p:timing>') });
   const codes = run('check', file).issues.map(i => i.code);

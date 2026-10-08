@@ -135,11 +135,11 @@ Loss acknowledgement is per entry; autosave must neither show a dialog nor ackno
 Package ownership and save-dialog integration are implemented in all three apps; remaining object preservation is still in progress.
 
 `opc-order.js` contains ordering and ID-bound facts for 27 types, generated from the official
-[ECMA-376 Part 4 schemas](https://ecma-international.org/publications-and-standards/standards/ecma-376/).
+[ECMA-376 Part 4 schemas](https://ecma-international.org/publications-and-standards/standards/ecma-376/), and each preset shape's adjustment values (names, order, defaults) from Part 1's `presetShapeDefinitions.xml`.
 The archive stays outside git; its SHA-256 is recorded in the generated file. Regenerate with:
 
 ```sh
-python3 tools/ooxml/schema-order.py ~/corpora/ecma-376/part4.zip public/common/opc-order.js
+python3 tools/ooxml/schema-order.py ~/corpora/ecma-376/part4.zip public/common/opc-order.js ~/corpora/ecma-376/part1.zip
 ```
 
 The shared-core run is retained in `~/corpora/results/opc-core-2026-10-08/`. All 4,697 open/save/reopen
@@ -281,11 +281,11 @@ variants where available, and writes a manifest. It refuses to replace differing
 Use a new destination for each implementation stage. Record actual Word/Excel/PowerPoint repair
 results; an unperformed Office check remains pending.
 
-`node tools/lectern/test/timing-repair.mjs OUTDIR --sdk PATH_TO_DLL` reproduces the six slide-6
+`node tools/lectern/test/timing-repair.mjs OUTDIR --sdk PATH_TO_DLL` reproduces the slide-6
 diagnostic copies from the current sample. `--source SAVED_SAMPLE.pptx` instead uses the exact bytes
 of a reported failure; `--dotnet PATH` selects the runtime. The output directory must be empty.
 The variants isolate removal of slide-6 timing, its build list, its teeter effect, and ordering of
-timing IDs; the LibreOffice resave is a separate control. The script asserts build-pair identity and
+timing IDs; from the built-in sample it also writes the deck without slide 6 and slide 6 alone. The LibreOffice resave is a separate control and does not fail the run. The script asserts build-pair identity and
 text targets, validates each package, and writes hashes and a pending PowerPoint result per copy.
 Only slide6.xml changes in the four isolated variants. PowerPoint results are a manual gate:
 schema validity and LibreOffice opening do not prove that the repair problem has been fixed.

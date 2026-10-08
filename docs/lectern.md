@@ -178,19 +178,20 @@ automated diagnostics and 21 failures (including originals that could not be val
 1 driver exclusions remain separate. These checks do not certify Office acceptance. Commands,
 comparison policies and failure accounting are in [testing.md](testing.md#lossless-same-format-save-reproducible-baseline).
 
-The seven-slide sample associated with the slide-6 repair report passes the package checker
-and SDK validation and converts to seven pages in LibreOffice before and after saving. The
-PowerPoint result for the six diagnostic copies remains **pending**; these automated results do
-not establish a repair fix.
+**The slide-6 repair (reported 2026-10-07): cause found.** PowerPoint repaired the saved sample because
+of the callout on slide 6: its preset geometry listed two of the three adjustment values
+(`adj1`, `adj2`, not `adj3`). PowerPoint accepts an empty list or a complete one, never a partial
+one. Shapes now always write every value of their preset in order, defaults filled in
+(`L.opc.presetAdjust`, from ECMA-376 Part 1's preset definitions), in Lectern and Quire. Three rounds of
+copies from `tools/lectern/test/timing-repair.mjs` and hand-made variants narrowed it down: the deck
+without slide 6 opened cleanly; slide 6 alone did not, with or without animations, shadow, text or
+transition; it did with the callout removed, drawn as a rectangle, or without its adjustment list.
+The first round also exposed a regression of the preservation writer: the slide master and the first
+layout shared an ID (masters and layouts are one ID space). That is fixed, and the package checker
+reports `duplicate-master-layout-id`. All of these pass the Open XML SDK validator, so PowerPoint
+itself is the check: all eight corrected copies (`~/Downloads/slide6-check-5/`) open in PowerPoint
+without repair (2026-10-08).
 
-`tools/lectern/test/timing-repair.mjs` now regenerates that diagnostic set and can use the exact
-reported sample as its source. The original and four isolated slide-6 variants pass both package
-checks and SDK validation. LibreOffice's resaved control passes the SDK but introduces a duplicate
-shape ID in `ppt/slideLayouts/slideLayout1.xml`, which the package checker reports. The latest copies
-and validation manifest are in `~/Downloads/lossless-check/lectern/slide6-diagnostics/`.
-All six copies convert to seven pages in LibreOffice.
-The slide-6 fix remains pending the PowerPoint results; no speculative timing change has been made
-to the writer. Independent work on the shared preservation core proceeds while acceptance is pending.
 The text-edit/save/undo/redo scenario completed in 551 files, excluded 290 without editable
 slide text, and failed in 3.
 

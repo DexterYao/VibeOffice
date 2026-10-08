@@ -28,6 +28,9 @@ W = {'http://schemas.openxmlformats.org/wordprocessingml/2006/main', 'http://pur
 P = {'http://schemas.openxmlformats.org/presentationml/2006/main', 'http://purl.oclc.org/ooxml/presentationml/main'}
 A = {'http://schemas.openxmlformats.org/drawingml/2006/main', 'http://purl.oclc.org/ooxml/drawingml/main'}
 S = {'http://schemas.openxmlformats.org/spreadsheetml/2006/main', 'http://purl.oclc.org/ooxml/spreadsheetml/main'}
+# each preset shape's adjustment names, from the generated schema facts the apps use
+_ORDER = (Path(__file__).resolve().parents[2] / 'public/common/opc-order.js').read_text()
+PRESET_ADJUST = {k: [n for n, _ in v] for k, v in json.loads(_ORDER[_ORDER.index('= {') + 2:_ORDER.rindex('; })')]).get('presetAdjust', {}).items()}
 
 def split(tag):
     if tag.startswith('{'):
@@ -190,6 +193,9 @@ class Package:
                     kind = 'timing'
                 elif tag == 'sldId' and ns in P and '/sldIdLst' in path.replace('{' + ns + '}', ''):
                     kind = 'slide'
+                elif tag in ('sldMasterId', 'sldLayoutId') and ns in P:
+                    # one ID space for every master and layout in the presentation
+                    kind, scope = 'master-layout', 'presentation'
                 elif tag in ('bookmarkStart', 'permStart') and ns in W:
                     kind = 'bookmark' if tag == 'bookmarkStart' else 'permission'
                 elif tag == 'pivotCache' and ns in S:
@@ -207,6 +213,12 @@ class Package:
                     definitions[key].append((part, path, branches))
                 # PresentationML spid targets cNvPr. VML o:spid is the shape's
                 # own identity, not a reference into DrawingML's ID space.
+                # PowerPoint repairs a preset whose adjustment list is neither empty nor complete
+                if tag == 'prstGeom' and ns in A and at(el, 'prst') in PRESET_ADJUST:
+                    av = next((c for c in el if split(c.tag)[1] == 'avLst'), None)
+                    names = [at(g, 'name') for g in av if split(g.tag)[1] == 'gd'] if av is not None else []
+                    if names and sorted(names) != sorted(PRESET_ADJUST[at(el, 'prst')]):
+                        self.issue('partial-preset-adjust', part, at(el, 'prst') + ': ' + ' '.join(names), path)
                 if ns in P and at(el, 'spid') is not None:
                     references.append((part, 'shape', at(el, 'spid'), path, branches))
                 if tag in ('stCxn', 'endCxn') and ns in A:
