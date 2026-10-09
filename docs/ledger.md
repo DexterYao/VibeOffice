@@ -10,14 +10,10 @@ Formatting toolbars, the Name Box and formula bar, sheet tabs with the four scro
 pane, the status bar with AutoCalculate, and the dialogs where you expect them (Format Cells, Page
 Setup, Sort, Chart Wizard, Insert Function, Text Import Wizard and some forty more).
 
-## Running it
+## Using it
 
-The app is `public/ledger/`; paths below are relative to it unless they start with `tools/`. Serve
-`public/` and open it:
-
-    python3 tools/serve.py
-
-then visit http://127.0.0.1:8760/ledger/. Everything runs in the browser; there is no back end and no network
+Open https://vibeoffice.work/ledger/. The app is `public/ledger/`; paths below are relative to it unless
+they start with `tools/`. To run it locally, see [testing.md](testing.md). Everything runs in the browser; there is no back end and no network
 service behind any feature. Two things are fetched at run time: the spelling word lists in
 `../common/dict/`, shared with Quire (which is why the site should be served rather than opened from disk — from a `file://` page
 everything works except Tools ▸ Spelling), and, from Google Fonts when it can be reached, the

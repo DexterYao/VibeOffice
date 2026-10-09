@@ -3,16 +3,13 @@
 A Word 2003–style word processor written in plain HTML and vanilla JavaScript (no build step, no
 libraries). It reads and writes Office Open XML (`.docx`, `.docm`, `.dotx`, `.dotm`) files.
 
-## Running it
+## Using it
 
-The app is `public/quire/`; every path below is relative to it. Serve `public/` and open it:
-
-    python3 tools/serve.py
-
-then visit http://127.0.0.1:8760/quire/. Everything runs in the browser: there is no back end, no account
-and no network service behind any feature. The proofing dictionaries are fetched at run time from
-`../common/dict/` (shared with Ledger), which is why the site should be served rather than opened from
-disk (a `file://` page cannot fetch them; editing still works, but spelling and the thesaurus stay off).
+Open https://vibeoffice.work/quire/. The app is `public/quire/`; every path below is relative to it.
+Everything runs in the browser: there is no back end, no account and no network service behind any
+feature. The proofing dictionaries are fetched at run time from `../common/dict/` (shared with Ledger),
+so the site is served rather than opened from disk (a `file://` page cannot fetch them; editing still
+works, but spelling and the thesaurus stay off). To run it locally, see [testing.md](testing.md).
 The metric-compatible fonts (see *Rendering notes*) currently come from Google Fonts when it can be reached.
 
 ## Proofing tools (offline)
