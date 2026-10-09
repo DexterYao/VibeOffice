@@ -169,19 +169,22 @@ bytes. Current reports, convention signatures, correction history and exceptions
 | Leave a design unchanged, unused, or delete its last slide | Retain its original master, every layout and theme |
 | Insert a slide using a missing layout | Generate that layout under the selected master; reserve its structural shape ID before assigning placeholders |
 | Change colors or fonts | Update only changed color slots or Latin font entries; keep theme effects, other scripts and layouts |
-| Edit a master background, decoration or placeholder frame | Update the owning property; retain unrelated layouts and original shape identities |
+| Edit a master/layout background, decoration or placeholder frame | Update the owning property; retain unread shapes, unrelated siblings, stacking positions and original shape identities |
+| Delete, insert or reorder design decorations | Change only the modeled decorations; unread siblings stay in their source slots |
 | Change master text styles, footer font or title alignment | Replace edited attributes/properties; keep unknown siblings and other levels |
 | Apply colors to only some slides | Create an independent master/layout/theme family for those slides |
 | Undo/redo or recover a draft | Restore the design library and its preserved properties |
 | Save as a macro-free variant | Report VBA removal; cancellation leaves file identity and acknowledgements unchanged |
 
 The 13-deck design sweep, with four targeted corrections, has 11 passing package/SDK comparisons;
-two originals with missing dependencies remain failed comparisons. Eleven focused cases / 35 saved
+two originals with missing dependencies remain failed comparisons. Sixteen focused cases / 50 saved
 states pass package/SDK checks and cover geometry, theme changes, styles, independent copies,
-last-slide deletion, new layouts, undo/redo and actual drafts. Three edited samples open in LibreOffice with
-expected slide counts. All 118 unit tests pass and four pages load without console errors.
+last-slide deletion, new layouts, interleaved unread shapes, stacking order, undo/redo and actual drafts.
+The corrected design-style case is included. Three earlier edited samples and the unread-decoration
+regression open in LibreOffice with expected slide counts.
 PowerPoint batch 4 acceptance remains pending. Reports:
-`~/corpora/results/lectern-preservation-2026-10-09/designs-*`.
+`~/corpora/results/lectern-preservation-2026-10-09/designs-*` and
+`~/corpora/results/review-fixes-2026-10-09/designs*`.
 
 ### Sections and custom shows: edit behavior
 

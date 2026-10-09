@@ -5,9 +5,9 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 
 ## Status
 
-**Implementation is not complete.** The 2026-10-09 review (below) found substantive remaining work:
-master/layout decoration edits can discard unrelated shapes and modern comment anchors need their
-creation IDs. Opaque-frame rotation is now disabled and moves retain member orientations.
+**Implementation is not complete.** The 2026-10-09 review (below) has remaining Ledger copy-identity
+and hygiene work. Design edits now retain unread shapes and stacking order; opaque-frame rotation
+is disabled and moves retain member orientations. Modern comment corrections are being verified.
 Fixes after `9f18001` also mean Office batches 3–4 no
 longer represent the current writer. The measurements below describe `9f18001`; the final Word
 correction there clears all 31 failing SDK comparisons in six malformed-formatting fixtures.
@@ -251,9 +251,10 @@ Remaining, in order:
    unsupported transforms on retained frames and groups containing them. Moving/resizing a
    multi-member wrapper keeps each original rotation and flip. Three focused scenarios and their
    nine saved/undo/redo states pass package/SDK comparison; the edit matrix describes the limitation.
-2. **Lectern designs.** Editing one decoration on a kept master or layout replaces all its
-   non-placeholder shapes (`designs.js:86`). Unmodelled shapes are lost without a notice and z-order
-   changes. Patch only changed decorations in place.
+2. **Lectern designs (fixed).** Retained master/layout shapes are tied to their displayed models.
+   Edits replace only those shapes, retaining unread siblings and their stacking positions. Sixteen
+   scenarios / 50 saved states pass package/SDK comparison, including interleaved unread frames,
+   deletion, explicit reorder, addition, style edits, undo/redo and drafts.
 3. **Lectern comments.** A comment re-anchored to its slide gets `<pc:sldMk>` without `cId`
    (`comments.js:128`). Reuse the slide's creation ID, as Office does; the test must require it.
 4. **Ledger copies, smaller.**
@@ -267,7 +268,8 @@ Remaining, in order:
    - Pivot source-kind tests read fixtures from a dated results folder, so they skip on a fresh machine.
    - docs/ledger.md quotes stale per-feature test counts.
    - `namespace-size.mjs` fails on the deliberate local `Ignorable` kept beside `PreserveAttributes`.
-   - `tools/lectern/test/designs.mjs` case `style` fails at 9f18001 ("Style edit missing").
+   - The former `designs.mjs` `style` failure is fixed: paragraph preservation now writes an edited
+     default run property while retaining its unknown siblings.
    - Converting one SmartArt adds five generic "no remaining reference" notices beside the specific one.
 
 

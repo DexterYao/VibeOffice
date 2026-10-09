@@ -124,6 +124,7 @@
     const fresh = raw(kids(K.parse('<root xmlns:a="' + N.a + '" xmlns:r="' + N.rel + '">' + (generated || '<' + tag + '/>') + '</root>'))[0]);
     const apply = el => {
       let out = L.designs.property(raw(el), fresh, current, keep.before, fields, kind === 'run' ? 'a:CT_TextCharacterProperties' : kind === 'para' ? 'a:CT_TextParagraphProperties' : 'a:CT_TextBodyProperties');
+      if (kind === 'para' && !same(object.rPr, keep.before.rPr)) out = K.merge(out, { ['{' + N.a + '}defRPr']: raw(kid(K.parse(fresh), 'defRPr')) }, 'a:CT_TextParagraphProperties');
       if (kind === 'run' && (!same(object.shd, keep.before.shd) || !same(object.shdX, keep.before.shdX))) out = K.merge(out, { ['{' + N.a + '}effectLst']: shadow(out, fresh) }, 'a:CT_TextCharacterProperties');
       if (el.localName !== tag.split(':').pop()) {
         const tree = K.parse(out), p = X.source.get(tree);
