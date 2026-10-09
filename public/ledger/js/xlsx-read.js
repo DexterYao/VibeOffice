@@ -554,28 +554,28 @@
     if (pr) {
       const tc = color(kid(pr, 'tabColor')); if (tc) sh.tabColor = tc;
       const op = kid(pr, 'outlinePr');
-      if (op) { sh.outline.below = at(op, 'summaryBelow') !== '0'; sh.outline.right = at(op, 'summaryRight') !== '0'; if (at(op, 'applyStyles') === '1') sh.outline.applyStyles = true; }
+      if (op) { sh.outline.below = bool(op, 'summaryBelow', true); sh.outline.right = bool(op, 'summaryRight', true); if (bool(op, 'applyStyles', false)) sh.outline.applyStyles = true; }
       const ps = kid(pr, 'pageSetUpPr');
       if (ps && bool(ps, 'fitToPage', false)) sh.print.fit = true;
       if (at(pr, 'codeName')) sh.codeName = at(pr, 'codeName');
-      if (at(pr, 'filterMode') === '1') sh.filterMode = true;
-      if (at(pr, 'transitionEvaluation') === '1') sh.extra.transitionEvaluation = true;
+      if (bool(pr, 'filterMode', false)) sh.filterMode = true;
+      if (bool(pr, 'transitionEvaluation', false)) sh.extra.transitionEvaluation = true;
     }
     /* views */
     const sv = path(el, 'sheetViews', 'sheetView');
     if (sv) {
       const v = sh.view;
-      if (at(sv, 'showGridLines') === '0' || at(sv, 'showGridLines') === 'false') v.grid = false;
-      if (at(sv, 'showRowColHeaders') === '0') v.headings = false;
-      if (at(sv, 'showZeros') === '0') v.zeros = false;
-      if (at(sv, 'rightToLeft') === '1') v.rtl = true;
-      if (at(sv, 'showFormulas') === '1') v.formulas = true;
-      if (at(sv, 'tabSelected') === '1') sh.selected = true;
+      if (!bool(sv, 'showGridLines', true)) v.grid = false;
+      if (!bool(sv, 'showRowColHeaders', true)) v.headings = false;
+      if (!bool(sv, 'showZeros', true)) v.zeros = false;
+      if (bool(sv, 'rightToLeft', false)) v.rtl = true;
+      if (bool(sv, 'showFormulas', false)) v.formulas = true;
+      if (bool(sv, 'tabSelected', false)) sh.selected = true;
       if (at(sv, 'zoomScale')) v.zoom = num(sv, 'zoomScale', 100) || 100;
       if (at(sv, 'view') === 'pageBreakPreview') { v.pageBreakPreview = true; if (at(sv, 'zoomScaleSheetLayoutView')) v.zoom = num(sv, 'zoomScaleSheetLayoutView', 60) || 60; else if (!at(sv, 'zoomScale')) v.zoom = 60; }
       if (at(sv, 'view') === 'pageLayout') v.pageLayout = true;
-      if (at(sv, 'showOutlineSymbols') === '0') v.outlineSymbols = false;
-      if (at(sv, 'colorId') && at(sv, 'defaultGridColor') === '0') v.gridColor = { indexed: num(sv, 'colorId', 64) };
+      if (!bool(sv, 'showOutlineSymbols', true)) v.outlineSymbols = false;
+      if (at(sv, 'colorId') && !bool(sv, 'defaultGridColor', true)) v.gridColor = { indexed: num(sv, 'colorId', 64) };
       if (at(sv, 'topLeftCell')) { const p = F.parseCell(at(sv, 'topLeftCell')); if (p) v.top = { r: p.r, c: p.c }; }
       const pane = kid(sv, 'pane');
       if (pane) {
@@ -599,12 +599,13 @@
     if (fp) {
       if (at(fp, 'defaultColWidth') != null) sh.defColW = num(fp, 'defaultColWidth', null);
       if (at(fp, 'baseColWidth') != null) sh.baseColW = num(fp, 'baseColWidth', 8);
-      if (at(fp, 'defaultRowHeight') != null && (bool(fp, 'customHeight', false) || at(fp, 'zeroHeight') === '1')) sh.defRowH = num(fp, 'defaultRowHeight', null);
+      if (at(fp, 'defaultRowHeight') != null && (bool(fp, 'customHeight', false) || bool(fp, 'zeroHeight', false))) sh.defRowH = num(fp, 'defaultRowHeight', null);
       if (at(fp, 'defaultRowHeight') != null) sh.fileDefRowH = num(fp, 'defaultRowHeight', null);
-      if (at(fp, 'zeroHeight') === '1') sh.zeroHeight = true;
+      if (bool(fp, 'zeroHeight', false)) sh.zeroHeight = true;
       if (at(fp, 'outlineLevelRow')) sh.outline.levelRow = num(fp, 'outlineLevelRow', 0);
       if (at(fp, 'outlineLevelCol')) sh.outline.levelCol = num(fp, 'outlineLevelCol', 0);
     }
+    L.preserve.keepSheetFormat(sh, fp);
     for (const col of kids(kid(el, 'cols'), 'col')) {
       const mn = num(col, 'min', 1) - 1, mx = Math.min(num(col, 'max', 1) - 1, 16383);
       const o = {};
@@ -696,8 +697,8 @@
       p.header = t('oddHeader'); p.footer = t('oddFooter');
       if (bool(hf, 'differentFirst', false)) { p.diffFirst = true; p.firstHeader = t('firstHeader'); p.firstFooter = t('firstFooter'); }
       if (bool(hf, 'differentOddEven', false)) { p.diffOddEven = true; p.evenHeader = t('evenHeader'); p.evenFooter = t('evenFooter'); }
-      if (at(hf, 'scaleWithDoc') === '0') p.hfScale = false;
-      if (at(hf, 'alignWithMargins') === '0') p.hfAlign = false;
+      if (!bool(hf, 'scaleWithDoc', true)) p.hfScale = false;
+      if (!bool(hf, 'alignWithMargins', true)) p.hfAlign = false;
     }
     for (const b of kids(kid(el, 'rowBreaks'), 'brk')) sh.print.rowBreaks.push(num(b, 'id', 0));
     for (const b of kids(kid(el, 'colBreaks'), 'brk')) sh.print.colBreaks.push(num(b, 'id', 0));

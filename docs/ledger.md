@@ -140,6 +140,13 @@ The full LibreOffice pass on the versioned `56de065` artifacts renders **930/935
 unrenderable originals, missing outputs, conversion errors/timeouts and count differences. This does
 not establish visual fidelity or Excel acceptance. Reports: `~/corpora/results/lo-final-2026-10-09/`.
 
+The worksheet-format correction retains authored automatic row heights and unread attributes;
+changing a default width or height replaces only that property. Cell edits, sheet copies, history
+and drafts keep the retained settings. Literal `true`/`false` view flags now retain reading direction.
+All 67 Ledger tests, 13 distinct focused package/SDK states and nine browser draft states pass. The affected five-page sample
+again renders as five pages; two other sampled count differences remain. A full refresh and Excel
+acceptance of this correction are pending. Evidence: `~/corpora/results/ledger-sheet-properties-2026-10-09/`.
+
 Ledger regenerates worksheets and keeps original package dependencies, workbook settings, style
 indices and shared strings. Save and drafts retain all four OOXML variants and encryption. The
 Compatibility Checker reports conversions from the prepared output before a user download,
@@ -209,6 +216,8 @@ the reply and mention after editing, shifting and copying the thread.
 |---|---|
 | Type or format an ordinary cell | Keep unrelated opaque parts; append changed styles/strings without rebinding old indices |
 | Change document properties or workbook settings | Replace owned properties; retain other values and custom-property types/pids |
+| Change default row height or column width | Replace only the changed worksheet-format attributes; keep authored automatic heights, unread attributes and alternatives confined to that property |
+| Copy a sheet, edit cells or undo dimensions | Retain the worksheet-format fragment with the sheet; drafts recover its pending settings. A mixed alternative spanning other sheet properties converts with a notice to avoid restoring deleted content |
 | Save as a macro-free variant | Report removed VBA before download; cancellation keeps the original filename/type and acknowledgements |
 | Edit an imported macro/dialog sheet | Convert that sheet to a worksheet and report it |
 | Undo/redo or recover a draft | Restore model properties, dependency identities and pending loss entries |

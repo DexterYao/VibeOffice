@@ -766,8 +766,7 @@
       const maxR = Math.max(0, sh.maxR), maxC = Math.max(0, sh.maxC);
       out.push(`<dimension ref="${sh.maxR < 0 ? 'A1' : rangeName({ r1: 0, c1: 0, r2: Math.min(maxR, M.MAXR - 1), c2: Math.min(maxC, M.MAXC - 1) })}"/>`);
       out.push(sheetViewXml(sh, wb, si));
-      const fp = { baseColWidth: sh.baseColW != null && sh.baseColW !== 8 ? sh.baseColW : undefined, defaultColWidth: sh.defColW != null ? sh.defColW : undefined, defaultRowHeight: sh.defRowH != null ? sh.defRowH : M.defaultRowPt(sh), customHeight: sh.defRowH != null ? '1' : undefined, zeroHeight: sh.zeroHeight ? '1' : undefined, outlineLevelRow: op.levelRow || undefined, outlineLevelCol: op.levelCol || undefined };
-      out.push(`<sheetFormatPr${attrs(fp)}/>`);
+      out.push(L.preserve.sheetFormatXML(sh, pack.writer, pack.part(part)));
       out.push(colsXml(sh, ctx));
       out.push(sheetDataXml(sh, ctx, headers));
       if (sh.protection) {

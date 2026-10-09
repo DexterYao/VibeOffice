@@ -255,6 +255,14 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   passed before the final copied-highlight correction, which passes the 13-test property subset and
   ten browser validation states. All four pages load without console errors. Initial fixture-selection
   and copied-highlight failures remain recorded in `quire-numbering-metadata-2026-10-09/`.
+- The Word refresh is running against frozen writer `7c25bd7`, with save/edit/history/draft outputs
+  and package/SDK comparisons under `quire-final-7c25bd7/`. It is not yet a completed measurement.
+- The Excel render review isolated changed automatic row heights. Worksheet format now retains
+  the source values and unread attributes until the owning property changes, including sheet copies
+  and history. Literal boolean view flags retain right-to-left reading direction. All 67 Ledger tests,
+  13 distinct focused package/SDK states and nine browser draft states pass; the five-page sample returns to five pages.
+  Two other sampled count differences remain. Full refresh and Excel acceptance are pending;
+  evidence is in `ledger-sheet-properties-2026-10-09/`.
 
 Current Ledger/Lectern reports and rebuilt Office batches: `~/corpora/results/review-final-56de065/`.
 The preceding Word full run is in `~/corpora/results/final-suite-2026-10-09/`; its final correction and combined report are in

@@ -6,6 +6,48 @@
   const kids = el => Array.from(el?.children || []);
   const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
   P.filterValues = c => JSON.stringify([c.values, c.blank, c.dates]);
+  P.sheetFormatValues = sh => ({
+    baseColWidth: sh.baseColW != null && sh.baseColW !== 8 ? sh.baseColW : undefined,
+    defaultColWidth: sh.defColW != null ? sh.defColW : undefined,
+    defaultRowHeight: sh.defRowH != null ? sh.defRowH : L.model.defaultRowPt(sh),
+    customHeight: sh.defRowH != null ? '1' : undefined, zeroHeight: sh.zeroHeight ? '1' : undefined,
+    outlineLevelRow: sh.outline?.levelRow || undefined, outlineLevelCol: sh.outline?.levelCol || undefined,
+  });
+  P.keepSheetFormat = function (sh, el) {
+    if (!sh.wb.pkg) return;
+    const ctx = { pkg: sh.wb.pkg, part: sh.extra.ooxmlPart };
+    const keep = sh.extra.formatKeep = { values: P.sheetFormatValues(sh), fragment: el ? K.fragment(el, ctx) : null };
+    if (keep.fragment?.record) {
+      const tree = K.parse(keep.fragment.xml);
+      // A wrapper that also owns columns/views cannot be emitted by this one
+      // property: that would duplicate or resurrect separately edited content.
+      if ([...tree.getElementsByTagName('*')].some(e => e.namespaceURI !== N.mc && e.localName !== 'sheetFormatPr')) {
+        keep.fragment = K.fragment(K.parse(K.raw(el)), ctx); keep.converted = true;
+      }
+    }
+  };
+  P.sheetFormatXML = function (sh, writer, owner) {
+    const current = P.sheetFormatValues(sh), keep = sh.extra.formatKeep;
+    const generated = () => K.attributes('<sheetFormatPr xmlns="' + N.s + '"/>', current);
+    if (!keep) return generated();
+    if (keep.converted) writer.loss({ id: 'sheet-format-alternative:' + sh.id, where: sh.name, action: 'conversion',
+      what: 'A worksheet-format alternative that also contained other worksheet settings was converted to its displayed properties.' });
+    const changes = {};
+    for (const [name, value] of Object.entries(current)) if (!same(value, keep.values[name])) changes[name] = value;
+    if (!keep.fragment) return Object.keys(changes).length ? generated() : '';
+    // A file's automatic row height is authoritative too. Comparing model
+    // fields avoids replacing it merely because our font metrics differ.
+    let xml = keep.fragment.xml;
+    if (Object.keys(changes).length) {
+      const tree = K.parse(xml), edits = [];
+      for (const el of [tree, ...tree.getElementsByTagName('*')]) if (el.localName === 'sheetFormatPr' && [N.s, 'http://purl.oclc.org/ooxml/spreadsheetml/main'].includes(el.namespaceURI)) {
+        const pos = L.xmlTree.source.get(el);
+        edits.push({ start: pos.start, end: pos.end, value: K.attributes(K.raw(el), changes) });
+      }
+      xml = K.patch(xml, edits);
+    }
+    return writer.emit(K.slice(keep.fragment, xml), owner);
+  };
   P.parts = Object.freeze([
     ['xl/styles.xml', RT('styles'), 'regenerated'],
     ['xl/sharedStrings.xml', RT('sharedStrings'), 'regenerated'],
