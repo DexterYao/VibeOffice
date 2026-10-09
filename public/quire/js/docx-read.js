@@ -1127,7 +1127,7 @@
       }
       if (s.pgW <= 0) s.pgW = 612;
       if (s.pgH <= 0) s.pgH = 792;
-      return s;
+      return L.preserve.properties(s, el, 'sectPr', { pkg: doc.pkg, part: ctx.part });
     }
 
     /* ---- drawings (DrawingML) ---- */

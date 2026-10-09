@@ -364,6 +364,10 @@ replacement, alternatives, range/object identity and history. `node tools/quire/
 ~/corpora/word OUTDIR` edits authored bound-text, date and checkbox controls, emitting before/edit/undo/
 copy/draft/recovered files. `node tools/quire/test/objects.mjs ~/corpora/word OUTDIR` transfers authored
 OLE/SmartArt objects between browser tabs, edits converted content, undoes it and recovers a draft.
+`node tools/quire/test/sections.mjs ~/corpora/word OUTDIR` checks section XML, absent defaults,
+header relationships and alternatives through actual saves, margin edits, undo/redo and draft recovery.
+It writes the original and each saved state for package/SDK and external rendering comparisons.
+
 `node tools/quire/test/drawing-properties.mjs ~/corpora/word OUTDIR` checks authored picture/shape
 properties and watermarks, plus generated row/cell alternatives with populated and empty choices.
 It writes originals and every edit/history/draft state, checking that deletion cannot restore hidden

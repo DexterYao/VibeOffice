@@ -80,6 +80,48 @@ test('property alternatives keep both branches and change only the edited proper
   assert.match(after, /mc:Fallback/); assert.equal(d.losses?.length || 0, 0);
 });
 
+test('section preservation keeps absent defaults, unread settings and individual margin attributes', () => {
+  const d = doc(), s = property('<w:pgSz w:w="11901" w:h="9000"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0" w14:other="kept"/><w:rtlGutter/>', { ...D.defaultSect(), pgW: 595.05, pgH: 450, orient: 'landscape' }, 'sectPr', 'body');
+  const generated = '<w:pgSz w:w="11901" w:h="9000" w:orient="landscape"/><w:pgMar w:top="1800" w:left="1800"/><w:cols w:space="720"/><w:docGrid w:linePitch="360"/>';
+  const before = P.propertyXML('sectPr', s, generated, context(d));
+  assert.doesNotMatch(before, /w:orient=|w:cols|w:docGrid/);
+  assert.match(before, /<w:rtlGutter/);
+  s.mt = 90;
+  const after = P.propertyXML('sectPr', s, generated, context(d));
+  assert.match(after, /w:top="1800"/); assert.match(after, /w:left="1440"/);
+  assert.match(after, /w14:other="kept"/); assert.match(after, /<w:rtlGutter/);
+  assert.doesNotMatch(after, /w:orient=|w:cols|w:docGrid/);
+  s.cols.n = 2;
+  const columns = P.propertyXML('sectPr', s, generated.replace('<w:cols w:space="720"/>', '<w:cols w:num="2" w:space="720"/>'), context(d));
+  assert.match(columns, /w:num="2"/); assert.ok(columns.indexOf('<w:cols') < columns.indexOf('<w:rtlGutter'));
+  assert.equal(d.losses?.length || 0, 0);
+});
+
+test('section numbering edits keep chapter, grid and revision details through JSON history', () => {
+  const d = doc(), s = property('<w:pgNumType w:start="1" w:chapStyle="1" w:chapSep="hyphen"/><w:docGrid w:type="linesAndChars" w:linePitch="312" w:charSpace="4096"/><w:sectPrChange w:id="7" w:author="Author"><w:sectPr><w:rtlGutter/></w:sectPr></w:sectPrChange>', { ...D.defaultSect(), pgNum: { start: 1, fmt: 'decimal', chapStyle: '1', chapSep: 'hyphen' }, docGrid: { type: 'linesAndChars', linePitch: 312, charSpace: 4096 } }, 'sectPr', 'body');
+  d.sect = s;
+  const generated = '<w:pgNumType w:start="5"/><w:docGrid w:type="linesAndChars" w:linePitch="360"/>';
+  const before = P.propertyXML('sectPr', s, generated, context(d));
+  D.tx('Page numbering', () => { D.touchKey(d, 'sect'); d.sect.pgNum.start = 5; });
+  const after = P.propertyXML('sectPr', d.sect, generated, context(d));
+  assert.match(after, /w:start="5"/); assert.match(after, /w:chapStyle="1"/); assert.match(after, /w:chapSep="hyphen"/);
+  assert.match(after, /w:linePitch="312"/); assert.match(after, /w:charSpace="4096"/); assert.match(after, /w:sectPrChange/);
+  D.undo(); assert.equal(P.propertyXML('sectPr', d.sect, generated, context(d)), before);
+  D.redo(); assert.equal(P.propertyXML('sectPr', JSON.parse(JSON.stringify(d.sect)), generated, context(d)), after);
+  assert.equal(d.losses?.length || 0, 0);
+});
+
+test('new section attributes do not rebind a foreign prefix on retained children', () => {
+  const d = doc(), s = P.properties(D.defaultSect(), K.parse(`<sectPr xmlns="${K.NS.w}" xmlns:q="${K.NS.w}" xmlns:w="urn:foreign"><pgNumType q:fmt="decimal"><w:unknown/></pgNumType></sectPr>`), 'sectPr', { part: 'word/document.xml' });
+  s.pgNum.start = 3;
+  const xml = P.propertyXML('sectPr', s, '<w:pgNumType w:start="3"/>', context(d));
+  const element = K.parse(xml).children[0];
+  const number = Array.from(element.attributes).find(a => a.localName === 'start');
+  assert.equal(number.value, '3'); assert.equal(element.lookupNamespaceURI(number.prefix), K.NS.w);
+  assert.equal(element.children[0].namespaceURI, 'urn:foreign');
+  assert.match(xml, /q:fmt="decimal"/);
+});
+
 test('permission copies remap both endpoints, partial copies omit them, and incomplete saves report loss', () => {
   const d = doc(), start = P.rangeMarker(K.parse(`<w:permStart xmlns:w="${K.NS.w}" w:id="42" w:edGrp="everyone" w:colFirst="0" w:colLast="2"/>`), { part: 'word/document.xml' });
   const end = P.rangeMarker(K.parse(`<w:permEnd xmlns:w="${K.NS.w}" w:id="42"/>`), { part: 'word/document.xml' });

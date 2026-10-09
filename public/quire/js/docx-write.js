@@ -188,7 +188,7 @@
       x += `<w:pgBorders w:offsetFrom="${b.offsetFrom === 'page' ? 'page' : 'text'}"${b.display && b.display !== 'allPages' ? ` w:display="${b.display}"` : ''}>${['top', 'left', 'bottom', 'right'].map((k) => (b[k] && b[k].val !== 'nil' ? borderEl(k, Object.assign({ space: b.offsetFrom === 'page' ? 24 : 4 }, b[k])) : '')).join('')}</w:pgBorders>`;
     }
     if (s.lnNum) x += `<w:lnNumType w:countBy="${s.lnNum.countBy || 1}"${s.lnNum.start ? ` w:start="${s.lnNum.start}"` : ''}${s.lnNum.distance ? ` w:distance="${tw(s.lnNum.distance)}"` : ''} w:restart="${s.lnNum.restart || 'newPage'}"/>`;
-    if (s.pgNum && (s.pgNum.start != null || (s.pgNum.fmt && s.pgNum.fmt !== 'decimal'))) x += `<w:pgNumType${s.pgNum.fmt && s.pgNum.fmt !== 'decimal' ? ` w:fmt="${s.pgNum.fmt}"` : ''}${s.pgNum.start != null ? ` w:start="${s.pgNum.start}"` : ''}/>`;
+    if (s.pgNum && (s.pgNum.start != null || s.pgNum.chapStyle || s.pgNum.chapSep || (s.pgNum.fmt && s.pgNum.fmt !== 'decimal'))) x += `<w:pgNumType${s.pgNum.fmt && s.pgNum.fmt !== 'decimal' ? ` w:fmt="${X(s.pgNum.fmt)}"` : ''}${s.pgNum.start != null ? ` w:start="${s.pgNum.start}"` : ''}${s.pgNum.chapStyle ? ` w:chapStyle="${X(s.pgNum.chapStyle)}"` : ''}${s.pgNum.chapSep ? ` w:chapSep="${X(s.pgNum.chapSep)}"` : ''}/>`;
     const c = s.cols || { n: 1 };
     if (c.n > 1 && c.eq === false && c.w && c.w.length) x += `<w:cols w:num="${c.n}" w:equalWidth="0"${c.sep ? ' w:sep="1"' : ''}>${c.w.map((cc) => `<w:col w:w="${tw(cc.w)}" w:space="${tw(cc.space || 0)}"/>`).join('')}</w:cols>`;
     else x += `<w:cols w:space="${tw(c.space != null ? c.space : 36)}"${c.n > 1 ? ` w:num="${c.n}"` : ''}${c.sep ? ' w:sep="1"' : ''}/>`;
@@ -197,8 +197,8 @@
     if (s.titlePg) x += '<w:titlePg/>';
     if (s.textDir) x += `<w:textDirection w:val="${s.textDir}"/>`;
     if (s.bidi) x += '<w:bidi/>';
-    x += s.docGrid && s.docGrid.linePitch ? `<w:docGrid${s.docGrid.type ? ` w:type="${s.docGrid.type}"` : ''} w:linePitch="${s.docGrid.linePitch}"/>` : '<w:docGrid w:linePitch="360"/>';
-    return `<w:sectPr>${x}</w:sectPr>`;
+    x += s.docGrid && (s.docGrid.type || s.docGrid.linePitch || s.docGrid.charSpace) ? `<w:docGrid${s.docGrid.type ? ` w:type="${X(s.docGrid.type)}"` : ''}${s.docGrid.linePitch ? ` w:linePitch="${s.docGrid.linePitch}"` : ''}${s.docGrid.charSpace ? ` w:charSpace="${s.docGrid.charSpace}"` : ''}/>` : '<w:docGrid w:linePitch="360"/>';
+    return L.preserve.propertyXML('sectPr', s, x, ctx);
   }
   function notePrXML(tag, pr, inSettings) {
     let x = '';

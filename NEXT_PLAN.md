@@ -16,8 +16,9 @@ and checked in LibreOffice. Both current full corpus runs add no package/SDK dia
 The completion audit also corrected Ledger root-comment editing: edits retain replies and identities,
 shift untouched mentions, and report changed or ambiguous mentions. All 62 Ledger tests and 24 current
 package/SDK states pass. Batch-3 file 04 now exercises that correction as well.
-The Word writer is unchanged by this review group; its preceding full run and final formatting
-correction remain the Word evidence, clearing all 31 failing SDK comparisons in six fixtures.
+The Word writer now also retains section properties: four focused fixtures / 24 states add no
+package/SDK errors, including margin edits, history and drafts. Its preceding full run and final
+formatting correction remain versioned evidence; a refresh must include the section change.
 **The plan is not signed off:** the approved plan's full-corpus LibreOffice gate remains beyond the
 completed sample checks, and Excel/PowerPoint Office acceptance is pending.
 
@@ -170,7 +171,7 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   There are no added package issues or SDK diagnostics. The original reports retain the 31 Word
   regression states; their corrections are recorded separately, alongside failed and excluded inputs.
   Ledger and Lectern are freshly measured at `56de065`; Quire retains its preceding full run because
-  this review group does not change its writer behavior. These are explicitly versioned runs.
+  the section correction has only focused evidence so far. These are explicitly versioned runs.
 - Quire: save/draft each 2,880 OK and 22 failed; text 2,281 OK, 22 failed, 599 excluded. Its 19,028
   validation rows have 18,056 OK, 373 failed and 599 excluded. Feature counts remain at the documented
   final levels; the independent inventory retains 776,207/776,869 counted words. The formatting repair
@@ -209,8 +210,13 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   connections, affecting 23,232 states. Those counts are not app failures. The renderer now retires
   failed workers and retries connection loss once, retaining the first attempt. Four audit-tool tests
   and an actual killed-process recovery check pass. Recovery reuses only verified successful PDFs;
-  the initial report stays intact. Quire section-property preservation is also still incomplete:
-  untouched gutter/chapter/grid details must survive before final signoff.
+  the initial report stays intact. The recovered run is under `lo-final-2026-10-09/recovered/`.
+- Quire now retains original section properties, including absent defaults and gutter/chapter/grid
+  details; individual size/margin/numbering/grid edits keep sibling attributes. Four fixtures / 24
+  states pass package/SDK comparisons and all eight sampled before/edit outputs render. Three corpus
+  files still have their preceding page-count differences; those need separate investigation.
+  Reports are under `quire-sections-2026-10-09/`. The 149-test suite and final 10-test property pass
+  (including the new namespace-alias case) pass; all four pages load without console errors.
 
 Current Ledger/Lectern reports and rebuilt Office batches: `~/corpora/results/review-final-56de065/`.
 The preceding Word full run is in `~/corpora/results/final-suite-2026-10-09/`; its final correction and combined report are in

@@ -115,12 +115,12 @@ Checks (tools in docs/testing.md):
 
 ## What a save keeps, converts and drops
 
-Quire keeps package dependencies, control boundaries, text properties and opaque object XML beside
+Quire keeps package dependencies, control boundaries, text/section properties and opaque object XML beside
 its editable model. Save and drafts retain DOCX/DOCM/DOTX/DOTM and encryption. The Compatibility
 Checker reports conversions from the prepared output before a user download. Drafts retain notices
 silently, and cancelling a conversion does not leave its notice on a later preserving save.
 
-The final pinned **2,902-file** run uses writer `69be775`, resumed at `5247af8` after the byte-identical
+The preceding pinned **2,902-file** run uses writer `69be775`, resumed at `5247af8` after the byte-identical
 XML patch performance correction. **2,880 save/reopen and draft-recovery attempts complete**, with
 **22 failures** in each scenario. Text edit/save/undo/redo completes in **2,281**, with **599 exclusions
 and 22 failures**. The failed inputs are password-protected, malformed or mislabeled. One timeout
@@ -167,6 +167,7 @@ malformed input, unreferenced stories and unsupported markup remain exceptions.
 | Kept, with a remaining exception | Content controls | 2,675/2,676 wrappers; inline, block, row and cell controls retain properties and scalar bindings |
 | Kept | OLE, SmartArt, charts and embedded documents | 516/516 OLE/object inventory nodes, 39/39 SmartArt data parts, 133/133 chart parts and 4/4 altChunk blocks; geometry edits retain payloads |
 | Kept | Text effects, pictures in page backgrounds and drawing properties while untouched | 205/205 Word 2010 effect entries, 62/62 backgrounds, 1,054/1,054 text boxes and 1,803/1,803 DrawingML shape entries |
+| Kept; full refresh pending | Section properties, their alternatives and header/footer dependencies | Four fixtures / 24 save/edit/history/draft states add no package/SDK errors; untouched section XML and unrelated attributes survive margin edits. Eight sampled outputs render, but three corpus fixtures retain their earlier pagination differences |
 | Kept, with range/story exceptions | Comments, notes, bookmarks and permissions | 1,404/1,421 comments, 674/684 footnotes, 57/57 endnotes, 4,870/4,965 bookmarks and 50/54 permission ranges |
 | Kept, with remaining losses | Revisions, fields, pictures and tables | 1,385/1,427 insertions/deletions, 1,085/1,103 formatting revisions, 2,590/2,711 fields, 1,239/1,242 pictures and 1,605/1,606 tables |
 | Converted when edited | Unsupported contents inside an opaque frame; typed/complex controls | Edited or ungrouped converted content uses the model representation; incompatible typed-control edits unbind and report the conversion |
@@ -193,6 +194,9 @@ Current reports and explicit exceptions: `~/corpora/results/final-suite-2026-10-
 feature checks remain in `~/corpora/results/quire-remainder-2026-10-08/`.
 The final formatting correction and combined validation report are in
 `~/corpora/results/quire-property-repair-2026-10-09/`; the original failures remain archived.
+Section preservation is measured in `~/corpora/results/quire-sections-2026-10-09/`; the older full-run
+numbers above do not yet include it. It fixes dropped gutter/chapter/grid settings, not all layout
+differences: the sampled nested-table, duplicate-default-style and `tdf149089` files still change page counts.
 The Office checklist is `~/Downloads/lossless-check/office-batch-2/CHECKLIST.md`; file 12 records its
 original repair and links the accepted corrected save. Both samples in
 `~/Downloads/lossless-check/office-batch-2-comment-fix/` pass Word, package/SDK checks and LibreOffice,
@@ -227,6 +231,8 @@ a built-in document-property binding into another document also unbinds it and r
 | Copy a bookmark/permission range | Remap both endpoints; incomplete copies omit the markers |
 | Delete one range endpoint | Omit the incomplete pair on save and report it |
 | Set a page colour | Replace the original background; other edits keep its fill/picture |
+| Change a page size, margin, numbering or grid setting | Change its owned attributes; keep other section settings, revision metadata and compatibility branches |
+| Edit body text or save without changing section settings | Keep original section XML, including absent defaults and header/footer references |
 | Undo/redo or drafts | Restore property fragments and range metadata |
 
 ### Opaque objects and compatibility alternatives: edit behavior

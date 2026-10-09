@@ -90,7 +90,7 @@
     // Capture before compatibility choices are normalised. A property fragment
     // belongs to this element, even when the element itself is inside a choice.
     const nodes = Array.from(root.getElementsByTagName('*'));
-    for (const el of nodes) if (wordNS(el.namespaceURI) && ['rPr', 'pPr', 'tbl', 'tblPr', 'drawing', 'pict', 'object', 'control', 'altChunk', 'contentPart'].includes(el.localName)) originalProperties.set(el, K.raw(el));
+    for (const el of nodes) if (wordNS(el.namespaceURI) && ['rPr', 'pPr', 'sectPr', 'tbl', 'tblPr', 'drawing', 'pict', 'object', 'control', 'altChunk', 'contentPart'].includes(el.localName)) originalProperties.set(el, K.raw(el));
     // Leave an anchor when compatibility normalisation selects an empty branch.
     // captureAC still reads the immutable source text, without this sentinel.
     for (const el of nodes) if (el.namespaceURI === N.mc && ['Choice', 'Fallback'].includes(el.localName) && !el.children.length) el.appendChild(el.ownerDocument.createElementNS('urn:vibeoffice:keep', 'keep'));
@@ -105,21 +105,54 @@
     rPr: { rStyle: ['style'], rFonts: ['font', 'fontEA', 'fontCS', 'hint'], b: ['b'], bCs: ['bCs'], i: ['i'], iCs: ['iCs'], caps: ['caps'], smallCaps: ['smallCaps'], strike: ['strike'], dstrike: ['dstrike'], outline: ['outline'], shadow: ['shadow'], emboss: ['emboss'], imprint: ['imprint'], noProof: ['noProof'], vanish: ['hidden'], webHidden: ['webHidden'], color: ['color'], spacing: ['spacing'], w: ['w'], kern: ['kern'], position: ['pos'], sz: ['sz'], szCs: ['szCs', 'sz'], highlight: ['hl'], u: ['u', 'uColor'], effect: ['effect'], bdr: ['border'], shd: ['shd'], vertAlign: ['vert'], rtl: ['rtl'], cs: ['cs'], em: ['em'], lang: ['lang', 'langEA'], specVanish: ['specVanish'], rPrChange: ['chg'] },
     pPr: { pStyle: ['style'], keepNext: ['keepNext'], keepLines: ['keepLines'], pageBreakBefore: ['pageBreakBefore'], framePr: ['frame', 'dropCap'], widowControl: ['widow'], numPr: ['num'], suppressLineNumbers: ['noLineNum'], pBdr: ['borders'], shd: ['shd'], tabs: ['tabs'], suppressAutoHyphens: ['noHyphen'], bidi: ['bidi'], snapToGrid: ['noSnap'], spacing: ['sp'], ind: ['ind'], contextualSpacing: ['contextual'], mirrorIndents: ['mirrorInd'], jc: ['jc'], textDirection: ['textDir'], textAlignment: ['textAlign'], outlineLvl: ['outline'], pPrChange: ['chg'] },
     tblPr: { tblStyle: ['style'], tblpPr: ['float'], bidiVisual: ['bidi'], tblStyleRowBandSize: ['rowBand'], tblStyleColBandSize: ['colBand'], tblW: ['w'], jc: ['jc'], tblCellSpacing: ['spacing'], tblInd: ['ind'], tblBorders: ['borders'], shd: ['shd'], tblLayout: ['layout'], tblCellMar: ['cellMar'], tblLook: ['look'], tblCaption: ['caption'], tblDescription: ['desc'] },
+    sectPr: { headerReference: ['refs.hdr'], footerReference: ['refs.ftr'], footnotePr: ['fnPr'], endnotePr: ['enPr'], type: ['type'], pgSz: ['pgW', 'pgH', 'orient', 'paperCode'], pgMar: ['mt', 'mr', 'mb', 'ml', 'hdr', 'ftr', 'gutter'], paperSrc: ['paperSrc'], pgBorders: ['borders'], lnNumType: ['lnNum'], pgNumType: ['pgNum'], cols: ['cols'], formProt: ['formProt'], vAlign: ['vAlign'], titlePg: ['titlePg'], textDirection: ['textDir'], bidi: ['bidi'], docGrid: ['docGrid'] },
   });
   const propertyKeys = (kind, el) => wordNS(el.namespaceURI) ? P.propertyFields[kind][el.localName] : kind === 'rPr' && /word\/2010\/wordml$/.test(el.namespaceURI || '') ? ({ shadow: ['shadow'], textFill: ['color'], textOutline: ['outline'] }[el.localName]) : undefined;
-  const propertyValues = (model, keys) => JSON.stringify(keys.map(k => model[k] ?? null), (k, v) => k === 'x' && v?.fragment ? undefined : v);
+  const field = (model, path) => path.split('.').reduce((v, k) => v?.[k], model);
+  const propertyValues = (model, keys) => JSON.stringify(keys.map(k => field(model, k) ?? null), (k, v) => k === 'x' && v?.fragment ? undefined : v);
+  const sectionAttributes = {
+    pgSz: { w: 'pgW', h: 'pgH', orient: 'orient', code: 'paperCode' },
+    pgMar: { top: 'mt', right: 'mr', bottom: 'mb', left: 'ml', header: 'hdr', footer: 'ftr', gutter: 'gutter' },
+    paperSrc: { first: 'paperSrc.first', other: 'paperSrc.other' },
+    pgNumType: { fmt: 'pgNum.fmt', start: 'pgNum.start', chapStyle: 'pgNum.chapStyle', chapSep: 'pgNum.chapSep' },
+    lnNumType: { countBy: 'lnNum.countBy', start: 'lnNum.start', distance: 'lnNum.distance', restart: 'lnNum.restart' },
+    docGrid: { type: 'docGrid.type', linePitch: 'docGrid.linePitch', charSpace: 'docGrid.charSpace' },
+  };
+  function sectionChild(el, fresh, model, kept) {
+    const fields = sectionAttributes[el.localName];
+    if (!fields || fresh.length !== 1) return fresh.map(K.raw);
+    const keys = P.propertyFields.sectPr[el.localName], values = JSON.parse(kept.values[expanded(el)]);
+    const before = Object.fromEntries(keys.map((k, i) => [k, values[i]])), changes = {};
+    for (const [name, path] of Object.entries(fields)) if (!same(field(model, path), field(before, path))) {
+      // Margin start/end are the logical aliases used by Strict sources.
+      const aliases = name === 'left' ? ['left', 'start'] : name === 'right' ? ['right', 'end'] : [name];
+      const old = Array.from(el.attributes).filter(a => aliases.includes(a.localName) && a.prefix && wordNS(el.lookupNamespaceURI(a.prefix)));
+      const value = attr(fresh[0], name);
+      if (old.length) for (const a of old) changes[a.name] = value;
+      else if (value != null) {
+        let prefix = el.prefix || 'w', n = 0;
+        while (el.lookupNamespaceURI(prefix) && el.lookupNamespaceURI(prefix) !== el.namespaceURI) prefix = 'w' + ++n;
+        if (!el.lookupNamespaceURI(prefix)) changes['xmlns:' + prefix] = el.namespaceURI;
+        changes[prefix + ':' + name] = value;
+      }
+    }
+    return [K.attributes(K.raw(el), changes)];
+  }
   const propertyRanks = new Map();
   P.properties = function (model, el, kind, context) {
     if (!el) return model;
     const fragment = K.fragment(K.parse(originalProperties.get(el) || K.raw(el)), context), tree = K.parse(fragment.xml);
     model.x = { key: D.nid(), fragment, owner: el.parentNode?.localName, values: Object.fromEntries(propertyChildren(tree).map(c => [expanded(c), propertyValues(model, propertyKeys(kind, c) || [])])) };
+    // Absent section properties are meaningful. Do not introduce the writer's
+    // default columns/grid/orientation unless their owning fields were edited.
+    if (kind === 'sectPr') for (const [name, keys] of Object.entries(P.propertyFields.sectPr)) model.x.values['{' + N.w + '}' + name] = propertyValues(model, keys);
     return model;
   };
   P.propertyXML = function (kind, model, generated, ctx) {
     const kept = model.x, root = '<w:' + kind + ' xmlns:w="' + N.w + '">' + generated + '</w:' + kind + '>';
     if (!kept) return generated ? root : '';
     let repaired = false;
-    const type = { rPr: 'w:CT_RPr', pPr: 'w:CT_PPr', tblPr: 'w:CT_TblPr' }[kind];
+    const type = { rPr: 'w:CT_RPr', pPr: 'w:CT_PPr', tblPr: 'w:CT_TblPr', sectPr: 'w:CT_SectPr' }[kind];
     if (!propertyRanks.has(type)) {
       const ranks = new Map();
       K.schema.types[type].forEach((slot, i) => slot.forEach(name => ranks.set('{' + K.schema.namespaces[name.split(':')[0]] + '}' + name.split(':')[1], i)));
@@ -140,9 +173,15 @@
         if (mark(e)) { replacements[expanded(e)] = []; continue; }
         const name = expanded(e), keys = propertyKeys(kind, e);
         const always = kind === 'pPr' && wordNS(e.namespaceURI) && ['rPr', 'sectPr'].includes(e.localName);
-        if (always || keys && kept.values[name] !== propertyValues(model, keys)) replacements[name] = fresh.filter(c => expanded(c) === name).map(K.raw);
+        if (always || keys && kept.values[name] !== propertyValues(model, keys)) {
+          const next = fresh.filter(c => expanded(c) === name);
+          replacements[name] = kind === 'sectPr' ? sectionChild(e, next, model, kept) : next.map(K.raw);
+        }
       }
-      if (outer) for (const c of fresh) if (!mark(c) && !present.has(expanded(c))) replacements[expanded(c)] = fresh.filter(e => expanded(e) === expanded(c)).map(K.raw);
+      if (outer) for (const c of fresh) if (!mark(c) && !present.has(expanded(c))) {
+        const keys = propertyKeys(kind, c);
+        if (kind !== 'sectPr' || keys && kept.values[expanded(c)] !== propertyValues(model, keys)) replacements[expanded(c)] = fresh.filter(e => expanded(e) === expanded(c)).map(K.raw);
+      }
       // Invalid source properties can be copied into several runs by text edits.
       // Normalize their spelling/order before that multiplies the source errors;
       // retain extension attributes and every unrelated property.
@@ -189,7 +228,7 @@
       if (repaired) ctx.writer.loss({ id: 'property:repair:' + (kept.fragment.source || '') + ':' + kept.fragment.part, what: 'Invalid source formatting was normalized for compatibility.', where: kept.fragment.part, action: 'conversion' });
       return ctx.writer.emit(K.slice(kept.fragment, xml), ctx.part);
     } catch (error) {
-      ctx?.writer.loss({ id: 'property:' + kept.key, what: 'Some ' + (kind === 'rPr' ? 'text' : 'paragraph') + ' formatting could not be retained: ' + error.message, where: kept.fragment.part, action: 'conversion' });
+      ctx?.writer.loss({ id: 'property:' + kept.key, what: 'Some ' + (kind === 'rPr' ? 'text' : kind === 'sectPr' ? 'section' : 'paragraph') + ' formatting could not be retained: ' + error.message, where: kept.fragment.part, action: 'conversion' });
       return generated ? root : '';
     }
   };
