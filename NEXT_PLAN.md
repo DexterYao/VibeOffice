@@ -261,7 +261,10 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   the source values and unread attributes until the owning property changes, including sheet copies
   and history. Literal boolean view flags retain right-to-left reading direction. All 67 Ledger tests,
   13 distinct focused package/SDK states and nine browser draft states pass; the five-page sample returns to five pages.
-  Two other sampled count differences remain. Full refresh and Excel acceptance are pending;
+  Its completed 951-input refresh retains the same driver/validation statuses, adds no package/SDK
+  diagnostics and reduces LibreOffice page-count differences from 45 to 37, with no new differences.
+  All independent cell counts are fresh, including the large workbook with an extended audit timeout.
+  Excel acceptance is pending;
   evidence is in `ledger-sheet-properties-2026-10-09/`.
 - [Office batch 5](/home/john/Downloads/lossless-check/office-batch-5/CHECKLIST.md) is ready: five Word
   samples for picture bullets, numbering and sections, plus one Excel row-height sample. All six
@@ -277,6 +280,15 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   corpus states add no package/SDK diagnostics, 25 browser assertions and all 27 Quire tests pass.
   The scan found one affected readable input and recorded 33 archive/XML failures separately.
   Evidence: `quire-break-recovery-2026-10-09/`; this focused correction supplements the frozen Word run.
+- The Excel convention review converts two pre-release worksheet-size namespaces with a notice
+  instead of inserting them into current-format sheets. All 68 Ledger tests and six browser attempts
+  pass; the 14 SDK comparison states remain failed because the originals cannot be validated.
+  Both saved files render; the readable original retains one page, and the unreadable original has
+  no comparable count. The corrected convention scan has 187 signatures: two additions retain
+  inherited scoped MC directives. Evidence: `ledger-legacy-format-2026-10-09/`.
+- Five diagnostic transplants of original Excel print settings restore all five original page counts.
+  Their current saves insert portrait page setup where the originals omit it. This remaining
+  preservation gap is being corrected; the probes are not app saves or Office handoffs.
 
 Current Ledger/Lectern reports and rebuilt Office batches: `~/corpora/results/review-final-56de065/`.
 The preceding Word full run is in `~/corpora/results/final-suite-2026-10-09/`; its final correction and combined report are in

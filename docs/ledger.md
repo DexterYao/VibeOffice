@@ -130,18 +130,25 @@ be served over https or from localhost. A workbook opened with its password keep
 
 ## What a save keeps, converts and drops
 
-The full LibreOffice pass on the versioned `56de065` artifacts renders **930/935 unedited saves**;
-**45** readable pairs change page count and still need investigation. Across **6,589** attempted states,
-**6,032** pass the paired render/count check, **540** fail and **17** are excluded. Failures include
+The full LibreOffice pass on the versioned `3716a3b` artifacts renders **930/935 unedited saves**;
+**37** readable pairs change page count and still need investigation. Across **6,589** attempted states,
+**6,088** pass the paired render/count check, **484** fail and **17** are excluded. Failures include
 unrenderable originals, missing outputs, conversion errors/timeouts and count differences. This does
-not establish visual fidelity or Excel acceptance. Reports: `~/corpora/results/lo-final-2026-10-09/`.
+not establish visual fidelity or Excel acceptance. All five saved-render failures also fail or time
+out in their originals. Reports: `~/corpora/results/ledger-final-3716a3b/`.
 
 The worksheet-format correction retains authored automatic row heights and unread attributes;
 changing a default width or height replaces only that property. Cell edits, sheet copies, history
 and drafts keep the retained settings. Literal `true`/`false` view flags now retain reading direction.
-All 67 Ledger tests, 13 distinct focused package/SDK states and nine browser draft states pass. The affected five-page sample
-again renders as five pages; two other sampled count differences remain. A full refresh and Excel
-acceptance of this correction are pending. Evidence: `~/corpora/results/ledger-sheet-properties-2026-10-09/`.
+The full refresh resolves eight page-count differences without adding new ones. The initial 67-test
+pass, 13 distinct focused package/SDK states and nine browser draft states remain recorded in
+`~/corpora/results/ledger-sheet-properties-2026-10-09/`. Excel acceptance is pending.
+Pre-release worksheet-size markup is converted to current settings with a notice. Two affected
+inputs / six browser attempts pass save/edit/draft recovery; all 68 Ledger tests pass. Their 14
+validation states remain failures because the SDK cannot read the originals; they are not counted
+as successful comparisons. Both saved files render in LibreOffice: the readable original retains
+one page, and the unreadable original has no comparable count. The scope scan records 25 archive/XML
+failures separately. Evidence: `~/corpora/results/ledger-legacy-format-2026-10-09/`.
 Office batch 5 file 06 supplies the row-height check. It adds no package/SDK diagnostics and
 retains the original five LibreOffice pages; its only differences from the previous writer are
 the three restored default row heights. Excel acceptance is pending.
@@ -153,15 +160,13 @@ including edited imported charts and opaque drawings. Drafts retain notices sile
 
 The pinned 951-file corpus saves and reopens **935 workbooks**, with **11 failures and 5 exclusions**.
 Cell edit/save/undo/redo completes in **933**, with **11 failures and 7 exclusions**; draft recovery
-completes in **935**, with **11 failures and 5 exclusions**. The current full run uses writer `56de065`.
+completes in **935**, with **11 failures and 5 exclusions**. The current full run uses writer `3716a3b`,
+with the two pre-release worksheet-format corrections measured separately.
 Package/SDK comparison reports **911 OK, 35 failed and
 5 excluded** for unedited saves. Across **6,589** save/edit/history/draft states, **6,371 pass,
 201 fail and 17 are excluded**; none adds diagnostics. Malformed or unvalidatable originals
-remain failures in the reports. The shared review suite and audit regression pass; the latest comment
-fix passes all 62 Ledger tests.
-SDK evidence is reused for 6,128 states only after the original hash and every saved ZIP member match
-the previous validated output; package checks are fresh. The remaining 461 attempted states use
-the normal validator, and all statuses match the preceding run.
+remain failures in the reports. All validation statuses match the preceding run. The shared review
+suite and audit regression pass; the latest Ledger test run has 68 passing tests.
 
 The feature inventory compares **922 readable pairs**. The independent openpyxl cell comparison
 covers **889 workbooks / 1,649,147 cells**: **883 workbooks** keep every compared value/formula;
@@ -170,10 +175,11 @@ cells, a template and dynamic-array formulas. The other **62 attempts** remain r
 including six saved copies openpyxl cannot read. The edited comparison excludes only the scripted
 A1 target: **879 of 887 workbooks** match every other value/formula; six have existing differences
 and two recalculate dependent array-result cells. No blanket lossless claim is made for these inputs.
-One large workbook's fresh cell comparisons did not complete; its previous passing save/edit comparisons are reused after
-verifying that all 18 ZIP members in each current output are byte-identical. The fresh failed attempts
-remain in the report. A timeout raised while reading a cell style could be mislabeled as an unreadable
-style; the audit now distinguishes them. The feature audit rejects an invalid UTF-8 part in `tdf76115` explicitly.
+The large workbook that exceeded the ordinary 40-second cell-comparison limit now completes both
+scenarios with a 150-second limit. All cell coverage above is from current output; the initial
+timeouts remain in the report. The initial run without openpyxl is recorded as a harness failure;
+the corrected audit uses the installed environment. The feature audit rejects an invalid UTF-8
+part in `tdf76115` explicitly.
 
 | Status | Feature | Current measured result / limit |
 |---|---|---|
@@ -201,9 +207,11 @@ all **23 Strict workbooks / 92 emitted states** against original package/SDK dia
 its notice through draft recovery; the Strict Excel sample passed Office batch 2.
 Reports, failed attempts and historical measurements: `~/corpora/results/next-plan-head-2026-10-08/`
 and `~/corpora/results/strict-transitional-2026-10-08/`. Current full results:
-`~/corpora/results/review-final-56de065/ledger/`; feature edit checks are in
+`~/corpora/results/ledger-final-3716a3b/`; feature edit checks are in
 `~/corpora/results/ledger-group-2026-10-09/` and `~/corpora/results/review-fixes-2026-10-09/`.
-The convention scan has 185 signatures with no additions. The rebuilt 15-file **Office batch 3**
+The convention scan has 187 signatures after the two pre-release corrections. Its two additions
+preserve inherited, scoped `mc:PreserveAttributes`/`mc:Ignorable` on worksheet-format properties;
+their processing scope cannot safely move to the root. The rebuilt 15-file **Office batch 3**
 uses `56de065` and passes package/SDK and LibreOffice with expected counts, with explained changes
 against the previous handoff; **Excel acceptance is pending**. File 04 also checks the root-comment
 edit correction measured in `~/corpora/results/thread-root-edit-2026-10-09/`; its updated sample keeps

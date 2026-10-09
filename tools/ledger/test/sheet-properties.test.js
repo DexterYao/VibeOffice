@@ -6,7 +6,8 @@ L.layout = { invalidate() {}, touchMerges() {} }; require('../../../public/ledge
 const K = L.opc, O = L.ops, output = process.env.SHEET_PROPERTY_RESULTS, results = [];
 const dir = process.env.EXCEL_CORPUS || path.join(os.homedir(), 'corpora', 'excel');
 const files = { height: 'openxml-sdk__0e3494804149__Styles.xlsx',
-  descent: 'libreoffice__55180c991855__tdf118668.xlsx', rtl: 'libreoffice__47ec633dafe5__tdf66668.xlsx' };
+  descent: 'libreoffice__55180c991855__tdf118668.xlsx', rtl: 'libreoffice__47ec633dafe5__tdf66668.xlsx',
+  beta: 'poi__d6227fd3154b__sample-beta.xlsx', early: 'openxml-sdk__9f7806671fc8__ProjectStatusReport_TP10094814.xltx' };
 const child = (e, name) => e.children.find(c => c.localName === name);
 const format = (pkg, part = 'xl/worksheets/sheet1.xml') => child(pkg.xml(part), 'sheetFormatPr');
 const attributes = e => Object.fromEntries(Array.from(e.attributes).filter(a => a.name !== 'xmlns' && a.prefix !== 'xmlns' && a.namespaceURI !== K.NS.mc)
@@ -59,6 +60,20 @@ test('literal true and false worksheet view flags keep the authored reading dire
   assert.equal(reopened.sheets[0].view.rtl, true);
   const view = child(child(saved.pkg.xml('xl/worksheets/sheet1.xml'), 'sheetViews'), 'sheetView');
   assert.equal(view.getAttribute('rightToLeft'), '1');
+});
+test('pre-release worksheet sizes convert to the current schema with a notice through edits and undo', async t => {
+  for (const kind of ['beta', 'early']) {
+    const wb = await open(t, kind); if (!wb) continue;
+    const sh = wb.sheets[0], initial = await save(wb, 'legacy-save');
+    assert.equal(format(initial.pkg).namespaceURI, K.NS.s);
+    assert(wb.losses.some(e => e.id === 'sheet-format-legacy:' + sh.id));
+    O.sheetProp(wb, sh, 'defRowH', 26, 'Default row height');
+    const edited = await save(wb, 'legacy-height');
+    assert.equal(format(edited.pkg).getAttribute('defaultRowHeight'), '26');
+    assert.equal((await L.xlsxRead.read(edited.bytes)).sheets[0].defRowH, 26);
+    wb.undo.undo();
+    assert.deepEqual(attributes(format((await save(wb, 'legacy-undo')).pkg)), attributes(format(initial.pkg)));
+  }
 });
 test('missing worksheet format stays absent and alternatives keep unread siblings', () => {
   const wb = new L.model.Workbook(), sh = wb.addSheet('Sheet1');

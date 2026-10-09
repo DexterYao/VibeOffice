@@ -17,6 +17,12 @@
     if (!sh.wb.pkg) return;
     const ctx = { pkg: sh.wb.pkg, part: sh.extra.ooxmlPart };
     const keep = sh.extra.formatKeep = { values: P.sheetFormatValues(sh), fragment: el ? K.fragment(el, ctx) : null };
+    // Pre-release Excel used a different schema (including different units).
+    // Its format element is not a valid child of the current worksheet schema.
+    if (['http://schemas.microsoft.com/office/excel/2005/8/worksheet',
+      'http://schemas.microsoft.com/office/excel/2006/2'].includes(el?.namespaceURI)) {
+      keep.fragment = null; keep.legacyNamespace = true;
+    }
     if (keep.fragment?.record) {
       const tree = K.parse(keep.fragment.xml);
       // A wrapper that also owns columns/views cannot be emitted by this one
@@ -30,6 +36,11 @@
     const current = P.sheetFormatValues(sh), keep = sh.extra.formatKeep;
     const generated = () => K.attributes('<sheetFormatPr xmlns="' + N.s + '"/>', current);
     if (!keep) return generated();
+    if (keep.legacyNamespace) {
+      writer.loss({ id: 'sheet-format-legacy:' + sh.id, where: sh.name, action: 'conversion',
+        what: 'Worksheet size settings from a pre-release Excel format were converted to current Excel settings.' });
+      return generated();
+    }
     if (keep.converted) writer.loss({ id: 'sheet-format-alternative:' + sh.id, where: sh.name, action: 'conversion',
       what: 'A worksheet-format alternative that also contained other worksheet settings was converted to its displayed properties.' });
     const changes = {};
