@@ -68,6 +68,18 @@ test('deleted fields stay excluded from query refresh and full-table deletion is
   wb.undo.undo(); assert.equal(wb.tables.length, 1); await save(wb, 'delete-table-undo');
   wb.undo.undo(); await save(wb, 'delete-column-undo');
 });
+test('a column inserted after a deletion never takes the deleted column\'s field', async t => {
+  const wb = await open(t, 'basic'); if (!wb) return;
+  const tab = wb.tables[0], sh = tab.sheet, high = Math.max(...tab.columns.map(c => c.id));
+  const index = tab.columns.findIndex(c => c.id === high), name = tab.columns[index].name;
+  O.insertLines(sh, 'c', tab.ref.c1 + index, -1);
+  O.insertLines(sh, 'c', tab.ref.c1 + 1, 1);
+  const added = tab.columns[1]; assert(added.id > high, 'fresh column id');
+  const q = (await save(wb, 'delete-then-insert')).pkg.xml(queryParts(wb.pkg)[0]), fields = all(q).filter(e => e.localName === 'queryTableField');
+  assert(!fields.some(f => f.getAttribute('tableColumnId') === String(high)), 'the deleted field is not bound');
+  assert(all(q).some(e => e.localName === 'deletedField' && e.getAttribute('name') === name));
+  assert.equal(fields.find(f => f.getAttribute('tableColumnId') === String(added.id))?.getAttribute('dataBound'), '0');
+});
 test('editing query results or a header keeps the external field and undo does not retain save mutations', async t => {
   const wb = await open(t, 'basic'); if (!wb) return;
   const tab = wb.tables[0], sh = tab.sheet, name = tab.columns[0].name;

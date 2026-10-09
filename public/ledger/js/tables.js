@@ -66,7 +66,9 @@
       const old = t.ref, next = shift(old, axis, at, n); if (!next) return false;
       if (axis === 'c') {
         if (n > 0 && at > old.c1 && at <= old.c2) {
-          let id = Math.max(0, ...t.columns.map(c => c.id || 0));
+          // Never reuse a column id from the file: query fields and slicers bind to it.
+          const original = t.keep ? kids(kid(K.parse(t.keep.fragment.xml), 'tableColumns'), 'tableColumn').map(c => +c.getAttribute('id') || 0) : [];
+          let id = Math.max(0, ...original, ...t.columns.map(c => c.id || 0));
           const used = new Set(t.columns.map(c => c.name.toLowerCase()));
           const added = Array.from({ length: n }, () => {
             let name, k = 1; do { name = 'Column' + k++; } while (used.has(name.toLowerCase()));
@@ -119,7 +121,7 @@
       let nextId = Math.max(+at(refresh, 'nextId') || 1, ...source.map(e => +at(e, 'id') + 1));
       const found = new Set();
       for (const col of columns) {
-        const before = source.find(e => +at(e, 'id') === col.queryField || +at(e, 'tableColumnId') === col.id);
+        const before = source.find(e => col.queryField != null && +at(e, 'id') === col.queryField || col.keep && +at(e, 'tableColumnId') === col.id);
         if (before) { output.push(K.raw(before)); found.add(before); }
         else if (!col.keep) {
           col.queryField = nextId++; col.uniqueName = String(col.id);

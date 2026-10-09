@@ -229,7 +229,7 @@ PowerPoint acceptance remains pending in batch 4. Reports:
 | Text outside an opaque object | Keep its original frame and dependent parts |
 | Move, resize or rotate its preview | Update the outer frame; retain internal 3-D coordinates, data and effects |
 | Copy or paste the object | Independent dependent parts and remapped identities; import preview renditions, diagram cache links and OLE/VML preview identities |
-| Change converted content or ungroup SmartArt | Save the edited group/picture and record the conversion |
+| Change converted content or ungroup SmartArt | Save the edited group/picture and record the conversion; animations of its parts are removed with their own notice |
 | Delete the object | Remove its original frame; do not restore it from package parts |
 | Delete or copy only some members of a compatibility fallback | Save those remaining/copied members as converted content; emit the original wrapper only when all members remain intact, ordered and contiguous |
 | Undo/redo or recover a draft | Restore original membership, dependencies and pending notices |

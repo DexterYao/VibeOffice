@@ -858,7 +858,7 @@
         for (const name of pkg.names) {
           this.mapping.set(this.key(pkg, name), name);
           const text = /\.(xml|vml)$/i.test(name) ? pkg.text(name) : null;
-          if (!text || !/docPr|cNvPr|cTn|bookmark|permStart|permEnd|sldId|sldMasterId|sldLayoutId|sheetId|cacheId|numId|abstractNumId|sdtPr|dxf/.test(text)) continue;
+          if (!text || !/docPr|cNvPr|cTn|bookmark|permStart|permEnd|sldId|sldMasterId|sldLayoutId|sheetId|cacheId|numId|abstractNumId|sdtPr|dxf|_x0000_/.test(text)) continue;
           let tree; try { tree = K.parse(text); } catch (e) { continue; } // carried opaque if the original XML is malformed
           walk(tree, el => {
             if (el.localName === 'dxfs' && el.namespaceURI === NS.s) elements(el).forEach((e, i) => this.ids.reserve('styles', 'dxf', i));

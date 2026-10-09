@@ -252,6 +252,23 @@
     }
     return anchor?.type === 'abs' ? K.setBox(xml, anchor) : xml;
   }
+  // VML shape ids come in blocks of 1024 named by o:idmap; each sheet's drawing owns its block(s).
+  const blocks = tree => (at(all(tree).find(e => e.localName === 'idmap' && e.namespaceURI === K.KNOWN_NS.o), 'data') || '').split(/[\s,]+/).map(Number).filter(n => n > 0);
+  X.idmaps = function (wb) {
+    const own = new Map(), taken = new Set(), out = new Map();
+    for (const sh of wb.sheets) {
+      const v = sh.extra.vml; if (!v || v.unparsed || v.sheet !== sh.id || v.source !== wb.pkg?.id) continue;
+      let b = []; try { b = blocks(K.package(v.source).xml(v.part)); } catch (_) {}
+      if (b.length && !b.some(n => taken.has(n))) { own.set(sh, b[0]); b.forEach(n => taken.add(n)); }
+    }
+    let next = 1;
+    for (const sh of wb.sheets) {
+      if (own.has(sh)) { out.set(sh, own.get(sh)); continue; }
+      while (taken.has(next)) next++;
+      out.set(sh, next); taken.add(next);
+    }
+    return out;
+  };
   X.vml = function (generated, base, state) {
     const { sh, pack } = state, w = pack.writer, original = sh.extra.vml, source = original && K.package(original.source);
     const members = sh.drawings.filter(d => active(d) && d.objectKeep.vml), notes = [...sh.comments.values()];
@@ -262,7 +279,9 @@
     const from = sameOwner ? original.part : null;
     pack.bind(base, from, 'regenerated');
     const target = pack.part(base), used = new Set(members.map(d => state.ids.get(d)));
-    let next = Math.max(1024, ...used, ...(original?.shapes || []).map(shapeId));
+    // A copied or moved drawing takes this sheet's block; its notes are renumbered into it.
+    const block = blocks(K.parse(generated))[0] || 1, rebase = !!originalRoot && !(sameOwner && blocks(originalRoot).includes(block));
+    let next = Math.max(block * 1024, ...(rebase ? [] : original?.shapes || []).map(shapeId));
     const shapes = [], supports = new Map(), rawNotes = kids(K.parse(generated)).filter(e => e.namespaceURI === V && e.localName === 'shape');
     const support = (pkg, part) => {
       const key = pkg.id + ':' + part; if (supports.has(key)) return;
@@ -279,7 +298,9 @@
     }
     for (let i = 0; i < notes.length; i++) {
       const cm = notes[i], v = cm.keepVml;
-      let id = v?.id; if (!(id > 0) || used.has(id)) id = ++next; used.add(id);
+      let id = v && !rebase && v.part === original?.part && v.source === original?.source ? v.id : 0;
+      if (!(id > 0) || used.has(id)) do id = ++next; while (used.has(id));
+      used.add(id);
       if (v) {
         const pkg = K.package(v.source); support(pkg, v.part);
         let f = linked(v.fragment, v.id, id, true), xml = f.xml;
@@ -305,12 +326,14 @@
       } else { shapes.push({ xml: K.attributes(K.raw(rawNotes[i]), { id: '_x0000_s' + id }) }); unchanged = false; }
     }
     const originalIds = original?.shapes || [];
-    unchanged &&= shapes.length === originalIds.length;
+    unchanged &&= shapes.length === originalIds.length && !rebase;
     if (unchanged) { pack.bind(base, original.part, 'opaque'); return source.bytes(original.part); }
     if (original?.unparsed) w.loss({ id: 'vml:' + sh.id, what: 'The damaged VML drawing could not be merged; its readable notes were rebuilt.', where: sh.name, action: 'conversion' });
     let xml = originalRoot ? K.raw(originalRoot) : K.raw(K.parse(generated));
     const tree = K.parse(xml), changes = [];
     for (const e of kids(tree)) if (e.namespaceURI === V && !['shapetype', 'background'].includes(e.localName)) { const p = L.xmlTree.source.get(e); changes.push({ start: p.start, end: p.end, value: '' }); }
+    const idmap = rebase && all(tree).find(e => e.localName === 'idmap' && e.namespaceURI === K.KNOWN_NS.o);
+    if (idmap) { const p = L.xmlTree.source.get(idmap); changes.push({ start: p.start, end: p.end, value: K.attributes(K.raw(idmap), { data: block }) }); }
     xml = K.patch(xml, changes);
     const template = K.parse(xml), known = new Set(kids(template).filter(e => e.localName === 'shapetype').map(e => at(e, 'id'))), added = [];
     for (const { pkg, part, tree } of supports.values()) for (const el of kids(tree)) if (el.localName === 'shapetype') {

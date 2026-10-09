@@ -724,6 +724,7 @@
     const extensions = E.begin(wb, pack.writer);
     L.tableKeep.begin(wb, pack);
     const sheetEntries = [];
+    const idmaps = L.sheetObjects.idmaps(wb);
     for (let si = 0; si < wb.sheets.length; si++) {
       const sh = wb.sheets[si];
       const part = sh.kind === 'chartsheet' ? `xl/chartsheets/sheet${si + 1}.xml` : `xl/worksheets/sheet${si + 1}.xml`;
@@ -813,7 +814,7 @@
       }
       if (sh.comments.size || L.sheetObjects.hasVML(sh)) {
         const vPart = `xl/drawings/vmlDrawing${++nVml}.vml`;
-        const data = L.sheetObjects.vml(vmlXml(sh, si + 1), vPart, objects);
+        const data = L.sheetObjects.vml(vmlXml(sh, idmaps.get(sh)), vPart, objects);
         if (data) {
           defaults.set('vml', CT.vml); add(vPart, data);
           out.push(`<legacyDrawing r:id="${rels.add('vmlDrawing', '../drawings/' + vPart.split('/').pop())}"/>`);
@@ -968,7 +969,7 @@
     }).join('') + '</sheets>';
     if (extRids.length) x += '<externalReferences>' + extRids.map((id) => `<externalReference r:id="${id}"/>`).join('') + '</externalReferences>';
     /* defined names: the AutoFilter database name Excel keeps for filtered sheets */
-    const names = wb.names.filter((n) => n && n.name && n.ref != null).slice();
+    const names = L.slicers.names(wb.names.filter((n) => n && n.name && n.ref != null).slice(), slicers);
     wb.sheets.forEach((s, i) => {
       if (s.autoFilter && s.autoFilter.ref && !names.some((n) => n.scope === i && /^_xlnm\._FilterDatabase$/i.test(n.name))) names.push({ name: '_xlnm._FilterDatabase', ref: F.quoteSheet(s.name) + '!' + F.absRangeName(s.autoFilter.ref), scope: i, hidden: true });
     });

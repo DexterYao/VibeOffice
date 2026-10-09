@@ -215,8 +215,8 @@ LibreOffice, with explained changes against the previous writer; **Excel accepta
 | Edit pivot source cells, insert/delete rows or columns, rename/delete a sheet | Pivot sources, output locations and shared caches follow the rules below; slicer/timeline connections are pruned when their source disappears |
 | Move or edit a threaded comment | References follow the note; editing its displayed text converts that thread to an ordinary note with a notice |
 | Edit conditional formatting | Keep extended rule identities and unchanged properties; update base/extended bar links together, and retain unknown worksheet extensions by URI |
-| Save a sheet containing controls, OLE or non-comment VML | Keep their worksheet entries, previews, VML and dependencies together; they remain uneditable |
-| Edit a query table | Retain external field identities; added columns are unbound, deleted fields stay excluded from refresh, and copied tables get independent query parts |
+| Save a sheet containing controls, OLE or non-comment VML | Keep their worksheet entries, previews, VML and dependencies together; they remain uneditable; each sheet's VML drawing keeps or gets its own `o:idmap` block, and new or copied notes are numbered inside it |
+| Edit a query table | Retain external field identities; added columns are unbound and never reuse a column ID from the file, deleted fields stay excluded from refresh, and copied tables get independent query parts |
 
 ### Pivots: edit behavior
 
@@ -300,9 +300,9 @@ Reports and failed pre-fix attempts: `~/corpora/results/ledger-preservation-2026
 | Leave a view untouched | Keep its drawing frame, compatibility fallback, view definition, source cache and sheet/workbook extension links |
 | Move/resize or insert/delete rows and columns | Update its anchor while retaining the interactive filter payload; the app displays the original fallback |
 | Copy a view in the workbook | Give the drawing and definition matching fresh names/identities; retain its source cache |
-| Copy a table sheet | Create an independent table and slicer cache; deleting the original sheet keeps the copy |
+| Copy a table sheet | Create an independent table and slicer cache, named as Excel names copies (`Slicer_Region2`, view "Region 1") with its own workbook name; deleting the original sheet keeps the copy |
 | Copy or delete one of several connected pivots | Update the cache's pivot connections; remaining views and pivots stay connected |
-| Delete the source or last view | Remove the affected view, cache and extension references, with a loss entry |
+| Delete the source or last view | Remove the affected view, cache, its workbook name and extension references, with a loss entry |
 | Edit the fallback drawing | Convert only that view to the displayed shape, with a notice; undo restores it |
 | Paste a view into a different workbook | Keep the fallback and report conversion because its source table/pivot was not copied |
 | Undo/redo or recover a draft | Restore definitions, source connections, copied identities and pending notices |

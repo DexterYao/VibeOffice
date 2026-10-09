@@ -177,6 +177,10 @@ use fresh browser saves, package/SDK comparisons and Office samples for integrat
 `tools/quire/test/comment-office-copies.py BATCH PREVIOUS_BATCH OUTPUT` recreates the bounded first
 Word comment-repair isolation round. Package checks now reject excess comment references beyond
 their matching definitions; comparison also rejects automatic pre-release thread-namespace promotion.
+They also reject a shape ID repeated within a PowerPoint or Excel VML part (`duplicate-vml-id`), two
+embedded objects sharing one preview (`shared-vml-preview`), two spreadsheet VML parts sharing an
+`o:idmap` block (`duplicate-vml-block`) and diagram/chart/OLE part animations whose target is not a
+graphic frame (`animation-part-target`). None occurs in the 4,697 pinned originals.
 
 Ledger's `pivots.test.js` and `threads.test.js` use the pinned public inputs (`VO_CORPORA` overrides
 `~/corpora`). `PIVOT_RESULTS=DIR` / `THREAD_RESULTS=DIR` retain the emitted edit/history states and
@@ -259,7 +263,9 @@ package/SDK and LibreOffice comparison workflow.
 
 `node tools/lectern/test/frames.mjs OUTPUT_DIR [SCENARIO_REGEX]` exercises opaque SmartArt, OLE,
 ink, 3-D and chartEx previews with geometry/content edits, copies, deletion, ungrouping, clipboard
-renditions and drafts. Run `python3 tools/lectern/test/frame-fixtures.py FIXTURE_DIR` first for its
+renditions and drafts. Every saved state must have unique VML preview IDs and part animations aimed
+at graphic frames (an embedded object copied twice; edited SmartArt animated by parts). Run
+`python3 tools/lectern/test/frame-fixtures.py FIXTURE_DIR` first for its
 multiple-member fallback case; `FRAME_FIXTURES` overrides the default sibling `frames-fixtures/`
 directory. The fixture is derived from a public SDK chartEx input, with explicit provenance.
 

@@ -144,6 +144,7 @@
       const pivotCaches = L.pivots.workbook(wb, tree, writer);
       if (pivotCaches !== undefined) set('pivotCaches', pivotCaches);
       if (!same(current.names, old.names)) set('definedNames', generatedChild('definedNames'));
+      else { const names = L.slicers.definedNames(tree, writer.slicers); if (names !== undefined) set('definedNames', names); }
       if (!same(current.protection, old.protection)) set('workbookProtection', generatedChild('workbookProtection'));
       const patch = (tag, fields, forced = {}) => {
         const before = kids(tree).find(e => e.localName === tag), after = kids(fresh).find(e => e.localName === tag);

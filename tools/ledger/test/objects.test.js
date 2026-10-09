@@ -9,7 +9,8 @@ const K = L.opc, O = L.ops, output = process.env.OBJECT_RESULTS, results = [];
 const corpus = process.env.VO_CORPORA || path.join(os.homedir(), 'corpora');
 const fixtures = { control: 'libreoffice__1b04d082bd6e__button-form-control.xlsx', ole: 'poi__2a89697e0dc6__58325_lt.xlsx',
   named: 'libreoffice__8d005aca2c1d__tdf161365.xlsx', mixed: 'poi__9028285d4065__bug66827.xlsx',
-  vml: 'libreoffice__9f0dba934b74__tdf166724_cellAnchor.xlsx', properties: 'poi__448351c00314__60512.xlsm' };
+  vml: 'libreoffice__9f0dba934b74__tdf166724_cellAnchor.xlsx', properties: 'poi__448351c00314__60512.xlsm',
+  notes: 'poi__c613ea5875fa__SimpleWithComments.xlsx' };
 async function open(t, kind) {
   const file = path.join(corpus, 'excel', fixtures[kind]);
   if (!fs.existsSync(file)) { t.skip('Fetch pinned corpus: ' + file); return; }
@@ -98,4 +99,28 @@ test('non-comment VML survives note changes and removal without rebuilding its s
   wb.undo.undo(); s = await save(wb, 'note-delete-undo'); equalBytes(s.pkg.bytes(vmlPart(wb.pkg)), wb.pkg.bytes(vmlPart(wb.pkg)));
   O.tx(wb, 'Insert note', () => O.setComment(sh, 9, 3, { r: 9, c: 3, author: 'Test', text: 'New note' }));
   s = await save(wb, 'note-add'); assert.deepEqual(caption(s.pkg).sort(), ['Note', 'Note', 'Text']);
+});
+
+test('each sheet\'s notes use their own VML id block, across new, original and copied sheets', async t => {
+  const wb = await open(t, 'notes'); if (!wb) return;
+  const blocks = pkg => pkg.names.filter(n => n.endsWith('.vml')).map(part => {
+    const els = all(pkg, part), idmap = els.find(e => e.localName === 'idmap').getAttribute('data').split(',').map(Number);
+    return { part, idmap, ids: els.filter(e => e.localName === 'shape').map(e => +e.getAttribute('id').replace('_x0000_s', '')) };
+  });
+  const check = pkg => {
+    const list = blocks(pkg), maps = list.flatMap(b => b.idmap), ids = list.flatMap(b => b.ids);
+    assert.equal(new Set(maps).size, maps.length, 'unique idmap blocks ' + JSON.stringify(list));
+    assert.equal(new Set(ids).size, ids.length, 'unique note shape ids ' + JSON.stringify(list));
+    for (const b of list) for (const id of b.ids) assert(b.idmap.includes(Math.floor(id / 1024)), id + ' outside ' + b.part + ' block ' + b.idmap);
+    return list;
+  };
+  const original = await save(wb, 'notes-save');
+  assert.deepEqual(check(original.pkg).map(b => b.idmap), [[1]]);
+  const fresh = O.addSheet(wb, 'New notes', 0);
+  O.setComment(fresh, 0, 0, { author: 'Test', text: 'first', visible: false });
+  O.setComment(fresh, 1, 1, { author: 'Test', text: 'second', visible: false });
+  O.copySheet(wb, wb.sheets[1], wb.sheets.length);
+  const saved = await save(wb, 'notes-new-and-copied');
+  assert.equal(check(saved.pkg).length, 3);
+  equalBytes(saved.pkg.bytes(vmlPart(wb.pkg)), wb.pkg.bytes(vmlPart(wb.pkg)), 'the original sheet keeps its VML bytes');
 });

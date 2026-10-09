@@ -87,8 +87,19 @@
       const linked = c.links.flatMap(link => link.part ? aliveTables.filter(t => t.part === link.part).map(t => ({ ...link, table: t })) : [link]);
       const missing = c.table && (!table || !table.columns.some(col => col.id === c.table.column)) ||
         c.pivot && (!pivot || c.field >= 0 && pivot.columns && !pivot.columns.includes(c.field)) || c.links.length && !linked.length;
-      state.caches.push({ ...c, linked, modelTable: table, drop: !!missing, target: w.target(wb.pkg, c.part) });
+      // Excel names every cache with a workbook name (#N/A); a copy gets its own
+      const defined = wb.names.find(n => n.scope == null && n.name.toLowerCase() === c.name.toLowerCase() && String(n.ref).replace(/^=/, '') === '#N/A');
+      state.caches.push({ ...c, defined: defined && { ...defined }, linked, modelTable: table, drop: !!missing, target: w.target(wb.pkg, c.part) });
     }
+    // Copies are named as Excel names them: Slicer_Region1, Slicer_Region2 for caches; "Region 1" for views.
+    const taken = { cache: new Set([...state.caches.map(c => c.name), ...wb.names.map(n => n.name)].map(n => n.toLowerCase())),
+      view: new Set((original?.groups || []).flatMap(g => g.definitions.map(v => v.name.toLowerCase()))) }, copyNames = new Map();
+    const copyName = (kind, name, copy) => {
+      const key = JSON.stringify([kind, name, copy]); if (copyNames.has(key)) return copyNames.get(key);
+      const sep = kind === 'view' ? ' ' : '', base = name.replace(kind === 'view' ? / \d+$/ : /\d+$/, '');
+      let n = 1; while (taken[kind].has((base + sep + n).toLowerCase())) n++;
+      taken[kind].add((base + sep + n).toLowerCase()); copyNames.set(key, base + sep + n); return base + sep + n;
+    };
     for (const sh of wb.sheets) for (const d of sh.drawings) if (d.slicerKeep) {
       const keep = d.slicerKeep, entry = { d, sh, status: 'keep', names: new Map() }; state.frames.set(d, entry);
       if (!intact(d) || keep.source !== wb.pkg?.id || !keep.views?.length) {
@@ -103,15 +114,15 @@
         return c?.drop && !(c.table && keep.copySheet === sh.id && wb.tables.some(t => t.ooxmlPart === c.table.part && t.sheet === sh));
       })) { entry.status = 'omit'; continue; }
       for (const view of keep.views) {
-        const name = keep.copy ? view.name + '_Copy' + keep.copy.slice(1, 9) : view.name;
+        const name = keep.copy ? copyName('view', view.name, keep.copy) : view.name;
         entry.names.set(view.name, name);
         let cache = byName(state.caches, view.cache);
         if (cache?.table && keep.copySheet === sh.id) {
           const table = wb.tables.find(t => t.ooxmlPart === cache.table.part && t.sheet === sh);
           if (table) {
-            const copyName = cache.name + '_Copy' + keep.copy.slice(1, 9);
-            let copied = byName(state.caches, copyName);
-            if (!copied) { copied = { ...cache, name: copyName, copy: keep.copy, modelTable: table, drop: false,
+            const name = copyName('cache', cache.name, keep.copy);
+            let copied = byName(state.caches, name);
+            if (!copied) { copied = { ...cache, name, copy: keep.copy, modelTable: table, drop: false,
               target: w.name('xl/slicerCaches', 'slicerCache', 'xml') }; state.caches.push(copied); }
             cache = copied;
           }
@@ -228,6 +239,29 @@
         w.put(c.target, K.hoistNamespaces(xml), pkg.type(c.part)); w.carryRels(pkg, c.part, c.target);
       }
     }
+  };
+  // Workbook names follow their caches: dropped caches lose theirs, copies get one.
+  S.names = function (names, state) {
+    if (!state) return names;
+    const dropped = new Set(state.caches.filter(c => c.drop && !c.copy && c.defined).map(c => c.name.toLowerCase()));
+    const out = names.filter(n => n.scope != null || !dropped.has(n.name.toLowerCase()));
+    for (const c of state.caches) if (c.copy && !c.drop && c.defined) out.push({ ...c.defined, name: c.name });
+    return out;
+  };
+  // The same change patched into the file's own definedNames when the model's names are unchanged.
+  S.definedNames = function (tree, state) {
+    const caches = state?.caches || [], add = caches.filter(c => c.copy && !c.drop && c.defined);
+    const dropped = new Set(caches.filter(c => c.drop && !c.copy && c.defined).map(c => c.name.toLowerCase()));
+    if (!add.length && !dropped.size) return undefined;
+    const list = kids(tree).find(e => e.localName === 'definedNames'), ns = list?.namespaceURI || N.s;
+    const items = kids(list).filter(e => !(e.localName === 'definedName' && !e.hasAttribute('localSheetId') && dropped.has((at(e, 'name') || '').toLowerCase())))
+      .map(e => ({ name: at(e, 'name') || '', xml: K.raw(e) }));
+    for (const c of add) {   // Excel keeps the list sorted by name
+      const i = items.findIndex(e => e.name.toLowerCase() > c.name.toLowerCase());
+      items.splice(i < 0 ? items.length : i, 0, { name: c.name, xml: '<definedName xmlns="' + ns + '" name="' + L.xml.esc(c.name) + '">#N/A</definedName>' });
+    }
+    if (!items.length) return [];
+    return K.mergeBag(list ? K.raw(list) : '<definedNames xmlns="' + ns + '"/>', { ['{' + ns + '}definedName']: items.map(e => e.xml) });
   };
   S.workbook = function (fragment, xml, writer) {
     const state = writer.slicers; if (!state || !state.omitted.size && !state.caches.some(c => c.copy)) return xml;
