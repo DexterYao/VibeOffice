@@ -117,19 +117,16 @@ its editable model. Save and drafts retain DOCX/DOCM/DOTX/DOTM and encryption. T
 Checker reports conversions from the prepared output before a user download. Drafts retain notices
 silently, and cancelling a conversion does not leave its notice on a later preserving save.
 
-The preceding pinned **2,902-file** run uses writer `69be775`, resumed at `5247af8` after the byte-identical
-XML patch performance correction. **2,880 save/reopen and draft-recovery attempts complete**, with
-**22 failures** in each scenario. Text edit/save/undo/redo completes in **2,281**, with **599 exclusions
-and 22 failures**. The failed inputs are password-protected, malformed or mislabeled. One timeout
-from the initial slow writer has a passing targeted correction; its original failure remains recorded.
+The current pinned **2,902-file** run uses frozen writer `7c25bd7`, including section and numbering
+preservation. **2,880 save/reopen and draft-recovery attempts complete**, with **22 failures** in each
+scenario. Text edit/save/undo/redo completes in **2,281**, with **599 exclusions and 22 failures**.
+Protected, malformed and mislabeled inputs remain explicit failures.
 
-The full run with targeted formatting corrections covers **19,028 emitted/attempted states**:
-**18,056 OK, 373 failed and 599 excluded**. Save/reopen alone reports **2,828 OK and 74 failed**.
-Failed or unopenable originals stay in those totals. No output adds package-consistency issues.
-The previous duplicate compatibility
-attribute and drawing-ID defects are fixed; recovery and generated drawings now reserve their identities.
-No output adds SDK diagnostics. Six malformed-formatting fixtures previously failed in 31 states;
-their **36 emitted save/edit/history/draft states** now pass, with two inapplicable edits excluded.
+Across **19,028 emitted/attempted states**, package/SDK comparison reports **18,056 OK, 373 failed
+and 599 excluded**, with no added diagnostics. Save/reopen alone has **2,828 OK and 74 failed**;
+unvalidatable originals remain failures. The previous comment, formatting, compatibility-attribute
+and drawing-ID corrections are included in this full run. A later one-input break-recovery
+correction passes all seven emitted states separately and changes no valid-input path.
 Retained content properties normalize known invalid order, redundant identical properties and
 unambiguous color spelling, with one Compatibility Checker notice per affected source part.
 Styles, conflicting values and unknown Word children remain intact. A corpus scan found 74 candidate
@@ -144,7 +141,7 @@ An Office-found comment repair is also fixed: pre-release comment extensions ret
 namespace and unchanged bytes, and a comment is written with one reference. Removing a duplicate
 reference records a Compatibility Checker entry. The pinned scan finds one saved file with excess
 anchors and 55 automatic extension-namespace promotions; the corrected point-comment save and a
-current-format reply control both pass Word. The final full run includes these corrections.
+current-format reply control both pass Word. The current full run includes these corrections.
 
 Rewritten parts now hoist fragment namespaces and `mc:Ignorable` to the root. On the same 400-file
 size sample, main XML shrinks from **22,183,474 to 4,770,570 bytes**, against **5,373,347 bytes** in
@@ -164,11 +161,11 @@ malformed input, unreferenced stories and unsupported markup remain exceptions.
 | Kept, with a remaining exception | Content controls | 2,675/2,676 wrappers; inline, block, row and cell controls retain properties and scalar bindings |
 | Kept | OLE, SmartArt, charts and embedded documents | 516/516 OLE/object inventory nodes, 39/39 SmartArt data parts, 133/133 chart parts and 4/4 altChunk blocks; geometry edits retain payloads |
 | Kept | Text effects, pictures in page backgrounds and drawing properties while untouched | 205/205 Word 2010 effect entries, 62/62 backgrounds, 1,054/1,054 text boxes and 1,803/1,803 DrawingML shape entries |
-| Kept; full refresh pending | Section properties, their alternatives and header/footer dependencies | Four fixtures / 24 save/edit/history/draft states retain untouched XML and unrelated margin attributes. Another 24 states cover actual numbering/section commands, copies, undo/redo and drafts without new package/SDK errors; two sampled outputs retain two pages. Two diagnosed source-recovery cases still change page counts |
-| Kept; Office check pending | Picture bullets, including unused definitions, image dependencies and imported identities | 36 affected inputs / 237 saved states retain expanded picture XML, reference counts and original image bytes. Of 242 validation states, 233 pass, four have an SDK-unreadable original and five are excluded. Twelve command states pass; six save/text-edit render pairs keep their page counts, fixing the extra page in `tdf149089` |
-| Kept; full refresh and Office check pending | Numbering identities, definition/level metadata, legacy settings and format alternatives | Eleven inputs / 74 saved states retain numbering metadata and add no package/SDK diagnostics; one text edit is excluded. List commands, history, drafts and independent copies pass 72 assertions across 33 distinct saved states. Six sampled save/edit render pairs keep their page counts |
+| Kept, with a remaining exception | Section properties, their alternatives and header/footer dependencies | 3,404/3,405 section entries and 175/175 multi-column sections; 48 focused states cover property edits, commands, copies, history and drafts without added package/SDK diagnostics. `tdf108849` loses one counted section entry |
+| Kept; Office check pending | Picture bullets, including unused definitions, image dependencies and imported identities | 81/81 definitions and 106/106 references in the full inventory. The 36-input focused sweep retains image bytes and identities through edits, copies, history and drafts; `tdf149089` keeps its original two pages |
+| Kept; Office check pending | Numbering identities, definition/level metadata, legacy settings and format alternatives | 9,202/9,202 definitions, 8,923/8,923 list identities, 8,910/8,910 template entries, 232/232 legacy settings and 103/103 cleanup entries. List commands, history, drafts and independent copies pass 72 assertions across 33 distinct saved states |
 | Kept, with range/story exceptions | Comments, notes, bookmarks and permissions | 1,404/1,421 comments, 674/684 footnotes, 57/57 endnotes, 4,870/4,965 bookmarks and 50/54 permission ranges |
-| Kept, with remaining losses | Revisions, fields, pictures and tables | 1,385/1,427 insertions/deletions, 1,085/1,103 formatting revisions, 2,590/2,711 fields, 1,239/1,242 pictures and 1,605/1,606 tables |
+| Kept, with remaining losses | Revisions, fields, pictures and tables | 1,385/1,427 insertions/deletions, 1,087/1,103 formatting revisions, 2,590/2,711 fields, 1,239/1,242 pictures and 1,605/1,606 tables |
 | Converted when edited | Unsupported contents inside an opaque frame; typed/complex controls | Edited or ungrouped converted content uses the model representation; incompatible typed-control edits unbind and report the conversion |
 | Normalized, with a notice | Invalid paragraph/run formatting that edits can duplicate | Six regression files / 36 emitted states pass; 74-file candidate scan checked, with 34 saves changing formatting; conflicting or unknown source properties remain intact |
 | Recovered, with a notice | Missing/incomplete table grids, conflicting default styles and misplaced page/line breaks | The writer reports reconstructed column widths, normalized defaults and breaks moved into valid paragraphs/runs. Removing recovered content clears its save notice; undo/drafts restore it. Grid/default recovery can change pagination; retaining misplaced breaks restores the affected four-page document |
@@ -190,20 +187,10 @@ The user accepted the bound-text, formatted-effects, resized-SmartArt, pasted-OL
 samples in Office batch 1. All 15 batch 2 files open in LibreOffice with unchanged counts. Strict
 conversion passes **67 documents / 268 emitted states** against original package/SDK diagnostics and
 keeps its notice through draft recovery; its Office review is included in batch 2.
-Current reports and explicit exceptions: `~/corpora/results/final-suite-2026-10-09/quire/`. Earlier
-feature checks remain in `~/corpora/results/quire-remainder-2026-10-08/`.
-The final formatting correction and combined validation report are in
-`~/corpora/results/quire-property-repair-2026-10-09/`; the original failures remain archived.
-Section preservation is measured in `~/corpora/results/quire-sections-2026-10-09/`; the older full-run
-numbers above do not yet include it. It fixes dropped gutter/chapter/grid settings, not all layout
-differences. The nested-table source omits two required grids; restoring that invalid omission in a
-diagnostic copy restores its old page count. The duplicate-default-style source has ambiguous defaults.
-Both recoveries now have save notices. The `tdf149089` extra page is fixed by picture-bullet carry;
-its original two pages survive saves and text edits. The expanded section/recovery check covers 77
-browser assertions and 26 package/SDK states, including draft recovery and table deletion/undo.
-Picture-bullet evidence is in `~/corpora/results/quire-numbering-2026-10-09/`. Unrepresented list
-definition/level metadata and abstract-number identities now have focused preservation evidence in
-`~/corpora/results/quire-numbering-metadata-2026-10-09/`; the full Word refresh and Office check remain.
+Current full reports and exceptions: `~/corpora/results/quire-final-7c25bd7/`. Earlier focused
+measurements and failed attempts remain in the report directories linked by its README. Section,
+numbering and picture-bullet corrections are included in the full run. Missing table grids and
+conflicting default styles have save notices; these recoveries can still change pagination.
 Office batch 5 files 01–05 now cover picture bullets, custom formats, edited/copied style-linked
 lists and section settings. All five add no package/SDK diagnostics and retain their LibreOffice
 page counts; their previous-writer differences are reviewed. Word acceptance is pending.
@@ -214,14 +201,22 @@ skipped. Recovering them in valid paragraphs/runs retains all four pages on save
 with a Compatibility Checker notice. The pinned scan finds one affected readable input and
 records 33 archive/XML read failures separately. Seven command states and seven corpus
 save/edit/history/draft states add no package/SDK diagnostics; 25 browser assertions and all 27
-Quire unit tests pass. Reports: `~/corpora/results/quire-break-recovery-2026-10-09/`.
+Quire unit tests pass. All seven emitted corpus states retain four LibreOffice pages.
+Reports: `~/corpora/results/quire-break-recovery-2026-10-09/`.
 
-The completed LibreOffice pass on the preceding saved artifacts renders **2,869/2,880 unedited saves**;
-**14** readable pairs change page count. It accounts for all **19,028** states: **17,986 OK, 443 failed,
-599 excluded**. Those failures distinguish missing outputs, unrenderable originals, saved-file conversion
-errors/timeouts and pagination differences. This is render evidence, not a lossless-save percentage;
-the section and numbering changes still need the updated full Word run. Raw reports and the corrected worker
-recovery are in `~/corpora/results/lo-final-2026-10-09/`.
+The full LibreOffice pass renders **2,869/2,880 unedited saves**. Every unsuccessful saved render
+also fails or times out in its original. With the separately measured break correction, **12** readable
+unedited pairs change page count. Across all **19,028** states, the paired render/count results are
+**18,000 OK, 429 failed and 599 excluded**. Missing outputs, unrenderable originals, saved conversion
+failures and count differences remain separate in the reports; these are not lossless-save percentages.
+The frozen report retains its original 13 count differences; the correction replaces only seven
+states in the combined report, retaining their independent hashes and provenance.
+
+The convention scan has 193 signatures. Its three additions retain scoped MC processing rules on
+section properties and a Strict source's `end` list alignment; two normalized default-value signatures
+are removed. No new package/SDK diagnostic accompanies them. Office batches 1–2, including the
+comment repair and all namespace follow-ups, are accepted. Batch 5's section/numbering samples
+remain pending.
 The Office checklist is `~/Downloads/lossless-check/office-batch-2/CHECKLIST.md`; file 12 records its
 original repair and links the accepted corrected save. Both samples in
 `~/Downloads/lossless-check/office-batch-2-comment-fix/` pass Word, package/SDK checks and LibreOffice,

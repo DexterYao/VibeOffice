@@ -13,10 +13,10 @@
     customHeight: sh.defRowH != null ? '1' : undefined, zeroHeight: sh.zeroHeight ? '1' : undefined,
     outlineLevelRow: sh.outline?.levelRow || undefined, outlineLevelCol: sh.outline?.levelCol || undefined,
   });
-  P.keepSheetFormat = function (sh, el) {
+  function keepSheetProperty(sh, el, values, tag) {
     if (!sh.wb.pkg) return;
     const ctx = { pkg: sh.wb.pkg, part: sh.extra.ooxmlPart };
-    const keep = sh.extra.formatKeep = { values: P.sheetFormatValues(sh), fragment: el ? K.fragment(el, ctx) : null };
+    const keep = { values, fragment: el ? K.fragment(el, ctx) : null };
     // Pre-release Excel used a different schema (including different units).
     // Its format element is not a valid child of the current worksheet schema.
     if (['http://schemas.microsoft.com/office/excel/2005/8/worksheet',
@@ -27,37 +27,64 @@
       const tree = K.parse(keep.fragment.xml);
       // A wrapper that also owns columns/views cannot be emitted by this one
       // property: that would duplicate or resurrect separately edited content.
-      if ([...tree.getElementsByTagName('*')].some(e => e.namespaceURI !== N.mc && e.localName !== 'sheetFormatPr')) {
+      if ([...tree.getElementsByTagName('*')].some(e => e.namespaceURI !== N.mc && e.localName !== tag)) {
         keep.fragment = K.fragment(K.parse(K.raw(el)), ctx); keep.converted = true;
       }
     }
-  };
-  P.sheetFormatXML = function (sh, writer, owner) {
-    const current = P.sheetFormatValues(sh), keep = sh.extra.formatKeep;
-    const generated = () => K.attributes('<sheetFormatPr xmlns="' + N.s + '"/>', current);
+    return keep;
+  }
+  function sheetPropertyXML(sh, writer, owner, tag, keep, current, generated, notice) {
     if (!keep) return generated();
     if (keep.legacyNamespace) {
-      writer.loss({ id: 'sheet-format-legacy:' + sh.id, where: sh.name, action: 'conversion',
-        what: 'Worksheet size settings from a pre-release Excel format were converted to current Excel settings.' });
+      writer.loss({ id: notice.id + '-legacy:' + sh.id, where: sh.name, action: 'conversion', what: notice.legacy });
       return generated();
     }
-    if (keep.converted) writer.loss({ id: 'sheet-format-alternative:' + sh.id, where: sh.name, action: 'conversion',
-      what: 'A worksheet-format alternative that also contained other worksheet settings was converted to its displayed properties.' });
+    if (keep.converted) writer.loss({ id: notice.id + '-alternative:' + sh.id, where: sh.name, action: 'conversion', what: notice.alternative });
     const changes = {};
     for (const [name, value] of Object.entries(current)) if (!same(value, keep.values[name])) changes[name] = value;
-    if (!keep.fragment) return Object.keys(changes).length ? generated() : '';
+    if (!keep.fragment) return Object.keys(changes).length ? generated(changes) : '';
     // A file's automatic row height is authoritative too. Comparing model
     // fields avoids replacing it merely because our font metrics differ.
     let xml = keep.fragment.xml;
     if (Object.keys(changes).length) {
       const tree = K.parse(xml), edits = [];
-      for (const el of [tree, ...tree.getElementsByTagName('*')]) if (el.localName === 'sheetFormatPr' && [N.s, 'http://purl.oclc.org/ooxml/spreadsheetml/main'].includes(el.namespaceURI)) {
+      for (const el of [tree, ...tree.getElementsByTagName('*')]) if (el.localName === tag && [N.s, 'http://purl.oclc.org/ooxml/spreadsheetml/main'].includes(el.namespaceURI)) {
         const pos = L.xmlTree.source.get(el);
         edits.push({ start: pos.start, end: pos.end, value: K.attributes(K.raw(el), changes) });
       }
       xml = K.patch(xml, edits);
     }
     return writer.emit(K.slice(keep.fragment, xml), owner);
+  }
+  P.keepSheetFormat = (sh, el) => { sh.extra.formatKeep = keepSheetProperty(sh, el, P.sheetFormatValues(sh), 'sheetFormatPr'); };
+  P.sheetFormatXML = (sh, writer, owner) => sheetPropertyXML(sh, writer, owner, 'sheetFormatPr', sh.extra.formatKeep,
+    P.sheetFormatValues(sh), () => K.attributes('<sheetFormatPr xmlns="' + N.s + '"/>', P.sheetFormatValues(sh)), {
+      id: 'sheet-format', legacy: 'Worksheet size settings from a pre-release Excel format were converted to current Excel settings.',
+      alternative: 'A worksheet-format alternative that also contained other worksheet settings was converted to its displayed properties.' });
+  P.pageSetupValues = sh => {
+    const p = sh.print, values = { paperSize: p.paper || 1, scale: Math.round(p.scale || 100),
+      firstPageNumber: p.firstPage != null ? p.firstPage : undefined,
+      fitToWidth: p.fit ? (p.fitW == null ? 0 : p.fitW) : undefined, fitToHeight: p.fit ? (p.fitH == null ? 0 : p.fitH) : undefined,
+      pageOrder: p.pageOrder === 'overThenDown' ? 'overThenDown' : 'downThenOver',
+      orientation: p.orientation === 'landscape' ? 'landscape' : 'portrait', blackAndWhite: p.bw ? '1' : '0',
+      draft: p.draft ? '1' : '0', cellComments: p.comments || 'none', useFirstPageNumber: p.firstPage != null ? '1' : '0',
+      errors: p.errors || 'displayed', horizontalDpi: p.dpi, verticalDpi: p.dpi };
+    if (sh.kind === 'chartsheet') for (const key of ['scale', 'fitToWidth', 'fitToHeight', 'pageOrder', 'cellComments', 'errors']) delete values[key];
+    return values;
+  };
+  P.keepPageSetup = (sh, el) => { sh.extra.pageSetupKeep = keepSheetProperty(sh, el, P.pageSetupValues(sh), 'pageSetup'); };
+  P.pageSetupXML = (sh, writer, owner) => {
+    const values = P.pageSetupValues(sh), generated = changes => {
+      const attrs = changes || { ...values };
+      if (!changes) for (const [key, value] of Object.entries({ paperSize: 1, scale: 100, fitToWidth: 1, fitToHeight: 1,
+        pageOrder: 'downThenOver', blackAndWhite: '0', draft: '0', cellComments: 'none', useFirstPageNumber: '0', errors: 'displayed' })) {
+        if (attrs[key] === value) delete attrs[key];
+      }
+      return K.attributes('<pageSetup xmlns="' + N.s + '"/>', attrs);
+    };
+    return sheetPropertyXML(sh, writer, owner, 'pageSetup', sh.extra.pageSetupKeep, values, generated, {
+      id: 'page-setup', legacy: 'Page settings from a pre-release Excel format were converted to current Excel settings.',
+      alternative: 'A page-setup alternative that also contained other worksheet settings was converted to its displayed properties.' });
   };
   P.parts = Object.freeze([
     ['xl/styles.xml', RT('styles'), 'regenerated'],

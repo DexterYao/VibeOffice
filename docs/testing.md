@@ -219,6 +219,8 @@ copy, scoped names, undo/redo and actual draft recovery.
 `sheet-properties.test.js` uses `SHEET_PROPERTY_RESULTS=DIR` to retain automatic row-height,
 dimension-edit, sheet-copy and history saves from public workbooks. It also checks literal boolean
 view flags and compatibility alternatives around worksheet-format properties.
+`page-setup.test.js` uses `PAGE_SETUP_RESULTS=DIR` to retain absent-default, paper/quality-edit,
+printer-dependency, chart-sheet, copy and history checks from public workbooks.
 For the independent cell audit after `corpus.js --scenarios text`, set `SCENARIO=text` when running
 `tools/ledger/test/loss-audit.py`: only A1 on the first ordinary worksheet is excluded as the intended
 edit. Dependent array-result recalculation still appears in the report. ZIP directory markers are

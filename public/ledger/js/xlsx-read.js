@@ -539,6 +539,21 @@
     return { rest: text.slice(0, m.index) + text.slice(e < 0 ? text.length : e + endTag.length), from: re.lastIndex, to: end };
   }
 
+  function readPageSetup(ps, p) {
+    if (!ps) return;
+    if (at(ps, 'orientation')) p.orientation = at(ps, 'orientation') === 'landscape' ? 'landscape' : 'portrait';
+    if (at(ps, 'paperSize')) p.paper = num(ps, 'paperSize', 1);
+    if (at(ps, 'scale')) p.scale = num(ps, 'scale', 100);
+    if (at(ps, 'fitToWidth') != null) p.fitW = num(ps, 'fitToWidth', 1); else if (p.fit) p.fitW = 1;
+    if (at(ps, 'fitToHeight') != null) p.fitH = num(ps, 'fitToHeight', 1); else if (p.fit) p.fitH = 1;
+    if (bool(ps, 'useFirstPageNumber', false) && at(ps, 'firstPageNumber') != null) p.firstPage = num(ps, 'firstPageNumber', 1);
+    if (at(ps, 'pageOrder') === 'overThenDown') p.pageOrder = 'overThenDown';
+    if (bool(ps, 'blackAndWhite', false)) p.bw = true;
+    if (bool(ps, 'draft', false)) p.draft = true;
+    if (at(ps, 'cellComments')) p.comments = at(ps, 'cellComments');
+    if (at(ps, 'errors')) p.errors = at(ps, 'errors');
+    if (at(ps, 'horizontalDpi')) p.dpi = num(ps, 'horizontalDpi', 600);
+  }
   async function readWorksheet(pkg, part, sh, ctx) {
     const text = await pkg.text(part);
     if (text == null) return;
@@ -675,21 +690,8 @@
     const pm = kid(el, 'pageMargins');
     if (pm) sh.print.margins = { l: num(pm, 'left', 0.7), r: num(pm, 'right', 0.7), t: num(pm, 'top', 0.75), b: num(pm, 'bottom', 0.75), header: num(pm, 'header', 0.3), footer: num(pm, 'footer', 0.3) };
     const ps = kid(el, 'pageSetup');
-    if (ps) {
-      const p = sh.print;
-      if (at(ps, 'orientation')) p.orientation = at(ps, 'orientation') === 'landscape' ? 'landscape' : 'portrait';
-      if (at(ps, 'paperSize')) p.paper = num(ps, 'paperSize', 1);
-      if (at(ps, 'scale')) p.scale = num(ps, 'scale', 100);
-      if (at(ps, 'fitToWidth') != null) p.fitW = num(ps, 'fitToWidth', 1); else if (p.fit) p.fitW = 1;
-      if (at(ps, 'fitToHeight') != null) p.fitH = num(ps, 'fitToHeight', 1); else if (p.fit) p.fitH = 1;
-      if (bool(ps, 'useFirstPageNumber', false) && at(ps, 'firstPageNumber') != null) p.firstPage = num(ps, 'firstPageNumber', 1);
-      if (at(ps, 'pageOrder') === 'overThenDown') p.pageOrder = 'overThenDown';
-      if (bool(ps, 'blackAndWhite', false)) p.bw = true;
-      if (bool(ps, 'draft', false)) p.draft = true;
-      if (at(ps, 'cellComments')) p.comments = at(ps, 'cellComments');
-      if (at(ps, 'errors')) p.errors = at(ps, 'errors');
-      if (at(ps, 'horizontalDpi')) p.dpi = num(ps, 'horizontalDpi', 600);
-    }
+    readPageSetup(ps, sh.print);
+    L.preserve.keepPageSetup(sh, ps);
     const hf = kid(el, 'headerFooter');
     if (hf) {
       const p = sh.print;
@@ -1308,7 +1310,8 @@
     const pm = kid(el, 'pageMargins');
     if (pm) sh.print.margins = { l: num(pm, 'left', 0.7), r: num(pm, 'right', 0.7), t: num(pm, 'top', 0.75), b: num(pm, 'bottom', 0.75), header: num(pm, 'header', 0.3), footer: num(pm, 'footer', 0.3) };
     const ps = kid(el, 'pageSetup');
-    if (ps && at(ps, 'orientation')) sh.print.orientation = at(ps, 'orientation');
+    readPageSetup(ps, sh.print);
+    L.preserve.keepPageSetup(sh, ps);
     const dr = kid(el, 'drawing');
     if (dr) { const r = rels.get(rid(dr, 'id')); if (r) await readDrawing(pkg, r.target, sh, ctx); }
   }

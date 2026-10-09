@@ -1047,6 +1047,7 @@
       copy.tabColor = sh.tabColor; copy.defColW = sh.defColW; copy.baseColW = sh.baseColW; copy.defRowH = sh.defRowH; copy.outline = Object.assign({}, sh.outline);
       copy.fileDefRowH = sh.fileDefRowH; copy.zeroHeight = sh.zeroHeight;
       if (sh.extra.formatKeep) copy.extra.formatKeep = L.opc.duplicate(sh.extra.formatKeep);
+      if (sh.extra.pageSetupKeep) copy.extra.pageSetupKeep = L.opc.duplicate(sh.extra.pageSetupKeep);
       copy.drawings = sh.drawings.map((d) => Object.assign({}, d, { anchor: JSON.parse(JSON.stringify(d.anchor)), chart: d.chart ? JSON.parse(JSON.stringify(d.chart)) : d.chart }));
       L.sheetObjects.copySheet(sh, copy);
       if (sh.extra.extensions) copy.extra.extensions = extensions.extensions;

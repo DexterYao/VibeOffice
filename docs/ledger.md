@@ -153,6 +153,15 @@ Office batch 5 file 06 supplies the row-height check. It adds no package/SDK dia
 retains the original five LibreOffice pages; its only differences from the previous writer are
 the three restored default row heights. Excel acceptance is pending.
 
+Page setup now retains its original absence, per-property values and printer-setting relationships.
+Cell edits no longer introduce a portrait orientation into a sheet that omitted page setup. Seven
+public save/edit/draft inputs produce 49 passing package/SDK states, with all seven unedited render
+pairs retaining their original page counts; this fixes five diagnosed count differences. Sixteen
+distinct command states cover paper/quality edits, chart sheets, history and copies. The 71-test
+Ledger suite and the additional chart-sheet regression pass.
+The final full refresh and Excel acceptance are pending. Focused evidence:
+`~/corpora/results/ledger-page-setup-2026-10-09/`.
+
 Ledger regenerates worksheets and keeps original package dependencies, workbook settings, style
 indices and shared strings. Save and drafts retain all four OOXML variants and encryption. The
 Compatibility Checker reports conversions from the prepared output before a user download,
@@ -189,6 +198,7 @@ part in `tdf76115` explicitly.
 | Kept; Excel edit acceptance pending | Pivot tables and caches | 156/156 tables and 131/131 caches. Twelve focused cases / 34 saved states cover sources, shifts, refresh, copy and deletion; dependent slicers follow deleted sources and shared pivots |
 | Kept; Excel edit acceptance pending | Threaded comments | 6/6 corpus records across four workbooks; five thread parts and four person parts remain byte-identical. Focused edits retain replies, mentions, person IDs and shifted cell references |
 | Kept | Notes, tables, merges, validation and names | 373/373 notes, 230/230 tables, 56,263/56,263 merges, 259/259 validations, 2,106/2,106 names |
+| Kept; full refresh and Excel check pending | Page setup, absent defaults and printer settings | Seven public fixtures / 49 save/edit/history/draft states add no package/SDK diagnostics; all seven unedited render pairs retain their page counts. Paper and print-quality edits retain sibling options and binary printer settings |
 | Kept, with exceptions | Charts, pictures and shapes | 155/157 charts, 164/165 pictures and 492/493 shapes; unedited raw shapes retain nested compatibility alternatives and relationships |
 | Kept; Excel edit acceptance pending | Worksheet extensions and newer conditional formatting | The 65-workbook extension sweep retains 100/100 extension entries with unchanged expanded XML: 23/23 extended bars, 53/53 extended rules, 20/20 extended validations, 9/9 sparkline groups and 63/63 unknown entries. Package checks add no issues; SDK comparisons pass in 64, with one malformed original unvalidatable |
 | Kept; Excel edit acceptance pending | Controls, OLE, non-comment VML and sheet custom properties | All 40 relevant workbooks save without new package/SDK errors: 344/344 control references, 370/370 control/ActiveX parts, 26/26 OLE entries, 367/367 non-note VML shapes and 31/31 sheet properties. All 43 VML parts retain their original bytes |
@@ -224,6 +234,7 @@ the reply and mention after editing, shifting and copying the thread.
 | Type or format an ordinary cell | Keep unrelated opaque parts; append changed styles/strings without rebinding old indices |
 | Change document properties or workbook settings | Replace owned properties; retain other values and custom-property types/pids |
 | Change default row height or column width | Replace only the changed worksheet-format attributes; keep authored automatic heights, unread attributes and alternatives confined to that property |
+| Change paper size, orientation or print quality | Replace only the owning page-setup attributes; keep other settings and printer relationships. Untouched absent page setup stays absent; sheet copies and history retain it |
 | Copy a sheet, edit cells or undo dimensions | Retain the worksheet-format fragment with the sheet; drafts recover its pending settings. A mixed alternative spanning other sheet properties converts with a notice to avoid restoring deleted content |
 | Save as a macro-free variant | Report removed VBA before download; cancellation keeps the original filename/type and acknowledgements |
 | Edit an imported macro/dialog sheet | Convert that sheet to a worksheet and report it |

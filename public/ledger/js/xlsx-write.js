@@ -525,14 +525,13 @@
       '<x14:sparklines>' + s.items.map((i) => `<x14:sparkline><xm:f>${esc(i.f)}</xm:f><xm:sqref>${esc(i.sqref)}</xm:sqref></x14:sparkline>`).join('') + '</x14:sparklines></x14:sparklineGroup>', state, owner)).join('');
     return `<extLst>${cfx}<ext uri="{05C60535-1F16-4fd2-B633-F4F36F0B64E0}" xmlns:x14="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main"><x14:sparklineGroups xmlns:xm="http://schemas.microsoft.com/office/excel/2006/main">${g}</x14:sparklineGroups></ext></extLst>`;
   }
-  function printXml(sh) {
+  function printXml(sh, writer, owner) {
     const p = sh.print;
     let s = '';
     if (p.gridLines || p.headings || p.hCenter || p.vCenter) s += `<printOptions${attrs({ horizontalCentered: p.hCenter ? '1' : undefined, verticalCentered: p.vCenter ? '1' : undefined, headings: p.headings ? '1' : undefined, gridLines: p.gridLines ? '1' : undefined })}/>`;
     const m = p.margins || {};
     s += `<pageMargins left="${m.l != null ? m.l : 0.75}" right="${m.r != null ? m.r : 0.75}" top="${m.t != null ? m.t : 1}" bottom="${m.b != null ? m.b : 1}" header="${m.header != null ? m.header : 0.5}" footer="${m.footer != null ? m.footer : 0.5}"/>`;
-    const ps = { paperSize: p.paper && p.paper !== 1 ? p.paper : undefined, scale: p.scale && p.scale !== 100 ? Math.round(p.scale) : undefined, firstPageNumber: p.firstPage != null ? p.firstPage : undefined, fitToWidth: p.fit && p.fitW !== 1 ? (p.fitW == null ? 0 : p.fitW) : undefined, fitToHeight: p.fit && p.fitH !== 1 ? (p.fitH == null ? 0 : p.fitH) : undefined, pageOrder: p.pageOrder === 'overThenDown' ? 'overThenDown' : undefined, orientation: p.orientation === 'landscape' ? 'landscape' : 'portrait', blackAndWhite: p.bw ? '1' : undefined, draft: p.draft ? '1' : undefined, cellComments: p.comments && p.comments !== 'none' ? p.comments : undefined, useFirstPageNumber: p.firstPage != null ? '1' : undefined, errors: p.errors && p.errors !== 'displayed' ? p.errors : undefined };
-    s += `<pageSetup${attrs(ps)}/>`;
+    s += L.preserve.pageSetupXML(sh, writer, owner);
     const hf = [['oddHeader', p.header], ['oddFooter', p.footer], ['evenHeader', p.diffOddEven && p.evenHeader], ['evenFooter', p.diffOddEven && p.evenFooter], ['firstHeader', p.diffFirst && p.firstHeader], ['firstFooter', p.diffFirst && p.firstFooter]].filter(([, v]) => v);
     if (hf.length || p.diffFirst || p.diffOddEven) s += `<headerFooter${attrs({ differentOddEven: p.diffOddEven ? '1' : undefined, differentFirst: p.diffFirst ? '1' : undefined, scaleWithDoc: p.hfScale === false ? '0' : undefined, alignWithMargins: p.hfAlign === false ? '0' : undefined })}>` + hf.map(([k, v]) => `<${k}>${escX(v)}</${k}>`).join('') + '</headerFooter>';
     const rb = (p.rowBreaks || []).filter((b) => b > 0), cb = (p.colBreaks || []).filter((b) => b > 0);
@@ -747,7 +746,7 @@
       if (sh.kind === 'chartsheet') {
         let body = HDR + `<chartsheet xmlns="${NS_MAIN}" xmlns:r="${NS_R}">` + (sh.tabColor ? `<sheetPr>${colorEl('tabColor', sh.tabColor)}</sheetPr>` : '') + `<sheetViews><sheetView${si === wb.active ? ' tabSelected="1"' : ''}${sh.view.zoom && sh.view.zoom !== 100 ? ` zoomScale="${Math.round(sh.view.zoom)}"` : ''}${sh.view.zoomToFit ? ' zoomToFit="1"' : ''} workbookViewId="0"/></sheetViews>`;
         const m = sh.print.margins;
-        body += `<pageMargins left="${m.l}" right="${m.r}" top="${m.t}" bottom="${m.b}" header="${m.header}" footer="${m.footer}"/><pageSetup orientation="${sh.print.orientation === 'portrait' ? 'portrait' : 'landscape'}"/>`;
+        body += `<pageMargins left="${m.l}" right="${m.r}" top="${m.t}" bottom="${m.b}" header="${m.header}" footer="${m.footer}"/>` + L.preserve.pageSetupXML(sh, pack.writer, pack.part(part));
         const dr = await drawingPart(sh, rels, objects);
         if (dr) body += `<drawing r:id="${dr}"/>`;
         body += '</chartsheet>';
@@ -801,7 +800,7 @@
           return `<hyperlink${attrs(a)}/>`;
         }).join('') + '</hyperlinks>');
       }
-      out.push(printXml(sh));
+      out.push(printXml(sh, pack.writer, pack.part(part)));
       out.push(L.sheetObjects.sheetXML('customProperties', objects));
       out.push(keepXml(sh, 'cellWatches'), keepXml(sh, 'ignoredErrors'), keepXml(sh, 'smartTags'));
       const dr = await drawingPart(sh, rels, objects);
