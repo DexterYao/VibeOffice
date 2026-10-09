@@ -322,8 +322,8 @@
     }
     key(source, scope, kind, id) { return JSON.stringify([source, scope, kind, this.canonical(id)]); }
     copy(instance, definitions) { this.copies.set(instance, new Set(definitions.map(d => this.key(d.source, d.scope, d.kind, d.id)))); }
-    bind(source, scope, kind, id, target, destination = scope) {
-      this.mapping.set(JSON.stringify([this.key(source, scope, kind, id), destination, '']), this.reserve(destination, kind, target));
+    bind(source, scope, kind, id, target, destination = scope, copy = '') {
+      this.mapping.set(JSON.stringify([this.key(source, scope, kind, id), destination, copy || '']), this.reserve(destination, kind, target));
     }
     resolve(source, scope, kind, id, options = {}) {
       const original = this.key(source, scope, kind, id), dest = options.scope || scope;

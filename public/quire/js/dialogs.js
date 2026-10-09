@@ -540,6 +540,7 @@
     function load() {
       const lv = abs.levels[cur];
       numText.value = (lv.text || '').replace(/%(\d)/g, (m, x) => `{${x}}`);
+      if (!Array.from(numStyle.options).some(o => o.value === lv.fmt)) numStyle.appendChild(h('option', { value: lv.fmt }, lv.custFmt || 'Original format'));
       numStyle.value = lv.fmt;
       start.set(lv.start == null ? 1 : lv.start);
       align.value = lv.jc || 'left';
@@ -559,6 +560,7 @@
     }
     function save() {
       const lv = abs.levels[cur];
+      if (lv.fmt !== numStyle.value) delete lv.custFmt;
       lv.fmt = numStyle.value;
       if (lv.fmt === 'bullet') { lv.text = bullet.raw || bullet.ch; lv.glyph = bullet.ch; lv.rPr = Object.assign({}, fontR, { font: bullet.font }); }
       else { lv.text = numText.value.replace(/\{(\d)\}/g, '%$1'); delete lv.glyph; lv.rPr = Object.assign({}, fontR); if (lv.rPr.font && /symbol|wingdings/i.test(lv.rPr.font)) delete lv.rPr.font; }

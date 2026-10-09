@@ -169,6 +169,7 @@ malformed input, unreferenced stories and unsupported markup remain exceptions.
 | Kept | Text effects, pictures in page backgrounds and drawing properties while untouched | 205/205 Word 2010 effect entries, 62/62 backgrounds, 1,054/1,054 text boxes and 1,803/1,803 DrawingML shape entries |
 | Kept; full refresh pending | Section properties, their alternatives and header/footer dependencies | Four fixtures / 24 save/edit/history/draft states retain untouched XML and unrelated margin attributes. Another 24 states cover actual numbering/section commands, copies, undo/redo and drafts without new package/SDK errors; two sampled outputs retain two pages. Two diagnosed source-recovery cases still change page counts |
 | Kept; Office check pending | Picture bullets, including unused definitions, image dependencies and imported identities | 36 affected inputs / 237 saved states retain expanded picture XML, reference counts and original image bytes. Of 242 validation states, 233 pass, four have an SDK-unreadable original and five are excluded. Twelve command states pass; six save/text-edit render pairs keep their page counts, fixing the extra page in `tdf149089` |
+| Kept; full refresh and Office check pending | Numbering identities, definition/level metadata, legacy settings and format alternatives | Eleven inputs / 74 saved states retain numbering metadata and add no package/SDK diagnostics; one text edit is excluded. List commands, history, drafts and independent copies pass 72 assertions across 33 distinct saved states. Six sampled save/edit render pairs keep their page counts |
 | Kept, with range/story exceptions | Comments, notes, bookmarks and permissions | 1,404/1,421 comments, 674/684 footnotes, 57/57 endnotes, 4,870/4,965 bookmarks and 50/54 permission ranges |
 | Kept, with remaining losses | Revisions, fields, pictures and tables | 1,385/1,427 insertions/deletions, 1,085/1,103 formatting revisions, 2,590/2,711 fields, 1,239/1,242 pictures and 1,605/1,606 tables |
 | Converted when edited | Unsupported contents inside an opaque frame; typed/complex controls | Edited or ungrouped converted content uses the model representation; incompatible typed-control edits unbind and report the conversion |
@@ -204,7 +205,10 @@ Both recoveries now have save notices. The `tdf149089` extra page is fixed by pi
 its original two pages survive saves and text edits. The expanded section/recovery check covers 77
 browser assertions and 26 package/SDK states, including draft recovery and table deletion/undo.
 Picture-bullet evidence is in `~/corpora/results/quire-numbering-2026-10-09/`. Unrepresented list
-definition/level metadata and abstract-number identities still need preservation before full signoff.
+definition/level metadata and abstract-number identities now have focused preservation evidence in
+`~/corpora/results/quire-numbering-metadata-2026-10-09/`; the full Word refresh and Office check remain.
+The pinned inventory finds numbering parts in 810 inputs. The writer keeps their source level counts,
+including absent defaults, rather than serializing all nine levels used internally for layout.
 
 The completed LibreOffice pass on the preceding saved artifacts renders **2,869/2,880 unedited saves**;
 **14** readable pairs change page count. It accounts for all **19,028** states: **17,986 OK, 443 failed,
@@ -252,6 +256,10 @@ a built-in document-property binding into another document also unbinds it and r
 | Edit text or list alignment/spacing around a picture bullet | Keep its picture definition and image bytes; undo and drafts restore its metadata |
 | Replace a picture bullet with another symbol/number format | Convert that level to the chosen symbol, remove its picture reference and report the conversion; unused original definitions remain available |
 | Insert a file containing picture bullets | Carry its referenced definitions and image parts, allocating identities that do not collide with the current document |
+| Change a list's alignment, starting value or number format | Replace its owned property; retain IDs, template metadata, legacy attributes and other compatibility alternatives. Unknown/custom formats remain selected when only alignment is changed |
+| Create a new list from an existing definition or insert another document | Allocate independent list identities and remap retained references; keep every original definition's identity |
+| Edit a list delegated to a numbering style | Give that list direct levels, retain the former style and its other users, and report the conversion; undo restores the link |
+| Copy malformed list-symbol highlighting | Remove redundant `none` highlighting or convert its color to supported shading, with a compatibility notice; untouched originals remain intact |
 | Edit body text or save without changing section settings | Keep original section XML, including absent defaults and header/footer references |
 | Undo/redo or drafts | Restore property fragments and range metadata |
 

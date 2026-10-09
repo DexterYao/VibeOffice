@@ -18,7 +18,7 @@ shift untouched mentions, and report changed or ambiguous mentions. All 62 Ledge
 package/SDK states pass. Batch-3 file 04 now exercises that correction as well.
 The Word writer now also retains section properties: four focused fixtures / 24 states add no
 package/SDK errors, including margin edits, history and drafts. Its preceding full run and final
-formatting correction remain versioned evidence; a refresh must include the section change.
+formatting correction remain versioned evidence; a refresh must include the section and numbering changes.
 **The plan is not signed off:** the full LibreOffice run is complete on the versioned saved artifacts,
 but its failures/count differences need review; the Word corrections need refreshed corpus evidence.
 Excel/PowerPoint Office acceptance is pending.
@@ -244,7 +244,17 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   The UI fixture passes 34 assertions / twelve validation states. Six sampled save/edit render pairs
   retain page counts; `tdf149089` is now 2 → 2 rather than 2 → 3. The 152-test suite and the final
   43-test identity pass succeed. Evidence: `quire-numbering-2026-10-09/`. Unrepresented list metadata
-  and abstract-number identities still need preservation before the full Word refresh and signoff.
+  and abstract-number identities are addressed by the following correction.
+- Numbering metadata and original abstract IDs now stay with their model definitions and levels.
+  Absent defaults/levels remain absent, and edits preserve sibling metadata and number-format choices.
+  New/imported lists receive independent identities. Editing a style-linked list materializes only that
+  definition, with a notice; malformed highlighting in copied list symbols becomes supported shading.
+  Eleven focused inputs produce 33 attempts (32 OK, one excluded) and 74 saved states preserving
+  numbering metadata with no added package/SDK diagnostics. The command checks pass 72 assertions
+  across 33 distinct saved states, and six save/edit render pairs retain page counts. All 154 unit tests
+  passed before the final copied-highlight correction, which passes the 13-test property subset and
+  ten browser validation states. All four pages load without console errors. Initial fixture-selection
+  and copied-highlight failures remain recorded in `quire-numbering-metadata-2026-10-09/`.
 
 Current Ledger/Lectern reports and rebuilt Office batches: `~/corpora/results/review-final-56de065/`.
 The preceding Word full run is in `~/corpora/results/final-suite-2026-10-09/`; its final correction and combined report are in
@@ -252,9 +262,9 @@ The preceding Word full run is in `~/corpora/results/final-suite-2026-10-09/`; i
 correction overlays, hashes and older progress notes stay with those reports. The review fixes and
 their focused measurements are in `~/corpora/results/review-fixes-2026-10-09/`. Root-comment editing
 and updated batch-3 file 04 are measured in `~/corpora/results/thread-root-edit-2026-10-09/`.
-Next: retain the remaining Word numbering metadata, review other render failures/count differences, refresh
-the affected Word corpus and render artifacts, and obtain actual Excel/PowerPoint acceptance of
-batches 3–4 before signoff. The section correction also needs a Word acceptance sample.
+Next: refresh the Word corpus and render evidence, review the other render failures/count differences, and obtain
+actual Excel/PowerPoint acceptance of batches 3–4 before signoff. The section and numbering corrections
+also need Word acceptance samples.
 
 ## Review of 6d24c43..275406e (2026-10-08)
 Followed well: bounded Office batches with previous-writer comparison, checker rules for the WordArt

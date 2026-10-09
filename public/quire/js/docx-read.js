@@ -538,6 +538,8 @@
     const numPictures = {};
     const numRels = numRel ? await rels(numRel.target) : {};
     if (numX) {
+      const numContext = { pkg: doc.pkg, part: numRel.target }, presentLevels = new Map();
+      L.preserve.properties(doc.numbering, numX, 'numbering', numContext);
       for (const pb of kids(numX, 'numPicBullet')) {
         const id = at(pb, 'numPicBulletId');
         numPictures[id] = { id, fragment: L.preserve.pictureBullet(pb, { pkg: doc.pkg, part: numRel.target }) };
@@ -560,12 +562,14 @@
         o.pPrValues = { ind: L.clone(o.ind), tabPos: o.tabPos };
         if (kid(lv, 'isLgl')) o.isLgl = true;
         if (kid(lv, 'lvlRestart')) o.restart = num(kid(lv, 'lvlRestart'), 'val', 0) - 1;
-        if (kid(lv, 'pStyle')) o.pStyle = rn(at(kid(lv, 'pStyle'), 'val'));
+        if (kid(lv, 'pStyle')) o.pStyle = at(kid(lv, 'pStyle'), 'val');
         const pictureId = at(kid(lv, 'lvlPicBulletId'), 'val');
         if (pictureId != null && numPicMedia[pictureId]) o.picture = numPicMedia[pictureId];
         if (o.fmt === 'bullet') o.glyph = bulletGlyph(o.text, o.rPr.font);
         if (pictureId != null && numPictures[pictureId]) o.pictureKeep = { ...numPictures[pictureId], values: { picture: o.picture, fmt: o.fmt, text: o.text, glyph: o.glyph } };
         if (kid(lv, 'legacy')) o.legacy = true;
+        L.preserve.properties(o, lv, 'lvl', numContext);
+        if (o.pStyle) o.pStyle = rn(o.pStyle);
         return o;
       };
       for (const an of kids(numX, 'abstractNum')) {
@@ -574,9 +578,13 @@
         for (const lv of kids(an, 'lvl')) levels[num(lv, 'ilvl', 0)] = lvlOf(lv);
         for (let i = 0; i < 9; i++) if (!levels[i]) levels[i] = D.numLevel(i, 'decimal', `%${i + 1}.`);
         const a = { id, levels, multi: at(kid(an, 'multiLevelType'), 'val') || 'hybridMultilevel' };
-        if (kid(an, 'numStyleLink')) a.styleLink = rn(at(kid(an, 'numStyleLink'), 'val'));
-        if (kid(an, 'styleLink')) a.styleDef = rn(at(kid(an, 'styleLink'), 'val'));
+        if (kid(an, 'numStyleLink')) a.styleLink = at(kid(an, 'numStyleLink'), 'val');
+        if (kid(an, 'styleLink')) a.styleDef = at(kid(an, 'styleLink'), 'val');
         if (kid(an, 'name')) a.name = at(kid(an, 'name'), 'val');
+        L.preserve.properties(a, an, 'abstractNum', numContext);
+        if (a.styleLink) a.styleLink = rn(a.styleLink);
+        if (a.styleDef) a.styleDef = rn(a.styleDef);
+        presentLevels.set(a, kids(an, 'lvl').map(lv => num(lv, 'ilvl', 0)));
         doc.numbering.abs[id] = a;
       }
       for (const n of kids(numX, 'num')) {
@@ -587,9 +595,9 @@
           const e = {};
           if (kid(o, 'startOverride')) e.start = num(kid(o, 'startOverride'), 'val', 1);
           if (kid(o, 'lvl')) e.lvl = lvlOf(kid(o, 'lvl'));
-          ov[l] = e;
+          ov[l] = L.preserve.properties(e, o, 'lvlOverride', numContext);
         }
-        doc.numbering.nums[id] = { abs: at(kid(n, 'abstractNumId'), 'val'), ov };
+        doc.numbering.nums[id] = L.preserve.properties({ abs: at(kid(n, 'abstractNumId'), 'val'), ov }, n, 'num', numContext);
       }
       /* numStyleLink: an abstract definition that defers to a numbering style */
       for (const k in doc.numbering.abs) {
@@ -598,8 +606,13 @@
         const st = styles[a.styleLink];
         const nid = st && st.pPr && st.pPr.num && st.pPr.num.id;
         const target = nid && doc.numbering.nums[nid] && doc.numbering.abs[doc.numbering.nums[nid].abs];
-        if (target && target !== a) a.levels = target.levels;
+        if (target && target !== a) {
+          a.x.ownLevels = a.levels;
+          a.levels = target.levels;
+          a.x.linkedLevels = L.preserve.objectSignature(a.levels, 'levels');
+        }
       }
+      for (const [a, present] of presentLevels) L.preserve.numberingLevels(a, present);
     }
     function bulletGlyph(text, font) {
       if (!text) return '';

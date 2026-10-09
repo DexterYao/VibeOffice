@@ -379,6 +379,12 @@ fixture through the list dialog, symbol conversion, undo/redo, actual draft reco
 with colliding source IDs. It compares retained definition XML and image bytes and checks unused
 definitions after all list references have been removed.
 
+`node tools/quire/test/numbering.mjs ~/corpora/word OUTDIR` exercises the public custom-format and
+style-linked numbering fixtures through list commands, independent copies, repeated imports,
+undo/redo and actual draft recovery. An optional final `custom` or `style` selects one fixture.
+The loss audit also inventories picture bullets, list identities/templates, legacy settings and
+cleanup metadata; the numbering harness compares metadata values and original level counts.
+
 `node tools/quire/test/drawing-properties.mjs ~/corpora/word OUTDIR` checks authored picture/shape
 properties and watermarks, plus generated row/cell alternatives with populated and empty choices.
 It writes originals and every edit/history/draft state, checking that deletion cannot restore hidden

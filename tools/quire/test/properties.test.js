@@ -122,6 +122,51 @@ test('new section attributes do not rebind a foreign prefix on retained children
   assert.match(xml, /q:fmt="decimal"/);
 });
 
+test('numbering edits retain legacy details, level attributes, alternatives and absent defaults', () => {
+  const d = doc(), source = `<w:lvl xmlns:w="${K.NS.w}" xmlns:w14="${w14}" xmlns:mc="${K.NS.mc}" mc:Ignorable="w14" w:ilvl="2" w:tplc="12345678" w:tentative="1"><mc:AlternateContent><mc:Choice Requires="w14"><w:numFmt w:val="custom" w:format="001, 002, 003, ..."/></mc:Choice><mc:Fallback><w:numFmt w:val="decimal"/></mc:Fallback></mc:AlternateContent><w:legacy w:legacy="1" w:legacySpace="120" w:legacyIndent="-80"/><w:lvlJc w:val="left"/></w:lvl>`;
+  const level = P.properties({ start: 1, fmt: 'custom', custFmt: '001, 002, 003, ...', text: '%3.', jc: 'left', suff: 'tab', legacy: true }, K.parse(source), 'lvl', { part: 'word/numbering.xml' });
+  const ctx = { ...context(d), part: 'word/numbering.xml' };
+  const generated = '<w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%3."/><w:legacy w:legacy="1"/><w:lvlJc w:val="right"/>';
+  level.jc = 'right';
+  const xml = P.propertyXML('lvl', level, generated, ctx, { ilvl: 2 });
+  assert.match(xml, /w:legacySpace="120"/); assert.match(xml, /w:legacyIndent="-80"/); assert.match(xml, /w:tplc="12345678"/);
+  assert.match(xml, /w:val="custom"/); assert.match(xml, /w:format="001, 002, 003, ..."/); assert.match(xml, /w:val="right"/);
+  assert.doesNotMatch(xml, /<w:start|<w:lvlText/);
+  level.fmt = 'decimal'; delete level.custFmt;
+  const changed = P.propertyXML('lvl', level, generated, ctx, { ilvl: 3 });
+  assert.doesNotMatch(changed, /w:val="custom"|w:format=/); assert.match(changed, /mc:Choice/); assert.match(changed, /mc:Fallback/);
+  assert.equal((changed.match(/w:val="decimal"/g) || []).length, 2);
+  assert.match(changed, /w:ilvl="3"/); assert.match(changed, /w:tentative="1"/);
+  assert.equal(d.losses?.length || 0, 0);
+});
+
+test('numbering metadata follows its owner while deleted levels stay deleted and new IDs remain linked', () => {
+  const d = doc(), ctx = { ...context(d), part: 'word/numbering.xml' };
+  const a = P.properties({ id: '42', multi: 'singleLevel', levels: [D.numLevel(0, 'decimal', '%1.'), D.numLevel(1, 'decimal', '%2.')] }, K.parse(`<w:abstractNum xmlns:w="${K.NS.w}" w:abstractNumId="42"><w:nsid w:val="ABCD0123"/><w:multiLevelType w:val="singleLevel"/><w:tmpl w:val="01020304"/><w:lvl w:ilvl="0"/></w:abstractNum>`), 'abstractNum', { part: ctx.part, source: 'test' });
+  P.numberingLevels(a, [0]);
+  assert.equal(P.writeNumberingLevel(a, 0), true); assert.equal(P.writeNumberingLevel(a, 1), false);
+  a.levels[1].start = 3; assert.equal(P.writeNumberingLevel(a, 1), true);
+  const xml = P.propertyXML('abstractNum', a, '<w:multiLevelType w:val="singleLevel"/>', ctx, { abstractNumId: 42 });
+  assert.match(xml, /w:abstractNumId="42"/); assert.match(xml, /w:nsid w:val="ABCD0123"/); assert.match(xml, /w:tmpl w:val="01020304"/); assert.doesNotMatch(xml, /<w:lvl /);
+  d.numbering = { abs: { 42: a }, nums: {} };
+  const numId = D.addNum(d, a), copied = d.numbering.abs[d.numbering.nums[numId].abs];
+  P.prepareNumbering(d.numbering, ctx.writer);
+  assert.notEqual(copied.x.fragment.copy, a.x.fragment.copy);
+  assert.equal(ctx.writer.ids.resolve('test', 'numbering', 'abstractNumId', '42', { copy: copied.x.fragment.copy }), String(copied.id));
+  assert.equal(ctx.writer.ids.resolve('test', 'numbering', 'abstractNumId', '42'), '42');
+});
+
+test('copied list formatting replaces an invalid highlight with equivalent shading', () => {
+  const d = doc(), ctx = { ...context(d), part: 'word/numbering.xml' };
+  L.R = { HIGHLIGHT: { yellow: '#FFFF00' } };
+  const original = property('<w:highlight w:val="yellow"/><w:color w:val="123456"/>', { hl: 'yellow', color: '123456' }, 'rPr', 'lvl');
+  const copied = K.duplicate(original);
+  const xml = P.propertyXML('rPr', copied, '<w:color w:val="123456"/><w:highlight w:val="yellow"/>', ctx);
+  assert.doesNotMatch(xml, /<w:highlight/); assert.match(xml, /w:fill="FFFF00"/);
+  assert.ok(xml.indexOf('<w:color') < xml.indexOf('<w:shd'));
+  assert.equal(d.losses.length, 1);
+});
+
 test('permission copies remap both endpoints, partial copies omit them, and incomplete saves report loss', () => {
   const d = doc(), start = P.rangeMarker(K.parse(`<w:permStart xmlns:w="${K.NS.w}" w:id="42" w:edGrp="everyone" w:colFirst="0" w:colLast="2"/>`), { part: 'word/document.xml' });
   const end = P.rangeMarker(K.parse(`<w:permEnd xmlns:w="${K.NS.w}" w:id="42"/>`), { part: 'word/document.xml' });
