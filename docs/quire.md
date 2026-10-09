@@ -162,8 +162,8 @@ malformed input, unreferenced stories and unsupported markup remain exceptions.
 | Kept | OLE, SmartArt, charts and embedded documents | 516/516 OLE/object inventory nodes, 39/39 SmartArt data parts, 133/133 chart parts and 4/4 altChunk blocks; geometry edits retain payloads |
 | Kept | Text effects, pictures in page backgrounds and drawing properties while untouched | 205/205 Word 2010 effect entries, 62/62 backgrounds, 1,054/1,054 text boxes and 1,803/1,803 DrawingML shape entries |
 | Kept, with a remaining exception | Section properties, their alternatives and header/footer dependencies | 3,404/3,405 section entries and 175/175 multi-column sections; 48 focused states cover property edits, commands, copies, history and drafts without added package/SDK diagnostics. `tdf108849` loses one counted section entry |
-| Kept; Office check pending | Picture bullets, including unused definitions, image dependencies and imported identities | 81/81 definitions and 106/106 references in the full inventory. The 36-input focused sweep retains image bytes and identities through edits, copies, history and drafts; `tdf149089` keeps its original two pages |
-| Kept; Office check pending | Numbering identities, definition/level metadata, legacy settings and format alternatives | 9,202/9,202 definitions, 8,923/8,923 list identities, 8,910/8,910 template entries, 232/232 legacy settings and 103/103 cleanup entries. List commands, history, drafts and independent copies pass 72 assertions across 33 distinct saved states |
+| Kept; Office samples accepted | Picture bullets, including unused definitions, image dependencies and imported identities | 81/81 definitions and 106/106 references in the full inventory. The 36-input focused sweep retains image bytes and identities through edits, copies, history and drafts; `tdf149089` keeps its original two pages |
+| Kept; Office samples accepted | Numbering identities, definition/level metadata, legacy settings and format alternatives | 9,202/9,202 definitions, 8,923/8,923 list identities, 8,910/8,910 template entries, 232/232 legacy settings and 103/103 cleanup entries. List commands, history, drafts and independent copies pass 72 assertions across 33 distinct saved states |
 | Kept, with range/story exceptions | Comments, notes, bookmarks and permissions | 1,404/1,421 comments, 674/684 footnotes, 57/57 endnotes, 4,870/4,965 bookmarks and 50/54 permission ranges |
 | Kept, with remaining losses | Revisions, fields, pictures and tables | 1,385/1,427 insertions/deletions, 1,087/1,103 formatting revisions, 2,590/2,711 fields, 1,239/1,242 pictures and 1,605/1,606 tables |
 | Converted when edited | Unsupported contents inside an opaque frame; typed/complex controls | Edited or ungrouped converted content uses the model representation; incompatible typed-control edits unbind and report the conversion |
@@ -193,7 +193,9 @@ numbering and picture-bullet corrections are included in the full run. Missing t
 conflicting default styles have save notices; these recoveries can still change pagination.
 Office batch 5 files 01–05 now cover picture bullets, custom formats, edited/copied style-linked
 lists and section settings. All five add no package/SDK diagnostics and retain their LibreOffice
-page counts; their previous-writer differences are reviewed. Word acceptance is pending.
+page counts; their previous-writer differences are reviewed. The user accepted all five in Word.
+A fresh LibreOffice check of the exact accepted files also passes; hashes and results are in
+`~/corpora/results/office-accepted-2026-10-09/`.
 The pinned inventory finds numbering parts in 810 inputs. The writer keeps their source level counts,
 including absent defaults, rather than serializing all nine levels used internally for layout.
 The render review also found seven misplaced breaks in `tdf108714`, which the reader previously
@@ -216,7 +218,7 @@ The convention scan has 193 signatures. Its three additions retain scoped MC pro
 section properties and a Strict source's `end` list alignment; two normalized default-value signatures
 are removed. No new package/SDK diagnostic accompanies them. Office batches 1–2, including the
 comment repair and all namespace follow-ups, are accepted. Batch 5's section/numbering samples
-remain pending.
+are also accepted.
 The Office checklist is `~/Downloads/lossless-check/office-batch-2/CHECKLIST.md`; file 12 records its
 original repair and links the accepted corrected save. Both samples in
 `~/Downloads/lossless-check/office-batch-2-comment-fix/` pass Word, package/SDK checks and LibreOffice,

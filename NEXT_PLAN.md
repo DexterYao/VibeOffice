@@ -5,8 +5,8 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 
 ## Status
 
-**The planned preservation features and review fixes are implemented. The final Excel page-setup
-correction, remaining render exceptions and Office acceptance still need closeout.**
+**The planned preservation features and review fixes are implemented. Office batches 1–5 are
+accepted. The final Excel page-setup correction and remaining render exceptions still need closeout.**
 
 Full runs are complete for Word (`7c25bd7`), Excel (`3716a3b`) and PowerPoint (`56de065`), with
 **14,091 driver attempts / 30,919 package/SDK states** and no added validator diagnostics.
@@ -17,9 +17,13 @@ passes 71 unit tests, 49 focused corpus states and seven render pairs; the final
 
 - Word and package-preservation Office batches 1–2 are accepted, including corrected comments and
   all namespace follow-ups. The slide-6 PowerPoint repair is fixed and accepted (`60c26b4`).
-- [Office batch 3: Excel, 15 files](/home/john/Downloads/lossless-check/office-batch-3/CHECKLIST.md): pending.
-- [Office batch 4: PowerPoint, 15 files](/home/john/Downloads/lossless-check/office-batch-4/CHECKLIST.md): pending.
-- [Office batch 5: Word/Excel, six files](/home/john/Downloads/lossless-check/office-batch-5/CHECKLIST.md): pending.
+- [Office batch 3: Excel, 15 files](/home/john/Downloads/lossless-check/office-batch-3/CHECKLIST.md): accepted.
+- [Office batch 4: PowerPoint, 15 files](/home/john/Downloads/lossless-check/office-batch-4/CHECKLIST.md): accepted.
+- [Office batch 5: Word/Excel, six files](/home/john/Downloads/lossless-check/office-batch-5/CHECKLIST.md): accepted.
+
+The user reported all three batches passing. Fresh LibreOffice checks of the exact 36 handed-off
+files also pass, with expected page/slide counts after their scripted edits. Hashes and results:
+`~/corpora/results/office-accepted-2026-10-09/`. The later page-setup change was not in these batches.
 
 The handed-off files remain unchanged. Failed/excluded inputs and the documented content/layout
 exceptions remain explicit. **The plan is not signed off**, and automated checks do not establish Office acceptance.
@@ -208,14 +212,16 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   previous-writer differences are reviewed; batch-3 file 04 includes the root-comment edit fix.
   Batch 5 has six passing automated samples for Word sections/numbering and Excel row heights.
   Exact files, hashes and superseded preparation cases are recorded in `office-followup-2026-10-09/`.
-  Actual Office acceptance of all three batches remains pending.
+  All three batches are accepted by the user in Office. A fresh LibreOffice run verifies all
+  36 exact handoff files and their expected counts; acceptance records and hashes are in
+  `office-accepted-2026-10-09/`.
 - All four pages load without console errors; known font requests remain. Markdown evidence remains
   **652/652 CommonMark, 22/22 GFM and 24/24 exact saves with confined edits**. Shared preservation,
   identity and Compatibility Checker checks retain their prior passing evidence; unchanged suites
   are not repeated solely to generate another total.
 
-Next: freeze and measure the Excel page-setup correction, finish the remaining render-exception
-review and current docs, then obtain Office acceptance before signoff. Original failures, hashes,
+Next: finish the frozen Excel page-setup measurement, remaining render-exception review and current
+docs, then obtain acceptance of the final correction samples before signoff. Original failures, hashes,
 correction overlays and earlier measurements remain with the versioned report directories.
 
 ## Review of 6d24c43..275406e (2026-10-08)
