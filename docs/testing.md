@@ -152,6 +152,9 @@ cross-document clipboard. `finish()` checks relationship targets and returns `{f
 Loss acknowledgement is per entry; autosave must neither show a dialog nor acknowledge entries.
 Package ownership, object preservation and save-dialog integration are implemented in all three apps.
 Current corpus limits and pending Office acceptance are listed in each app’s save table.
+`office-batch.mjs` also supports list-alignment edits, independent list copies (optionally after
+an alignment edit), and the chapter-number/continuous-section review. Use the same manifest against
+the frozen current and previous writers before handing these files to Office.
 
 `opc-order.js` contains ordering and ID-bound facts for 27 types, generated from the official
 [ECMA-376 Part 4 schemas](https://ecma-international.org/publications-and-standards/standards/ecma-376/), and each preset shape's adjustment values (names, order, defaults) from Part 1's `presetShapeDefinitions.xml`.

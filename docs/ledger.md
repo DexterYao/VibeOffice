@@ -142,6 +142,9 @@ and drafts keep the retained settings. Literal `true`/`false` view flags now ret
 All 67 Ledger tests, 13 distinct focused package/SDK states and nine browser draft states pass. The affected five-page sample
 again renders as five pages; two other sampled count differences remain. A full refresh and Excel
 acceptance of this correction are pending. Evidence: `~/corpora/results/ledger-sheet-properties-2026-10-09/`.
+Office batch 5 file 06 supplies the row-height check. It adds no package/SDK diagnostics and
+retains the original five LibreOffice pages; its only differences from the previous writer are
+the three restored default row heights. Excel acceptance is pending.
 
 Ledger regenerates worksheets and keeps original package dependencies, workbook settings, style
 indices and shared strings. Save and drafts retain all four OOXML variants and encryption. The

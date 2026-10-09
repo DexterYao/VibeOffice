@@ -263,6 +263,14 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   13 distinct focused package/SDK states and nine browser draft states pass; the five-page sample returns to five pages.
   Two other sampled count differences remain. Full refresh and Excel acceptance are pending;
   evidence is in `ledger-sheet-properties-2026-10-09/`.
+- [Office batch 5](/home/john/Downloads/lossless-check/office-batch-5/CHECKLIST.md) is ready: five Word
+  samples for picture bullets, numbering and sections, plus one Excel row-height sample. All six
+  add no package/SDK diagnostics and keep their original LibreOffice page counts. Compared with
+  `ab2e061`, the only changed parts are four numbering parts and three sheet-format properties;
+  the section sample has identical package-member bytes. The edited/copied style-list sample also
+  covers materialized inherited formatting. Office acceptance is pending. Batches 3–4 are unchanged.
+  Exact inputs, diffs and the superseded preparation-only copy case are retained in
+  `office-followup-2026-10-09/`.
 
 Current Ledger/Lectern reports and rebuilt Office batches: `~/corpora/results/review-final-56de065/`.
 The preceding Word full run is in `~/corpora/results/final-suite-2026-10-09/`; its final correction and combined report are in
@@ -271,8 +279,7 @@ correction overlays, hashes and older progress notes stay with those reports. Th
 their focused measurements are in `~/corpora/results/review-fixes-2026-10-09/`. Root-comment editing
 and updated batch-3 file 04 are measured in `~/corpora/results/thread-root-edit-2026-10-09/`.
 Next: refresh the Word corpus and render evidence, review the other render failures/count differences, and obtain
-actual Excel/PowerPoint acceptance of batches 3–4 before signoff. The section and numbering corrections
-also need Word acceptance samples.
+actual Excel/PowerPoint acceptance of batches 3–4 and the Word/Excel follow-up batch 5 before signoff.
 
 ## Review of 6d24c43..275406e (2026-10-08)
 Followed well: bounded Office batches with previous-writer comparison, checker rules for the WordArt

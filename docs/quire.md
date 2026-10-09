@@ -204,6 +204,9 @@ browser assertions and 26 package/SDK states, including draft recovery and table
 Picture-bullet evidence is in `~/corpora/results/quire-numbering-2026-10-09/`. Unrepresented list
 definition/level metadata and abstract-number identities now have focused preservation evidence in
 `~/corpora/results/quire-numbering-metadata-2026-10-09/`; the full Word refresh and Office check remain.
+Office batch 5 files 01–05 now cover picture bullets, custom formats, edited/copied style-linked
+lists and section settings. All five add no package/SDK diagnostics and retain their LibreOffice
+page counts; their previous-writer differences are reviewed. Word acceptance is pending.
 The pinned inventory finds numbering parts in 810 inputs. The writer keeps their source level counts,
 including absent defaults, rather than serializing all nine levels used internally for layout.
 
