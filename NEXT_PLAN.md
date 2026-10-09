@@ -214,11 +214,53 @@ at HEAD). Corrections:
      - keep a local declaration only for a real prefix conflict.
    - Gate: byte size back near the originals, `conventions.py` shows no inner `mc:Ignorable`, no new
      package/SDK diagnostics, and one Word and one Excel sample in Office batch 2.
-3. **The Office gate is being skipped.** The working tree has uncommitted Ledger pivot code
+3. **(Resolved: batch 2 was finished and accepted.) The Office gate is being skipped.** The working tree has uncommitted Ledger pivot code
    (`pivots.js`, changes to `xlsx-read/write`, `ops.js`, `preserve.js`) while Office batch 2 is
    pending and this plan says no Ledger feature code before it. Finish batch 2 (with items 1–2) first,
    or record why the gate was changed.
 4. **Run `tools/ooxml/conventions.py` on every full run** and list its new signatures in the commit
    body; the property-preservation step would have shown item 2.
-5. **Minor:** `public/index.html` still says "placeholder address" above the Feedback link, which now
+5. **(Resolved.) Minor:** `public/index.html` still says "placeholder address" above the Feedback link, which now
    has the real address.
+
+## Review of 3b92fe9..9f18001 (2026-10-09)
+The approach is right; the weak spot is identity allocation (local max+1 or `_Copy<hex>` instead of
+what Office writes and what the whole file uses). Five items are fixed in `1a33733`, with tests and
+the package rules `duplicate-vml-id`, `shared-vml-preview`, `duplicate-vml-block` and
+`animation-part-target`. They cover copied OLE previews, SmartArt part animations, reused query
+column IDs, note VML blocks, and slicer copy names and workbook names.
+
+**First:** batches 3 and 4 were built before `1a33733`. Rebuild them from the current writer and
+diff against the old batch files before the user opens them.
+
+Also fixed afterwards: the save cost (a fast path in `K.hoistNamespaces`, identical output on
+11,595 corpus parts, 30 MB sheet 2,956 → 3 ms), whole-column pivot sources, and pivot outputs
+reshaped by inserted or deleted lines (refresh plus a notice).
+
+Remaining, in order:
+1. **Lectern rotation.** Rotating a single-member opaque frame writes `rot` on the graphicFrame,
+   which PowerPoint ignores (`frames.js:69`). Multi-member wrappers drop member rotation
+   (`frames.js:183`). Disable rotation for opaque frames, or convert with a notice. Fix the
+   docs/lectern.md row "Move, resize or rotate".
+2. **Lectern designs.** Editing one decoration on a kept master or layout replaces all its
+   non-placeholder shapes (`designs.js:86`). Unmodelled shapes are lost without a notice and z-order
+   changes. Patch only changed decorations in place.
+3. **Lectern comments.** A comment re-anchored to its slide gets `<pc:sldMk>` without `cId`
+   (`comments.js:128`). Reuse the slide's creation ID, as Office does; the test must require it.
+4. **Ledger copies, smaller.**
+   - Controls/OLE on a copied sheet still take shape IDs from `X.begin`'s drawing counter, not the
+     sheet's new VML block (`objects.js:96`).
+   - Copied query tables and objects still get `_Copy<hex>` names (`tables.js:166`, `objects.js:155`);
+     use Excel's naming.
+5. **Hygiene.**
+   - Fresh-uid remapping is written four times (tables, extensions, slicers, threads); use `K.duplicate`.
+   - `'xl/worksheets/sheet'+(i+1)` is hardcoded at `pivots.js:279` and `threads.js:134`.
+   - Pivot source-kind tests read fixtures from a dated results folder, so they skip on a fresh machine.
+   - docs/ledger.md quotes stale per-feature test counts.
+   - `namespace-size.mjs` fails on the deliberate local `Ignorable` kept beside `PreserveAttributes`.
+   - `tools/lectern/test/designs.mjs` case `style` fails at 9f18001 ("Style edit missing").
+   - Converting one SmartArt adds five generic "no remaining reference" notices beside the specific one.
+
+
+Leave SmartArt to the parallel SmartArt work: it replaces the "edited preview → plain group" path
+in `frames.js` and the diagram parts' read/write. Don't change those.

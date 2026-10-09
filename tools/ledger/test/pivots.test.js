@@ -80,10 +80,13 @@ test('source and output geometry, renames, partial deletions and shared snapshot
   s = await save(wb, 'output-rows');
   assert.equal(childAttr(s.pkg, pivot(wb).part, 'location', 'ref'), 'A5:C10');
   assert.equal(childAttr(s.pkg, pivot(wb).part, 'location', 'firstDataRow'), '1');
+  assert(!s.losses.some(x => x.id.startsWith('pivot-layout:')), 'moving the whole result keeps its layout');
   wb.undo.undo();
   O.insertLines(dst(wb), 'r', 7, -1);
   s = await save(wb, 'output-shrink');
   assert.equal(childAttr(s.pkg, pivot(wb).part, 'location', 'ref'), 'A3:C7');
+  assert(s.losses.some(x => x.id.startsWith('pivot-layout:')), 'a row deleted inside the result is reported');
+  assert.equal(rootAttr(s.pkg, cache(wb).part, 'refreshOnLoad'), '1', 'and Excel rebuilds the result');
   wb.undo.undo();
   const snap = O.snapSheet(src(wb)); O.insertLines(src(wb), 'c', 1, 1); O.restoreSheet(src(wb), snap);
   assert.equal(cache(wb).refresh, undefined);
@@ -96,6 +99,16 @@ test('source and output geometry, renames, partial deletions and shared snapshot
   assert.equal(childAttr(s.pkg, cache(wb).part, 'worksheetSource', 'ref'), 'C1:E6');
 });
 
+test('a whole-column source stays whole when rows are inserted or deleted', async t => {
+  const wb = await open(t); if (!wb) return;
+  const F = L.formula, ref = cache(wb).sources[0].ref;
+  cache(wb).sources[0].ref = F.parseRange(F.colName(ref.c1) + ':' + F.colName(ref.c2));
+  const whole = F.rangeName(cache(wb).sources[0].ref);
+  O.insertLines(src(wb), 'r', 3, -2);
+  const s = await save(wb, 'whole-column-source');
+  assert.equal(childAttr(s.pkg, cache(wb).part, 'worksheetSource', 'ref'), whole);
+  assert.equal(rootAttr(s.pkg, cache(wb).part, 'refreshOnLoad'), '1');
+});
 test('deleting a source or a used field removes definitions; output edits remain and are reported', async t => {
   const wb = await open(t); if (!wb) return;
   O.tx(wb, 'output', () => O.put(dst(wb), 3, 2, { v: 1234 }));

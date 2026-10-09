@@ -62,6 +62,16 @@ test('rewritten parts hoist fragment declarations and Ignorable once, retaining 
   assert.equal(K.hoistNamespaces(result), result);
 });
 
+test('namespace hoisting returns parts with nothing to hoist unchanged, without parsing them', () => {
+  const head = `<?xml version="1.0"?>\n<!-- a > b --><?pi x?><x:worksheet xmlns:x="${N.s}" xmlns:mc="${N.mc}" xmlns:a="urn:a" title="1 > 0" mc:Ignorable="a">`;
+  const plain = head + '<x:sheetData><x:row r="1"/></x:sheetData></x:worksheet>';
+  assert.equal(K.hoistNamespaces(plain), plain);
+  assert.equal(K.hoistNamespaces(plain.replace('<x:row r="1"/>', '<x:row r="1"/><x:c>&lt;')), plain.replace('<x:row r="1"/>', '<x:row r="1"/><x:c>&lt;'), 'malformed text is not parsed on the fast path');
+  const inner = head + '<x:sheetData><x:row xmlns:x="' + N.s + '" r="1"/></x:sheetData></x:worksheet>';
+  assert.equal(K.hoistNamespaces(inner).match(/xmlns:x=/g).length, 1, 'inner declarations still hoist');
+  const spaced = plain.replace('mc:Ignorable="a"', 'mc:Ignorable=" a "');
+  assert.match(K.hoistNamespaces(spaced), /mc:Ignorable="a"/, 'a root Ignorable list is still normalised');
+});
 test('namespace hoisting preserves default resets, attribute aliases, other MC properties and opaque bytes', async () => {
   const xml = `<root xmlns="urn:root" xmlns:k="${N.mc}"><a xmlns="urn:child" xmlns:n="urn:new" k:Ignorable="n" k:ProcessContent="n:payload"><b xmlns="urn:root"/><n:payload/></a><unqualified xmlns=""/></root>`;
   const result = K.hoistNamespaces(xml), parsed = K.parse(result);

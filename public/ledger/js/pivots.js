@@ -175,11 +175,15 @@
   P.lines = function (sh, axis, at, n) {
     const p = state(sh.wb), O = L.ops; if (!p) return;
     const k1 = axis === 'r' ? 'r1' : 'c1', k2 = axis === 'r' ? 'r2' : 'c2';
+    // A whole-column (A:D) or whole-row source stays whole along that axis, as in Excel.
+    const whole = rg => axis === 'r' ? rg.r1 === 0 && rg.r2 === L.model.MAXR - 1 : rg.c1 === 0 && rg.c2 === L.model.MAXC - 1;
     for (const c of p.caches) if (sourcesUnbounded(sh.wb, c)) c.refresh = true;
     for (const cache of p.caches) for (const src of cache.sources) {
       const a = area(sh.wb, src);
       if (a.sheet !== sh.id || !a.ref) continue;
-      const rg = a.ref, next = O.shiftRange(rg, axis, at, n);
+      const rg = a.ref;
+      if (whole(rg)) { cache.refresh = true; continue; }
+      const next = O.shiftRange(rg, axis, at, n);
       if (same(rg, next)) continue;
       if (!next) cache.drop = 'The complete pivot source range was deleted.';
       if (src.kind === 'range') src.ref = next;
@@ -197,6 +201,9 @@
     for (const t of p.tables) if (!t.drop && t.sheet === sh.id && t.ref) {
       const rg = t.ref, next = O.shiftRange(rg, axis, at, n);
       if (!next) { t.drop = 'The complete pivot table output was deleted.'; continue; }
+      // Lines removed from or inserted into the result change its layout; Excel rebuilds it on open.
+      const through = n < 0 ? at <= rg[k2] && at - n - 1 >= rg[k1] : at > rg[k1] && at <= rg[k2];
+      if (through) { t.reshaped = true; const c = p.caches.find(c => c.id === t.cache); if (c) c.refresh = true; }
       for (const key of axis === 'r' ? ['firstHeaderRow', 'firstDataRow'] : ['firstDataCol']) if (key in t.offsets) {
         const pos = rg[k1] + t.offsets[key];
         const moved = n > 0 ? pos >= at ? pos + n : pos : pos >= at - n ? pos + n : pos >= at ? at : pos;
@@ -279,6 +286,7 @@
       const sh = sheet(wb, t.sheet), index = wb.sheets.indexOf(sh), base = 'xl/worksheets/sheet' + (index + 1) + '.xml';
       const owner = pack.part(base), rel = relation(pkg, sh.extra.ooxmlPart || '', 'pivotTable').find(r => r.part === t.part);
       w.rels(owner).add(K.NS.rel + '/pivotTable', K.relative(owner, target), false, t.copy ? undefined : rel?.id);
+      if (t.reshaped) w.loss({ id: 'pivot-layout:' + t.sheet + ':' + t.name, what: 'Rows or columns were inserted or deleted inside a pivot table. Excel rebuilds it from its source when the file opens.', where: sh.name + '!' + F.rangeName(t.ref), action: 'conversion' });
       if (t.edited) w.loss({ id: 'pivot-output:' + t.sheet + ':' + t.name, what: 'Cells in a pivot result were edited. Excel can replace these values when the pivot is refreshed.', where: sh.name + '!' + F.rangeName(t.ref), action: 'conversion' });
     }
   };

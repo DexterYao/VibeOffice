@@ -577,7 +577,30 @@
   // Fragments are self-contained in history/clipboard, but a rewritten part
   // needs only one set of namespace declarations. Keep real local rebindings:
   // removing an inner reset after a different ancestor binding changes names.
+  // End of the root start tag, past the declaration, comments and processing instructions (-1 if unsure).
+  function rootOpenEnd(xml) {
+    let i = 0;
+    for (;;) {
+      i = xml.indexOf('<', i); if (i < 0) return -1;
+      if (xml[i + 1] === '?') { i = xml.indexOf('?>', i); if (i < 0) return -1; i += 2; continue; }
+      if (xml.startsWith('<!--', i)) { i = xml.indexOf('-->', i); if (i < 0) return -1; i += 3; continue; }
+      if (xml[i + 1] === '!') return -1;
+      break;
+    }
+    for (let j = i + 1, quote = null; j < xml.length; j++) {
+      const c = xml[j];
+      if (quote) { if (c === quote) quote = null; } else if (c === '"' || c === "'") quote = c; else if (c === '>') return j + 1;
+    }
+    return -1;
+  }
   K.hoistNamespaces = function (xml) {
+    // Fast path for large generated parts (worksheets): nothing below the root declares a
+    // namespace or lists Ignorable, and the root's own list is already normal.
+    const end = rootOpenEnd(xml);
+    if (end > 0 && xml.indexOf('xmlns', end) < 0 && xml.indexOf('Ignorable', end) < 0) {
+      const m = /[\s:]Ignorable\s*=\s*(["'])([^"']*)\1/.exec(xml.slice(0, end));
+      if (!m || m[2] === m[2].trim().split(/\s+/).filter(Boolean).join(' ')) return xml;
+    }
     const tree = K.parse(xml), rootPos = XML.source.get(tree);
     const bindings = new Map(), additions = {}, edits = [], ignorable = new Set();
     const declarations = new Map(), nodes = [];
