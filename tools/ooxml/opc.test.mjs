@@ -161,6 +161,16 @@ test('new revision IDs avoid preserved changes and copied changes get distinct I
   assert.match(w.emit(K.duplicate(fragment), 'word/document.xml'), /w:id="2"/);
 });
 
+test('revision-only parts reserve later IDs before emitting a copied section', async () => {
+  const source = `<w:body xmlns:w="${N.w}"><w:sectPr><w:sectPrChange w:id="10" w:author="Author"><w:sectPr/></w:sectPrChange></w:sectPr><w:sectPr><w:sectPrChange w:id="11" w:author="Author"><w:sectPr/></w:sectPrChange></w:sectPr></w:body>`;
+  const p = await pkg({ 'word/document.xml': source }), w = new K.Writer(p);
+  const fragments = p.xml('word/document.xml').children.map(e => K.fragment(e, { pkg: p, part: 'word/document.xml' }));
+  assert.match(w.emit(fragments[0], 'word/document.xml'), /w:id="10"/);
+  assert.match(w.emit(K.duplicate(fragments[1]), 'word/document.xml'), /w:id="12"/);
+  assert.match(w.emit(fragments[1], 'word/document.xml'), /w:id="11"/);
+  assert.equal(w.ids.fresh('document', 'revision'), '13');
+});
+
 test('baseline bytes are immutable; the graph retains full types, sharing, cycles and external URLs', async () => {
   const p = await pkg({ 'a.xml': '<a/>', 'b.xml': '<b/>', 'shared.bin': new Uint8Array([3, 4]),
     '_rels/.rels': rels(rel('rId40', N.rel + '/officeDocument', 'a.xml')),

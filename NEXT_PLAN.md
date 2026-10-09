@@ -228,6 +228,13 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   Four cases / 77 browser assertions and 26 package/SDK states pass (18 byte-identical comparisons
   reused, eight fresh). The initial test omitted a required draft display name; that failed harness
   attempt is retained. `tdf149089` is isolated to numbering regeneration and still needs a fix.
+- The section review findings are fixed: new sections remap revision identities, the shared writer
+  reserves IDs even in revision-only parts, and page-number edits retain chapter level/separator.
+  Page setup/columns preserve existing section identities; index insertion and merged letters use
+  independent copies. The focused fixture passes 59 browser assertions and 24 package/SDK states;
+  two sampled outputs render with the original two pages. All 151 unit tests pass and all four pages
+  load without console errors. The index command's missing field reference was corrected during
+  this check; its earlier failed attempt is retained. Evidence: `quire-section-review-2026-10-09/`.
 
 Current Ledger/Lectern reports and rebuilt Office batches: `~/corpora/results/review-final-56de065/`.
 The preceding Word full run is in `~/corpora/results/final-suite-2026-10-09/`; its final correction and combined report are in

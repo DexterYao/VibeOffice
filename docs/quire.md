@@ -167,7 +167,7 @@ malformed input, unreferenced stories and unsupported markup remain exceptions.
 | Kept, with a remaining exception | Content controls | 2,675/2,676 wrappers; inline, block, row and cell controls retain properties and scalar bindings |
 | Kept | OLE, SmartArt, charts and embedded documents | 516/516 OLE/object inventory nodes, 39/39 SmartArt data parts, 133/133 chart parts and 4/4 altChunk blocks; geometry edits retain payloads |
 | Kept | Text effects, pictures in page backgrounds and drawing properties while untouched | 205/205 Word 2010 effect entries, 62/62 backgrounds, 1,054/1,054 text boxes and 1,803/1,803 DrawingML shape entries |
-| Kept; full refresh pending | Section properties, their alternatives and header/footer dependencies | Four fixtures / 24 save/edit/history/draft states add no package/SDK errors; untouched section XML and unrelated attributes survive margin edits. Eight sampled outputs render, but three corpus fixtures retain their earlier pagination differences |
+| Kept; full refresh pending | Section properties, their alternatives and header/footer dependencies | Four fixtures / 24 save/edit/history/draft states retain untouched XML and unrelated margin attributes. Another 24 states cover actual numbering/section commands, copies, undo/redo and drafts without new package/SDK errors; two sampled outputs retain two pages. Three earlier corpus fixtures still have pagination differences |
 | Kept, with range/story exceptions | Comments, notes, bookmarks and permissions | 1,404/1,421 comments, 674/684 footnotes, 57/57 endnotes, 4,870/4,965 bookmarks and 50/54 permission ranges |
 | Kept, with remaining losses | Revisions, fields, pictures and tables | 1,385/1,427 insertions/deletions, 1,085/1,103 formatting revisions, 2,590/2,711 fields, 1,239/1,242 pictures and 1,605/1,606 tables |
 | Converted when edited | Unsupported contents inside an opaque frame; typed/complex controls | Edited or ungrouped converted content uses the model representation; incompatible typed-control edits unbind and report the conversion |
@@ -244,6 +244,8 @@ a built-in document-property binding into another document also unbinds it and r
 | Delete one range endpoint | Omit the incomplete pair on save and report it |
 | Set a page colour | Replace the original background; other edits keep its fill/picture |
 | Change a page size, margin, numbering or grid setting | Change its owned attributes; keep other section settings, revision metadata and compatibility branches |
+| Change page-number format or starting number | Keep the existing chapter heading level and separator unless chapter numbering is explicitly disabled |
+| Insert a section, apply page setup/columns forward, build a multi-column index or merge letters | Allocate independent retained revision IDs for new sections; keep identities when reusing an existing boundary |
 | Edit body text or save without changing section settings | Keep original section XML, including absent defaults and header/footer references |
 | Undo/redo or drafts | Restore property fragments and range metadata |
 

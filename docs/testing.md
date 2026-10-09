@@ -366,6 +366,9 @@ copy/draft/recovered files. `node tools/quire/test/objects.mjs ~/corpora/word OU
 OLE/SmartArt objects between browser tabs, edits converted content, undoes it and recovers a draft.
 `node tools/quire/test/sections.mjs ~/corpora/word OUTDIR` checks section XML, absent defaults,
 header relationships and alternatives through actual saves, margin edits, undo/redo and draft recovery.
+Its generated fixture also exercises the page-number dialog, section insertion, page setup/columns
+forward at new and existing boundaries, multi-column index insertion and merged letters. Add
+`--fixture` to run only these focused cases, including copied revision IDs through history and drafts.
 It writes the original and each saved state for package/SDK and external rendering comparisons.
 
 `node tools/quire/test/drawing-properties.mjs ~/corpora/word OUTDIR` checks authored picture/shape

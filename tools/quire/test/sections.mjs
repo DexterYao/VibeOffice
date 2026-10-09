@@ -1,13 +1,13 @@
 // Section settings through the actual reader/writer, history and draft hooks.
-// node tools/quire/test/sections.mjs CORPUS OUTPUT
+// node tools/quire/test/sections.mjs CORPUS OUTPUT [--fixture]
 import fs from 'node:fs';
 import path from 'node:path';
 import { ensureServer, openPage } from '../../ooxml/cdp.mjs';
-const [corpus, output] = process.argv.slice(2);
-if (!corpus || !output) throw new Error('Usage: sections.mjs CORPUS OUTPUT');
+const [corpus, output, ...flags] = process.argv.slice(2);
+if (!corpus || !output) throw new Error('Usage: sections.mjs CORPUS OUTPUT [--fixture]');
 const files = ['libreoffice__25b1ff42f98c__tdf149089.docx',
   'libreoffice__36354c47c353__floattable-nested-3tables.docx',
-  'libreoffice__4d38e2895a98__defaultStyle.docx', 'section-settings.docx'];
+  'libreoffice__4d38e2895a98__defaultStyle.docx', 'section-settings.docx'].filter(f => !flags.includes('--fixture') || f === 'section-settings.docx');
 fs.mkdirSync(output, { recursive: true });
 const stop = await ensureServer(), page = await openPage('quire', { persistence: false }), reports = [];
 try {
@@ -37,6 +37,7 @@ try {
 
 async function check(data) {
   const { D, opc: K } = L, artifacts = {}; let checks = 0;
+  const fixture = !data;
   const assert = (ok, message) => { if (!ok) throw new Error(message); checks++; };
   const encode = async blob => {
     const bytes = new Uint8Array(await blob.arrayBuffer()); let text = '';
@@ -52,10 +53,11 @@ async function check(data) {
     const pkg = await K.open(new Uint8Array(await (await L.docx.write(doc)).arrayBuffer()));
     const xml = pkg.text(pkg.main), replacement = '<w:pgNumType w:start="1" w:chapStyle="2" w:chapSep="hyphen"/><w:noEndnote/><w:rtlGutter/>' +
       '<mc:AlternateContent><mc:Choice Requires="w14"><w:docGrid w:type="linesAndChars" w:linePitch="312" w:charSpace="4096"/></mc:Choice><mc:Fallback><w:docGrid w:linePitch="360"/></mc:Fallback></mc:AlternateContent>';
-    const edits = sections(pkg).map(e => {
+    const edits = sections(pkg).map((e, i) => {
       const loc = L.xmlTree.source.get(e);
       const raw = K.merge(K.raw(e), { ['{' + K.NS.w + '}cols']: [], ['{' + K.NS.w + '}docGrid']: [] }, 'w:CT_SectPr');
-      return { start: loc.start, end: loc.end, value: raw.replace('</w:sectPr>', replacement + '</w:sectPr>') };
+      const revision = `<w:sectPrChange w:id="${10 + i}" w:author="Section review"><w:sectPr><w:rtlGutter/></w:sectPr></w:sectPrChange>`;
+      return { start: loc.start, end: loc.end, value: raw.replace('</w:sectPr>', replacement + revision + '</w:sectPr>') };
     });
     data = await encode(await L.zip.write(pkg.names.map(name => ({ name, data: name === pkg.main ? K.patch(xml, edits) : pkg.bytes(name) }))));
   }
@@ -108,5 +110,59 @@ async function check(data) {
   assert(sectionValues(recovered.pkg) === JSON.stringify(expected), 'Draft recovery changed section settings');
   assert(!!repairLoss(window.__corpusHooks.current(), 'table-grid').length === repairedGrid, 'Draft recovery lost the unacknowledged table notice');
   assert(!!repairLoss(window.__corpusHooks.current(), 'default-styles').length === repairedStyle, 'Draft recovery lost the unacknowledged style notice');
+  if (fixture) {
+    let current = window.__corpusHooks.current();
+    const atEnd = () => { const p = current.main.blocks.at(-1), pos = D.pos(p, Math.min(5, D.plen(p))); L.ed.sel = { a: pos, f: pos }; };
+    const clickOK = () => document.querySelector('.dlg .dlg-foot .primary').click();
+    const revisionIds = pkg => Array.from(pkg.xml(pkg.main).getElementsByTagName('*')).filter(e => e.localName === 'sectPrChange').map(e => Array.from(e.attributes).find(a => a.localName === 'id').value);
+    const uniqueSections = (saved, count) => {
+      const ids = revisionIds(saved.pkg);
+      assert(sections(saved.pkg).length === count, 'Unexpected section count');
+      assert(ids.length === count && new Set(ids).size === count, 'Copied sections share revision identities: ' + ids.join(', '));
+    };
+    L.mailmerge.data = { fields: ['Name'], rows: [['First'], ['Second']], included: new Set([0, 1]) };
+    uniqueSections(await save('merged-letters', L.mailmerge.buildMerged()), 4);
+    atEnd(); L.fields.insertGenerated('INDEX', { columns: 2 });
+    uniqueSections(await save('index-columns', current), 4);
+    // Generated fields also enqueue page-number refresh; return to the saved source.
+    current = (await L.docx.read(Uint8Array.from(atob(artifacts.recovered), c => c.charCodeAt(0)))).doc;
+    L.app.loadDoc(current, 'Section commands', { saved: true });
+    atEnd();
+    L.dlg.pageNumbers('format');
+    document.querySelector('#pf-start').value = '5'; clickOK();
+    assert(current.sect.pgNum.start === 5 && current.sect.pgNum.chapStyle === '2' && current.sect.pgNum.chapSep === 'hyphen', 'Page Number Format changed chapter settings');
+    const numbering = await save('number-dialog', current);
+    assert(numbering.sect.pgNum.chapStyle === '2' && numbering.sect.pgNum.chapSep === 'hyphen', 'Chapter settings changed in saved numbering');
+    assert(D.undo(), 'Missing numbering undo');
+    assert(current.sect.pgNum.start === 1, 'Numbering undo lost the original start');
+    assert(D.redo(), 'Missing numbering redo');
+    await save('number-redo', current);
+    const beforeSplit = sectionValues((await save('before-split', current)).pkg);
+    atEnd(); L.app.insertSectionBreak('continuous');
+    const split = await save('split', current); uniqueSections(split, 3);
+    const splitIds = revisionIds(split.pkg);
+    assert(splitIds.includes('10') && splitIds.includes('11'), 'Original revision identities changed');
+    assert(D.undo(), 'Missing section undo');
+    assert(sectionValues((await save('split-undo', current)).pkg) === beforeSplit, 'Section undo changed original settings');
+    assert(D.redo(), 'Missing section redo');
+    assert(JSON.stringify(revisionIds((await save('split-redo', current)).pkg)) === JSON.stringify(splitIds), 'Redo changed copied identities');
+    const draft = await window.__corpusHooks.snapshot(current), metadata = window.__corpusHooks.docInfo(current);
+    await save('split-draft', current, draft);
+    await window.__corpusHooks.open(new File([draft], 'sections.docx'), { draft: true, name: metadata.name, saved: true, lossState: metadata.lossState });
+    current = window.__corpusHooks.current();
+    const restored = await save('split-recovered', current); uniqueSections(restored, 3);
+    assert(JSON.stringify(revisionIds(restored.pkg)) === JSON.stringify(splitIds), 'Draft recovery changed copied identities');
+    // Both commands can add a section or reuse an existing boundary.
+    for (const name of ['columns', 'pageSetup']) {
+      const count = D.sections(current).length;
+      atEnd(); L.ed.enter();
+      for (const attempt of ['new', 'existing']) {
+        atEnd(); L.dlg[name]();
+        document.querySelector(name === 'columns' ? '#cd-apply' : '#ps-apply').value = 'forward';
+        clickOK();
+        uniqueSections(await save(name + '-' + attempt, current), count + 1);
+      }
+    }
+  }
   return { artifacts, checks };
 }

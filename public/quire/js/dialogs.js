@@ -662,7 +662,7 @@
             let endP = cont.blocks[prevI];
             if (!endP || endP.t !== 'p') { endP = D.para(); cont.blocks.splice(tb.i, 0, endP); }
             D.touch(endP);
-            endP.sect = L.clone(D.sectOfBlock(d, Math.max(0, prevI)).sect);
+            if (!endP.sect) endP.sect = L.opc.duplicate(D.sectOfBlock(d, Math.max(0, prevI)).sect);
             const after = A().curSect();
             D.touchKey(after.holder, 'sect');
             const sc = after.holder === d ? d.sect : after.holder.sect;
@@ -756,7 +756,7 @@
           if (tb.i === 0) { for (const sc of D.sections(d)) assign(sc.endPara || d); return E.sel; }
           if (!endP || endP.t !== 'p') { endP = D.para(); cont.blocks.splice(tb.i, 0, endP); }
           D.touch(endP);
-          endP.sect = L.clone(D.sectOfBlock(d, tb.i - 1).sect);
+          if (!endP.sect) endP.sect = L.opc.duplicate(D.sectOfBlock(d, tb.i - 1).sect);
           endP.sect.type = endP.sect.type || 'nextPage';
           d._idxDirty = true;
           const after = A().curSect();
