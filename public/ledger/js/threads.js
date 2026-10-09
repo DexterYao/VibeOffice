@@ -9,7 +9,6 @@
   const at = (el, key) => el?.getAttribute(key);
   const clone = value => JSON.parse(JSON.stringify(value));
   const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
-  const guid = () => '{' + root.crypto.randomUUID().toUpperCase() + '}';
   const note = cm => ({ text: cm.text, author: cm.author, runs: cm.runs });
   const values = t => ({ id: t.id, parent: t.parent, personId: t.personId, date: t.date, text: t.text, done: t.done, mentions: t.mentions });
   const related = (pkg, part, kind) => pkg?.rels(part).find(r => r.type === RT + kind && !r.external);
@@ -72,25 +71,12 @@
   // Copied definitions and parent/mention references change together. Person
   // IDs are shared unless the destination uses the same ID for another person.
   T.copy = function (cm, wb) {
-    const copy = K.duplicate(cm);
-    if (copy.keepNote) {
-      const f = copy.keepNote.fragment, tree = K.parse(f.xml), uid = Array.from(tree.attributes).find(a => a.localName === 'uid' && attrNS(tree, a) === XR);
-      if (uid) f.xml = K.attributes(f.xml, { [uid.name]: guid() });
-    }
-    if (!copy.thread?.length) return copy;
-    const ids = new Map(copy.thread.map(t => [t.id, guid()])), existing = new Map(people(wb).map(p => [p.id, p.xml])), persons = new Map();
+    const definitions = (cm.thread || []).flatMap(t => [t.id, ...t.mentions.map(m => m.mentionId)]);
+    const existing = new Map(people(wb).map(p => [p.id, p.xml]));
     for (const sh of wb.sheets) for (const c of sh.comments.values()) for (const p of c.threadKeep?.people || []) existing.set(p.id, p.xml);
-    for (const p of copy.threadKeep.people) {
-      if (existing.has(p.id) && personKey(existing.get(p.id)) !== personKey(p.xml)) {
-        const id = guid(); persons.set(p.id, id); p.id = id; p.xml = K.attributes(p.xml, { id });
-      }
-    }
-    for (const t of copy.thread) {
-      t.id = ids.get(t.id); if (ids.has(t.parent)) t.parent = ids.get(t.parent);
-      t.personId = persons.get(t.personId) || t.personId;
-      for (const m of t.mentions) { m.mentionId = guid(); m.mentionpersonId = persons.get(m.mentionpersonId) || m.mentionpersonId; }
-    }
-    return copy;
+    for (const p of cm.threadKeep?.people || []) if (existing.has(p.id) && personKey(existing.get(p.id)) !== personKey(p.xml)) definitions.push(p.id);
+    return K.duplicate(cm, { guidValues: definitions, guidAttributes: ['uid'],
+      guidFields: ['id', 'parent', 'personId', 'mentionId', 'mentionpersonId'] });
   };
   function commentXML(cm, t, writer, owner) {
     const f = t.keep.fragment, old = t.keep.values, attrs = {};

@@ -200,7 +200,7 @@ PowerPoint batch 4 acceptance remains pending. Reports:
 The 18-deck sweep and all 26 edit/history/draft states introduce no package/SDK diagnostics.
 Large slide IDs and empty sections are covered by a public one-slide deck with ten sections.
 Two edited samples and four history states open in LibreOffice with the expected inserted/deleted
-slide counts. All 115 unit tests pass; the browser edit driver and app load report no console errors.
+slide counts. The browser edit driver and app load report no console errors.
 The full group measurement is above; PowerPoint batch 4 acceptance remains pending. Reports:
 `~/corpora/results/lectern-preservation-2026-10-09/membership-*`.
 
@@ -251,7 +251,7 @@ preview rotation/flip and moved wrappers whose members have different rotations 
 Of 959 diagram, embedding, ink and model dependency parts, 928 are byte-identical, ten are Strict
 conversions, three remove missing optional cache references, and 18 are unreferenced orphan parts
 in one damaged source. Five edited samples open in LibreOffice with expected slide counts.
-All 118 unit tests pass and all four pages load without console errors.
+All four pages load without console errors.
 PowerPoint batch 4 acceptance remains pending. Reports:
 `~/corpora/results/lectern-preservation-2026-10-09/frames-*`.
 
@@ -280,7 +280,7 @@ states pass, including text edits, geometry, copies, deletion, detached clipboar
 Four edited samples open in LibreOffice with unchanged counts. UTF-16 package XML is decoded
 correctly, retaining a six-slide template previously read as empty; its save/edit/history states
 also pass SDK and LibreOffice. The corpus driver now compares original, opened and saved slide
-counts. All 118 unit tests pass and four pages load. PowerPoint batch 4 acceptance remains pending. Reports: `~/corpora/results/lectern-preservation-2026-10-09/properties-*`.
+counts. Four pages load without console errors. PowerPoint batch 4 acceptance remains pending. Reports: `~/corpora/results/lectern-preservation-2026-10-09/properties-*`.
 
 ## Known limits
 

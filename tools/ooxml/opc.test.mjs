@@ -18,6 +18,31 @@ const text = data => typeof data === 'string' ? data : new TextDecoder().decode(
 const kid = (el, name) => el.children.find(c => c.localName === name);
 const children = xml => K.parse(xml).children.map(e => e.localName);
 
+test('GUID copies remap selected definitions and references together, preserving user text and shared persons', () => {
+  const a = '{12345678-1234-4234-8234-123456789ABC}', b = '{12345678-1234-4234-8234-123456789ABD}';
+  const person = '{12345678-1234-4234-8234-123456789ABE}', guidMap = {};
+  const xml = `<thread id="${a}" personId="${person}" uri="${a}" xmlns:r="${N.rel}" r:id="${a}"><reply id="${b}" parentId="${a.toLowerCase()}"/><text>${a}</text><unknown value="${a}"/></thread>`;
+  const source = { id: a, text: a, reply: { id: b, parent: a }, personId: person,
+    fragment: { xml, deps: [], ids: [], source: 'source', part: 'thread.xml' } };
+  const options = { guidValues: [a, b], guidFields: ['id', 'parent', 'personId'] };
+  const copy = K.duplicate(source, { ...options, guidMap });
+  assert.notEqual(copy.id, source.id); assert.equal(copy.reply.parent, copy.id);
+  assert.equal(copy.personId, person); assert.equal(copy.text, a);
+  const tree = K.parse(copy.fragment.xml);
+  assert.equal(tree.getAttribute('id'), copy.id);
+  assert.equal(tree.children[0].getAttribute('parentId'), copy.id);
+  assert.equal(tree.children[0].getAttribute('id'), copy.reply.id);
+  assert.equal(tree.getAttribute('personId'), person); assert.equal(tree.getAttribute('uri'), a);
+  assert.equal(tree.getAttributeNS(N.rel, 'id'), a, 'relationships retain their own identity space');
+  assert.equal(tree.children[1].textContent, a); assert.equal(tree.children[2].getAttribute('value'), a);
+  assert.equal(K.remapGuids(xml, guidMap), copy.fragment.xml);
+  assert.deepEqual(JSON.parse(JSON.stringify(copy)), copy);
+  const second = K.duplicate(copy, { ...options, guidValues: [copy.id, copy.reply.id] });
+  assert.notEqual(second.id, copy.id); assert.equal(second.reply.parent, second.id);
+  assert.equal(K.parse(second.fragment.xml).children[0].getAttribute('parentId'), second.id);
+  assert.equal(source.fragment.xml, xml);
+});
+
 test('XML patches retain insertion order at shared boundaries and reject overlaps', () => {
   assert.equal(K.patch('abcdef', [
     { start: 1, end: 3, value: 'B' }, { start: 1, end: 1, value: 'I' },

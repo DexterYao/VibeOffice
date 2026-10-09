@@ -134,6 +134,13 @@ for every removed declaration. Insertions at shared boundaries retain their orig
 relationship IDs and identity spaces before allocating new values. Master and layout IDs share one
 space; non-empty preset adjustment lists include every preset value in Office's order.
 
+GUID-bearing models opt into `duplicate` with `guidAttributes` and `guidFields`. Supply `guidValues`
+to identify definitions explicitly when some fields refer to shared people or other shared objects.
+`guidSources` includes definitions in separately written XML parts; `guidMap` receives their shared,
+JSON-safe mapping. Copies allocate these IDs during the edit, so undo, drafts and repeat saves keep
+the same IDs. `remapGuids` applies that mapping when the app writes a dependent part. It changes
+identity attributes only: relationship IDs, text, URLs and extension URIs keep their own meaning.
+
 The loss ledger distinguishes conversion from deletion and keeps stable entry identities. Digital
 signatures are removed and reported because a changed package cannot retain their validity. Missing
 dependencies and unavoidable conversions are reported by the writer; draft recovery retains pending

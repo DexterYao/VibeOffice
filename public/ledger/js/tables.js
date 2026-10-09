@@ -12,7 +12,6 @@
   const cellValues = c => ({ v: c?.f == null ? c?.v ?? null : null, f: c?.f, rt: c?.rt });
   const rels = (pkg, owner) => pkg.rels(owner).filter(r => !r.external && K.relationshipType(r.type) === N.rel + '/queryTable');
   const fragment = (el, wb, part) => K.fragment(el, { pkg: wb.pkg, part });
-  const guid = () => '{' + root.crypto.randomUUID().toUpperCase() + '}';
   T.read = function (t, el) {
     const wb = t.sheet.wb, part = t.ooxmlPart;
     if (!wb.pkg) return; // The reader already reports an unrecoverable package graph.
@@ -37,24 +36,20 @@
   };
   T.sameHeader = (t, c, i) => c.keep && same(c.keep.header, cellValues(t.sheet.get(t.ref.r1, t.ref.c1 + i))) && c.name === c.keep.values.name;
   T.copy = function (object, wb) {
-    const ids = {}, xml = [object.keep?.fragment.xml, ...(object.queries || []).map(r => wb.pkg?.text(r.part))].filter(Boolean);
-    for (const text of xml) for (const e of all(K.parse(text))) for (const a of Array.from(e.attributes)) if (a.localName === 'uid') ids[a.value] ||= guid();
-    object.copyKeep = { id: guid(), ids };
-    return object;
+    const { sheet, ...data } = object, ids = {}, previous = object.copyKeep?.ids;
+    const sources = (object.queries || []).map(r => wb.pkg?.text(r.part)).filter(Boolean).map(xml => K.remapGuids(xml, previous));
+    const copy = K.duplicate(data, { guidMap: ids, guidAttributes: ['uid'], guidSources: sources });
+    // Opaque query parts still come from their source package, even when copying
+    // a copy. Compose that original-to-current mapping with this duplication.
+    for (const [old, current] of Object.entries(previous || {})) if (ids[current]) ids[old] = ids[current];
+    copy.copyKeep = { id: K.guid(), ids };
+    return sheet ? { ...copy, sheet } : copy;
   };
   T.copySheet = function (from, to) {
     to.extra.queryParts = clone(from.extra.queryParts || []);
-    if (to.extra.queryParts.length) to.extra.queryCopy = { ...T.copy({ queries: to.extra.queryParts }, from.wb).copyKeep, keepName: true };
+    if (to.extra.queryParts.length) to.extra.queryCopy = { ...T.copy({ queries: to.extra.queryParts, copyKeep: from.extra.queryCopy }, from.wb).copyKeep, keepName: true };
   };
-  const copyIds = (xml, copy) => {
-    if (!copy) return xml;
-    const edits = [];
-    for (const e of all(K.parse(xml))) for (const a of Array.from(e.attributes)) if (a.localName === 'uid' && copy.ids[a.value]) {
-      const p = L.xmlTree.source.get(e).attrs.find(p => p.name === a.name);
-      edits.push({ start: p.start, end: p.end, value: copy.ids[a.value] });
-    }
-    return K.patch(xml, edits);
-  };
+  const copyIds = (xml, copy) => K.remapGuids(xml, copy?.ids);
   function attributes(raw, fresh, before, after, fields) {
     const changes = {};
     for (const [name, field] of Object.entries(fields)) if (!same(before?.[field], after?.[field])) changes[name] = at(fresh, name);

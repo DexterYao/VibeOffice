@@ -1037,6 +1037,8 @@
       copy = wb.addSheet(name, to);
       const snap = snapSheet(sh);
       restoreSheet(copy, snap);
+      const extensions = L.sheetExtensions.copy({ cf: copy.cf, dv: copy.dv, sparklines: copy.sparklines, extensions: sh.extra.extensions });
+      Object.assign(copy, { cf: extensions.cf, dv: extensions.dv, sparklines: extensions.sparklines });
       copy.comments = new Map(Array.from(copy.comments, ([key, cm]) => [key, L.threads.copy(cm, wb)]));
       copy.wb = wb;
       copy.view = JSON.parse(JSON.stringify(sh.view));
@@ -1044,7 +1046,7 @@
       copy.tabColor = sh.tabColor; copy.defColW = sh.defColW; copy.baseColW = sh.baseColW; copy.defRowH = sh.defRowH; copy.outline = Object.assign({}, sh.outline);
       copy.drawings = sh.drawings.map((d) => Object.assign({}, d, { anchor: JSON.parse(JSON.stringify(d.anchor)), chart: d.chart ? JSON.parse(JSON.stringify(d.chart)) : d.chart }));
       L.sheetObjects.copySheet(sh, copy);
-      if (sh.extra.extensions) copy.extra.extensions = L.opc.duplicate(sh.extra.extensions);
+      if (sh.extra.extensions) copy.extra.extensions = extensions.extensions;
       L.tableKeep.copySheet(sh, copy);
       wb.names = oldNames.map(n => ({ ...n, scope: n.scope == null ? n.scope : wb.sheets.indexOf(oldOrder[n.scope]) }));
       /* sheet-scoped names are duplicated for the copy */

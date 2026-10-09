@@ -260,7 +260,7 @@ full-corpus figures above; Excel batch 3 remains pending. Reports:
 | Keep the comment text | Carry every reply, mention, person record and unknown child; threads without a legacy note are displayed too |
 | Insert/delete rows or columns, sort or move cells | Every reply follows its owning note's cell; legacy note references and thread links stay consistent |
 | Delete a note or its row | Remove the whole thread; undo restores it |
-| Copy a note or sheet | Give copied comments, parent links, mentions and legacy note identities fresh IDs together; keep shared persons, remapping conflicting person IDs on paste |
+| Copy a note or sheet | Give copied comments, parent links, mentions and legacy note identities fresh IDs together through the shared copy helper; keep shared persons, remapping conflicting person IDs on paste |
 | Paste into another workbook | Include referenced authors and mentioned persons with their original metadata |
 | Edit the displayed comment text | Convert that thread to an ordinary note and report it; other threads stay intact. Undo restores the original thread and clears the conversion |
 | Save or recover a draft | Keep current references, replies and mentions; draft recovery retains the pending notices |
@@ -270,7 +270,7 @@ fixture. All **16 emitted states** pass package/SDK comparison. Actual browser P
 undo/redo and draft recovery keep two threads, four comments and their mention/parent links without
 console errors. Two LibreOffice samples retain their one-page counts. Excel batch 3 remains pending. The authored fixture
 and failed pre-fix SDK attempts are retained with the reports; mention coverage is not claimed from
-the public corpus.
+the public corpus. Current focused reports: `~/corpora/results/review-fixes-2026-10-09/guid-threads/`.
 
 ### Controls, embedded objects and VML: edit behavior
 
@@ -308,12 +308,13 @@ the broader sweep and browser reports remain in `~/corpora/results/ledger-preser
 | Paste a view into a different workbook | Keep the fallback and report conversion because its source table/pivot was not copied |
 | Undo/redo or recover a draft | Restore definitions, source connections, copied identities and pending notices |
 
-Seven focused cases produce **19 passing package/SDK states**, with **two more passing browser draft
+Eight focused cases produce **21 passing package/SDK states**, with **two more passing browser draft
 states** after real copy/paste and undo/redo. The table-sheet copy and moved timeline open in
-LibreOffice (4 and 3 pages respectively); timeline undo/redo also opens. All **100 unit tests** pass
-and four pages load without console errors. The three supplemental inputs are pinned by hash and
+LibreOffice (4 and 3 pages respectively); timeline undo/redo also opens. Copies of copied views keep
+independent GUIDs, stable across repeated saves. The three supplemental inputs are pinned by hash and
 commit through `tools/corpora.sh DIR ledger-features`, separate from the 951-file main corpus.
-Excel acceptance in batch 3 remains pending.
+Current focused reports are in `~/corpora/results/review-fixes-2026-10-09/guid-slicers/` and
+`guid-browser/`. Excel acceptance in batch 3 remains pending.
 
 ### Worksheet extensions: edit behavior
 
@@ -327,13 +328,14 @@ Excel acceptance in batch 3 remains pending.
 | Edit a validation or ordinary conditional rule | Retain its extension metadata through the existing dialog; replace the edited properties |
 | Undo/redo or recover a draft | Restore the rules, extension fragments and matching identities |
 
-Seven focused cases produce **22 passing package/SDK states**, plus **two browser draft/recovery
+Seven focused cases produce **23 passing package/SDK states**, plus **two browser draft/recovery
 states** after editing, copying and undo/redo. Edited bars and moved sparklines open in LibreOffice
-with their original 3/5 page counts; history states also open. All **107 unit tests** pass and all
-four pages load. The extension inventory records all 951 attempts, including 25 ZIP/XML failures.
+with their original 3/5 page counts; history states also open. Copied rule GUIDs are assigned at copy
+time and stay stable across repeated saves. The extension inventory records all 951 attempts, including 25 ZIP/XML failures.
 `empty_ext_defined_name.xlsx` remains an SDK failure because its original external-link content
-type is invalid; it is not counted as a passing comparison. Reports are in
-`~/corpora/results/ledger-preservation-2026-10-08/extension-*`. Excel batch 3 remains pending.
+type is invalid; it is not counted as a passing comparison. Current focused reports are in
+`~/corpora/results/review-fixes-2026-10-09/guid-extensions/`; the broader inventory and browser reports
+remain in `~/corpora/results/ledger-preservation-2026-10-08/extension-*`. Excel batch 3 remains pending.
 
 Namespace declarations still move to the part root. A local `mc:Ignorable` list remains where
 `PreserveAttributes`, `PreserveElements` or `ProcessContent` requires it on the same element; the
@@ -357,7 +359,7 @@ draft/recovery states**. Edited and copied samples and three history states open
 with unchanged page counts. The ten-file query sweep has no new package issues; nine SDK
 comparisons pass and one original (`queryTableExport.xlsx`) has a missing dependency and cannot
 be validated. Ledger does not execute a query or enable refresh. Current focused reports:
-`~/corpora/results/review-fixes-2026-10-09/current-queries/`; sweep and browser reports:
+`~/corpora/results/review-fixes-2026-10-09/guid-queries/`; sweep and browser reports:
 `~/corpora/results/ledger-preservation-2026-10-08/query-*`.
 The full Ledger group measurement is reported above; Excel batch 3 remains pending.
 

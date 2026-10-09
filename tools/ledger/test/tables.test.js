@@ -47,11 +47,14 @@ test('query definitions, original field IDs and custom column attributes survive
 test('copied query names follow the numeric source sequence and survive repeat saves', async t => {
   const wb = await open(t, 'empty'); if (!wb) return;
   const source = wb.tables[0].sheet;
-  O.copySheet(wb, source, wb.sheets.length); O.copySheet(wb, source, wb.sheets.length);
+  const copy = O.copySheet(wb, source, wb.sheets.length); O.copySheet(wb, copy, wb.sheets.length);
   const one = await save(wb, 'copy-names'), two = await save(wb, 'copy-names-repeat');
   const names = pkg => queryParts(pkg).map(p => pkg.xml(p).getAttribute('name')).sort();
   assert.deepEqual(names(one.pkg), ['ExternalData_1', 'ExternalData_2', 'ExternalData_3']);
   assert.deepEqual(names(two.pkg), names(one.pkg));
+  const guids = pkg => pkg.names.filter(n => /^xl\/(tables|queryTables)\/[^/]+\.xml$/.test(n)).flatMap(p => all(pkg.xml(p)).flatMap(e => e.attributes.filter(a => a.localName === 'uid').map(a => a.value)));
+  assert.equal(new Set(guids(one.pkg)).size, guids(one.pkg).length, 'copying a copy gives every definition a fresh UID');
+  assert.deepEqual(guids(two.pkg), guids(one.pkg), 'identities are allocated during the copy, not on each save');
 });
 test('inserted query-table columns are unbound; retained columns keep their identities through history', async t => {
   const wb = await open(t, 'basic'); if (!wb) return;

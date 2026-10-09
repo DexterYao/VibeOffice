@@ -82,6 +82,17 @@ test('a copied table sheet has an independent slicer cache that survives source-
   assert.equal(views(saved.pkg).length, 1); assert(saved.losses.some(e => e.action === 'drop'));
   wb.undo.undo(); await save(wb, 'copy-sheet-delete-source-undo');
 });
+test('copying a copied slicer sheet gives each definition stable independent GUIDs', async t => {
+  const wb = await open(t, 'slicers'); if (!wb) return;
+  const first = O.copySheet(wb, wb.sheets[0], wb.sheets.length);
+  O.copySheet(wb, first, wb.sheets.length);
+  const saved = await save(wb, 'copy-twice'), repeated = await save(wb, 'copy-twice-repeat');
+  const guids = pkg => parts(pkg).flatMap(part => all(pkg.xml(part)).flatMap(e => e.attributes.filter(a => a.localName === 'uid').map(a => a.value)));
+  const ids = guids(saved.pkg);
+  assert(ids.length > guids(wb.pkg).length);
+  assert.equal(new Set(ids).size, ids.length, 'separate view/cache definitions have independent GUIDs');
+  assert.deepEqual(guids(repeated.pkg), ids, 'save does not generate new copy identities');
+});
 test('shared filter caches remove only the deleted pivot and undo restores all connections', async t => {
   const wb = await open(t, 'shared'); if (!wb) return;
   O.deleteSheet(wb, wb.sheetByName('PerCountry'));

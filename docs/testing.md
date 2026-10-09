@@ -125,7 +125,8 @@ slide-6 repair was such a case); run it with every full corpus run. Findings and
 ### Shared preservation core
 
 `node --test tools/ooxml/opc.test.mjs` tests the Node-safe `L.opc` API: immutable bytes, full relationship
-types, cyclic/shared graphs, reserved names and IDs, duplicate reference remapping, namespace/QName
+types, cyclic/shared graphs, reserved names and IDs, duplicate reference remapping (including GUID
+definitions, shared-person references, copies of copies and unchanged GUID-looking text), namespace/QName
 scope, original nested AlternateContent emitted once, cross-document dependency transport, loss
 acknowledgement, property merging, Strict-to-Transitional conversion and DrawingML/Word/spreadsheet/VML
 geometry adapters. These tests do not replace real-file comparisons or Office acceptance. API contracts

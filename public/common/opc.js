@@ -429,8 +429,46 @@
     });
     return { ...fragment, xml, deps, ids, record: null };
   };
-  K.duplicate = function (object) {
+  K.guid = () => '{' + root.crypto.randomUUID().toUpperCase() + '}';
+  const isGuid = value => /^\{?[\da-f]{8}(?:-[\da-f]{4}){3}-[\da-f]{12}\}?$/i.test(value || '');
+  const guidKey = value => '{' + value.replace(/[{}]/g, '').toUpperCase() + '}';
+  // Only identity attributes are rewritten. GUID-looking text, links, extension
+  // URIs and other user data are not identities merely because they look alike.
+  K.remapGuids = function (xml, mapping, names = ['uid', 'id', 'parentId', 'personId', 'mentionId', 'mentionpersonId']) {
+    if (!mapping || typeof mapping !== 'function' && !Object.keys(mapping).length) return xml;
+    const edits = [];
+    walk(K.parse(xml), el => {
+      for (const a of attrs(el)) if (names.includes(a.localName) && isGuid(a.value) && !relAttr(el, a)) {
+        const next = typeof mapping === 'function' ? mapping(a.value) : mapping[a.value] || mapping[guidKey(a.value)];
+        if (next && next !== a.value) {
+          const p = XML.source.get(el).attrs.find(p => p.name === a.name);
+          edits.push({ start: p.start, end: p.end, value: next });
+        }
+      }
+    });
+    return K.patch(xml, edits);
+  };
+  K.duplicate = function (object, options = {}) {
     const copy = JSON.parse(JSON.stringify(object)), fragments = [];
+    // GUID definitions can also live in model fields and in parts emitted by an
+    // app-owned writer. Return their shared mapping through guidMap so those
+    // parts use the same identities. The copy owns the map, including in history.
+    const guidMap = options.guidMap || {}, fields = options.guidFields || [], names = options.guidAttributes || [];
+    const allocate = id => { if (isGuid(id)) { const key = guidKey(id); guidMap[key] ||= guidMap[id] || K.guid(); guidMap[id] = guidMap[key]; } };
+    for (const id of options.guidValues || []) allocate(id);
+    const scan = xml => { if (names.length) walk(K.parse(xml), el => { for (const a of attrs(el)) if (names.includes(a.localName) && !relAttr(el, a)) allocate(a.value); }); };
+    for (const xml of options.guidSources || []) scan(xml);
+    function guids(v, rewrite = false) {
+      if (!v || typeof v !== 'object') return;
+      for (const [key, value] of Object.entries(v)) {
+        if (typeof value === 'string' && key === 'xml' && /^\s*</.test(value)) {
+          if (rewrite) v[key] = K.remapGuids(value, guidMap); else scan(value);
+        } else if (typeof value === 'string' && fields.includes(key)) {
+          if (rewrite) v[key] = guidMap[value] || (isGuid(value) && guidMap[guidKey(value)]) || value; else if (!options.guidValues) allocate(value);
+        } else if (value && typeof value === 'object') guids(value, rewrite);
+      }
+    }
+    if (names.length || fields.length || options.guidValues?.length) { guids(copy); guids(copy, true); }
     const visit = v => {
       if (!v || typeof v !== 'object') return;
       if (typeof v.xml === 'string' && Array.isArray(v.deps) && Array.isArray(v.ids)) { fragments.push(v); return; }
