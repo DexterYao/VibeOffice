@@ -130,12 +130,16 @@ be served over https or from localhost. A workbook opened with its password keep
 
 ## What a save keeps, converts and drops
 
-The full LibreOffice pass on the versioned `3716a3b` artifacts renders **930/935 unedited saves**;
-**37** readable pairs change page count and still need investigation. Across **6,589** attempted states,
-**6,088** pass the paired render/count check, **484** fail and **17** are excluded. Failures include
+The full LibreOffice pass on the versioned `3cb0cd2` artifacts renders **930/935 unedited saves**;
+**five** readable pairs change page count, down from 37 after the page-setup correction, with no
+new differences. Across **6,589** attempted states, **6,312** pass the paired render/count check,
+**260** fail and **17** are excluded. Failures include
 unrenderable originals, missing outputs, conversion errors/timeouts and count differences. This does
-not establish visual fidelity or Excel acceptance. All five saved-render failures also fail or time
-out in their originals. Reports: `~/corpora/results/ledger-final-3716a3b/`.
+not establish visual fidelity for every workbook. All five saved-render failures also fail or time
+out in their originals. Reports: `~/corpora/results/ledger-final-3cb0cd2/`. The five remaining count
+differences are `tdf66668`, `tdf118668`, `pivottable_tabular_mode`, `Photo Formats - CGM-O12-XL-Pictures`
+and `clusterfuzz-testcase-minimized-POIXSSFFuzzer-5937385319563264`; exact paths, counts and known
+limits are in `~/corpora/results/lossless-final-2026-10-09/RENDER-EXCEPTIONS.md`.
 
 The worksheet-format correction retains authored automatic row heights and unread attributes;
 changing a default width or height replaces only that property. Cell edits, sheet copies, history
@@ -161,7 +165,7 @@ distinct command states cover paper/quality edits, chart sheets, history and cop
 Ledger suite and the additional chart-sheet regression pass.
 The final `3cb0cd2` refresh completes all 2,853 driver attempts and 6,589 package/SDK states with
 unchanged statuses and zero added diagnostics; feature and independent cell comparisons are also
-unchanged. Its full LibreOffice pass is running. Office batch 6 files 01–04 cover absence,
+unchanged. Its full LibreOffice pass resolves 32 earlier count differences. Office batch 6 files 01–04 cover absence,
 paper/quality edits, copied printer relationships and scoped namespace directives; all four pass
 focused package/SDK and LibreOffice checks and are accepted in Excel. Evidence:
 `~/corpora/results/ledger-page-setup-2026-10-09/`, `ledger-final-3cb0cd2/` and

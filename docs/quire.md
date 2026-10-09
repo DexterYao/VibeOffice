@@ -161,7 +161,7 @@ malformed input, unreferenced stories and unsupported markup remain exceptions.
 | Kept, with a remaining exception | Content controls | 2,675/2,676 wrappers; inline, block, row and cell controls retain properties and scalar bindings |
 | Kept | OLE, SmartArt, charts and embedded documents | 516/516 OLE/object inventory nodes, 39/39 SmartArt data parts, 133/133 chart parts and 4/4 altChunk blocks; geometry edits retain payloads |
 | Kept | Text effects, pictures in page backgrounds and drawing properties while untouched | 205/205 Word 2010 effect entries, 62/62 backgrounds, 1,054/1,054 text boxes and 1,803/1,803 DrawingML shape entries |
-| Kept, with a remaining exception | Section properties, their alternatives and header/footer dependencies | 3,404/3,405 section entries and 175/175 multi-column sections; 48 focused states cover property edits, commands, copies, history and drafts without added package/SDK diagnostics. `tdf108849` loses one counted section entry |
+| Kept, with a reported source exception | Section properties, their alternatives and header/footer dependencies | 3,404/3,405 section entries and 175/175 multi-column sections; 48 focused states cover property edits, commands, copies, history and drafts without added package/SDK diagnostics. Malformed `tdf108849` has two final section definitions; one is omitted with a notice |
 | Kept; Office samples accepted | Picture bullets, including unused definitions, image dependencies and imported identities | 81/81 definitions and 106/106 references in the full inventory. The 36-input focused sweep retains image bytes and identities through edits, copies, history and drafts; `tdf149089` keeps its original two pages |
 | Kept; Office samples accepted | Numbering identities, definition/level metadata, legacy settings and format alternatives | 9,202/9,202 definitions, 8,923/8,923 list identities, 8,910/8,910 template entries, 232/232 legacy settings and 103/103 cleanup entries. List commands, history, drafts and independent copies pass 72 assertions across 33 distinct saved states |
 | Kept, with range/story exceptions | Comments, notes, bookmarks and permissions | 1,404/1,421 comments, 674/684 footnotes, 57/57 endnotes, 4,870/4,965 bookmarks and 50/54 permission ranges |
@@ -170,6 +170,7 @@ malformed input, unreferenced stories and unsupported markup remain exceptions.
 | Normalized, with a notice | Invalid paragraph/run formatting that edits can duplicate | Six regression files / 36 emitted states pass; 74-file candidate scan checked, with 34 saves changing formatting; conflicting or unknown source properties remain intact |
 | Recovered, with a notice | Missing/incomplete table grids, conflicting default styles and misplaced page/line breaks | The writer reports reconstructed column widths, normalized defaults and breaks moved into valid paragraphs/runs. Removing recovered content clears its save notice; undo/drafts restore it. Grid/default recovery can change pagination; retaining misplaced breaks restores the affected four-page document |
 | Mostly converted, with a notice | Smart tags and inline custom-XML markup | 18/519 original wrappers remain; their text is represented as ordinary content |
+| Dropped, with a notice | Extra document bodies in malformed input | `MultipleBodyBug` contains three bodies; the first remains and the other two are omitted. Their content loss is explicitly reported before Save |
 | Kept; Office accepted | Per-property drawing edits, row/cell alternatives and watermarks | 62 focused checks and 48 save/edit/history/draft states pass; full corpus completed; 14 original batch-2 files pass Office and the comment repair has a confirmed correction |
 
 Package counts verify bytes, types, rIds and targets; unreferenced parts have separate loss entries.
@@ -215,6 +216,13 @@ unedited pairs change page count. Across all **19,028** states, the paired rende
 failures and count differences remain separate in the reports; these are not lossless-save percentages.
 The frozen report retains its original 13 count differences; the correction replaces only seven
 states in the combined report, retaining their independent hashes and provenance.
+The twelve remaining pairs are listed in
+`~/corpora/results/lossless-final-2026-10-09/RENDER-EXCEPTIONS.md`; known source defects and
+unresolved reflow are distinguished. Malformed extra-body/final-section notices cover two readable
+corpus inputs: six save/edit/draft attempts and 14 package/SDK states pass, as do all 29 Quire unit
+tests. All emitted package content matches the frozen saves except generated metadata timestamps,
+so the existing layout evidence applies. The scope scan retains 35 failed archive/main-XML reads
+separately. Evidence: `~/corpora/results/quire-structure-notices-2026-10-09/`.
 
 The convention scan has 193 signatures. Its three additions retain scoped MC processing rules on
 section properties and a Strict source's `end` list alignment; two normalized default-value signatures
