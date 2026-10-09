@@ -202,11 +202,16 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   the installed openpyxl environment and a 150-second limit, including the large workbook; no old
   cell results are substituted. The interrupted wrong-scenario attempt remains recorded separately.
   Existing value/formula and formatting exceptions remain documented.
-- Ledger's pre-release worksheet-format correction (`3a93371`, `ledger-legacy-format-2026-10-09/`)
-  covers two inputs / six worksheet properties. All six browser save/edit/draft attempts pass;
-  14 SDK comparisons remain failed because their originals are unreadable. Both saves render;
-  the readable original retains one page and the unreadable original has no comparable count.
-  The correction reports conversion; all 68 Ledger tests passed at that step.
+- Ledger's pre-release conversion covers two inputs and now translates obsolete workbook, style,
+  shared-string and theme markup as well as worksheet measures. Office-batch preparation found that
+  the earlier saves were also unreadable by the SDK; comparison had stopped at the originals. The
+  correction restores ten shared-string values and moves the legacy colour palette into the theme.
+  All 78 Ledger tests and six save/edit/draft attempts pass. All 14 saved states pass standalone SDK
+  validation with zero errors and add no package issues; their original-relative comparisons remain
+  failed because the originals are unreadable. Both saves render: the readable original retains one
+  page and the unreadable original has no comparable count. A 951-input scope scan identifies two
+  affected files and records 23 archive failures separately. Conversion notices describe unsupported
+  theme details. Evidence: `ledger-preview-schema-2026-10-09/`; Office acceptance remains pending.
 - Ledger page setup now keeps absence, individual attributes and printer dependencies. The seven
   public fixtures produce **21 successful driver attempts / 49 passing package/SDK states**; all
   seven unedited render pairs retain page counts, fixing five diagnosed differences. Thirteen

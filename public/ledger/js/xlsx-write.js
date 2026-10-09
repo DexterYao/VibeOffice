@@ -230,6 +230,7 @@
         try {
           root = wb.pkg.xml(source);
           if (root?.localName !== 'sst') throw new Error('The original string table has no valid root element.');
+          if (root.namespaceURI === 'http://schemas.microsoft.com/office/excel/2006/2') root = K.parse(L.preserve.previewXML(K.raw(root)));
         } catch (error) {
           writer.loss({ id: 'strings:malformed', what: 'The damaged shared-string table was rebuilt from the readable cell text.', where: source, action: 'conversion' });
           return;

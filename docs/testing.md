@@ -153,7 +153,9 @@ Loss acknowledgement is per entry; autosave must neither show a dialog nor ackno
 Package ownership, object preservation and save-dialog integration are implemented in all three apps.
 Current corpus limits and pending Office acceptance are listed in each app’s save table.
 `office-batch.mjs` also supports list-alignment edits, independent list copies (optionally after
-an alignment edit), and the chapter-number/continuous-section review. Use the same manifest against
+an alignment edit), two-column index insertion, repeated control copies followed by a sheet copy,
+master/layout decoration edits, and ungrouping charts or retained frames. A frame selector can target
+an opaque preview without relying on XML text inside its alternatives. Use the same manifest against
 the frozen current and previous writers before handing these files to Office.
 
 `opc-order.js` contains ordering and ID-bound facts for 27 types, generated from the official

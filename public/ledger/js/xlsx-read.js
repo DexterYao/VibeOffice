@@ -226,6 +226,13 @@
     const fills = kids(kid(el, 'fills'), 'fill').map((f) => fill(f));
     const borders = kids(kid(el, 'borders'), 'border').map(border);
     const colors = kid(el, 'colors');
+    const previewColors = el.namespaceURI === 'http://schemas.microsoft.com/office/excel/2006/2' && kid(colors, 'themeColors');
+    if (previewColors) {
+      wb.extra.previewThemeColors = kids(previewColors, 'rgbColor').map(e => at(e, 'rgb'));
+      const names = ['lt1', 'dk1', 'lt2', 'dk2', 'accent1', 'accent2', 'accent3', 'accent4', 'accent5', 'accent6', 'hlink', 'folHlink'];
+      wb.theme.scheme ||= {};
+      wb.extra.previewThemeColors.forEach((color, i) => { if (color && names[i]) wb.theme.scheme[names[i]] = wb.theme.colors[i] = '#' + color.slice(-6).toUpperCase(); });
+    }
     const idx = kid(colors, 'indexedColors');
     if (idx) {
       const pal = M.INDEXED.slice();
@@ -309,7 +316,7 @@
     XML.scan(text, 0, text.length, (name, kind, attrs, before) => {
       if (inT && before) { const t = XML.unx(XML.chars(before)); if (!inRPh) { if (cur) cur.t += t; siText += t; } }
       switch (name) {
-        case 'si':
+        case 'si': case 'sstItem':
           if (kind === 1) { runs = null; cur = null; siText = ''; }
           else if (kind === 2) out.push(runs && runs.some((r) => r.font) ? { text: siText, runs } : siText);
           else out.push('');

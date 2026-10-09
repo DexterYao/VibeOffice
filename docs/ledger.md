@@ -153,11 +153,17 @@ and drafts keep the retained settings. Literal `true`/`false` view flags retain 
 Pre-release worksheet-size markup converts to current settings with a notice. The 2005/8 vocabulary
 uses twip row heights and zero-based columns with widths in 1/256-character units; the reader now
 converts these and keeps the original automatic default height. The 2006/2 vocabulary retains its
-current-format units. Seven focused worksheet-property tests pass; ten pre-release saved states
-remain failed SDK comparisons because their originals cannot be read. Both saves open in
-LibreOffice; the readable original keeps its one page, while the unreadable original has no comparable
-count. The pre-release conversion remains pending in Excel. The automatic-height sample passed
-Excel in Office batch 5.
+current-format units. The conversion also replaces obsolete workbook/style/theme namespaces,
+translates shared-string entries and moves the legacy colour palette into the theme. It restores ten
+previously empty text cells in the 2006 preview sample. A 2005 theme is rebuilt from readable colours
+and fonts, with a notice for unsupported details. The corpus scan identifies two affected inputs;
+23 unreadable archives remain recorded separately. All 78 Ledger tests and six save/edit/draft
+attempts pass. Their 14 saved states pass the SDK independently with zero errors and add no package
+issues; comparisons against the unreadable originals remain failed. Both saves open in LibreOffice:
+the readable original keeps its one page, while the unreadable original has no comparable count.
+The pre-release conversion remains pending in Excel. Evidence:
+`~/corpora/results/ledger-preview-schema-2026-10-09/`. The automatic-height sample passed Excel in
+Office batch 5.
 
 Ordinary pictures now retain image effects, recolouring, geometry, fills, borders, styles and
 extensions. Cell edits leave these properties intact; moving/resizing changes geometry, crop/border
