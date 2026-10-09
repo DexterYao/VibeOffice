@@ -218,6 +218,9 @@ For the independent cell audit after `corpus.js --scenarios text`, set `SCENARIO
 edit. Dependent array-result recalculation still appears in the report. ZIP directory markers are
 excluded from feature-part counts.
 
+`node tools/ledger/test/scroll-ui.mjs` scrolls a sheet with the mouse wheel in all four directions
+and with the arrow keys, with and without frozen panes, letting the page repaint between steps.
+
 Build the SDK validator and install the independent workbook reader in a test environment:
 
 ```sh
