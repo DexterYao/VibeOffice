@@ -5,15 +5,17 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 
 ## Status
 
-**The planned preservation features and review fixes are implemented. Office batches 1–5 are
-accepted. The final Excel page-setup correction and remaining render exceptions still need closeout.**
+**The planned preservation features and review fixes are implemented. Office batches 1–6 are
+accepted. The final Excel render comparison and exception documentation still need closeout.**
 
 Full runs are complete for Word (`7c25bd7`), Excel (`3716a3b`) and PowerPoint (`56de065`), with
 **14,091 driver attempts / 30,919 package/SDK states** and no added validator diagnostics.
 Word's later one-input break recovery and Excel's two pre-release-format conversions have separate
 focused evidence; the versioned full artifacts remain unchanged. Five Excel pagination probes have
 identified another real preservation gap: absent page setup becomes portrait on save. Its correction
-passes 71 unit tests, 49 focused corpus states and seven render pairs; the final Excel refresh follows.
+passes 71 unit tests, 49 focused corpus states and seven render pairs. Its final Excel refresh now
+completes all 2,853 driver attempts and 6,589 package/SDK states without changed statuses or new
+diagnostics; feature and cell comparisons are unchanged. The full LibreOffice pass is running.
 
 - Word and package-preservation Office batches 1–2 are accepted, including corrected comments and
   all namespace follow-ups. The slide-6 PowerPoint repair is fixed and accepted (`60c26b4`).
@@ -24,6 +26,9 @@ passes 71 unit tests, 49 focused corpus states and seven render pairs; the final
 The user reported all three batches passing. Fresh LibreOffice checks of the exact 36 handed-off
 files also pass, with expected page/slide counts after their scripted edits. Hashes and results:
 `~/corpora/results/office-accepted-2026-10-09/`. The later page-setup change was not in these batches.
+[Office batch 6: final corrections, five files](/home/john/Downloads/lossless-check/office-batch-6/CHECKLIST.md)
+is accepted: four Excel page-setup samples and one Word break-recovery sample. All five add no
+package/SDK diagnostics and pass LibreOffice; previous-writer differences are reviewed.
 
 The handed-off files remain unchanged. Failed/excluded inputs and the documented content/layout
 exceptions remain explicit. **The plan is not signed off**, and automated checks do not establish Office acceptance.
@@ -192,7 +197,8 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   seven unedited render pairs retain page counts, fixing five diagnosed differences. Thirteen
   command states cover paper/quality edits, history and sheet copies, with three additional chart-sheet
   states passing separately. The **71-test Ledger suite and new chart-sheet regression** pass.
-  Evidence: `ledger-page-setup-2026-10-09/`. The final full Excel refresh and Office check remain.
+  Evidence: `ledger-page-setup-2026-10-09/`. The full Excel render comparison is running;
+  the final page-setup and Word break-recovery samples passed Office batch 6.
 - Lectern (`review-final-56de065/lectern/`): save/draft each **837 OK / six failed / one excluded**;
   text **548 OK / six failed / 290 excluded**. Its **5,302** validation states have **4,914 OK /
   96 failed / 292 excluded**. All **827** independently readable unedited pairs retain every
@@ -220,8 +226,8 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   identity and Compatibility Checker checks retain their prior passing evidence; unchanged suites
   are not repeated solely to generate another total.
 
-Next: finish the frozen Excel page-setup measurement, remaining render-exception review and current
-docs, then obtain acceptance of the final correction samples before signoff. Original failures, hashes,
+Next: finish the frozen Excel render comparison, remaining exception review and current docs.
+Every handed-off Office sample is accepted. Original failures, hashes,
 correction overlays and earlier measurements remain with the versioned report directories.
 
 ## Review of 6d24c43..275406e (2026-10-08)
@@ -265,7 +271,7 @@ the package rules `duplicate-vml-id`, `shared-vml-preview`, `duplicate-vml-block
 column IDs, note VML blocks, and slicer copy names and workbook names.
 
 **Rebuilt:** batches 3 and 4 now use `56de065`, with every previous-writer difference reviewed.
-The earlier handoffs are archived; the current copies await Excel and PowerPoint acceptance.
+The earlier handoffs are archived; the current copies have passed Excel and PowerPoint.
 
 Also fixed afterwards:
 - namespace processing cost: a fast path in `K.hoistNamespaces` with identical output on 11,595

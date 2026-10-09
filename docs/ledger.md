@@ -159,8 +159,13 @@ public save/edit/draft inputs produce 49 passing package/SDK states, with all se
 pairs retaining their original page counts; this fixes five diagnosed count differences. Sixteen
 distinct command states cover paper/quality edits, chart sheets, history and copies. The 71-test
 Ledger suite and the additional chart-sheet regression pass.
-The final full refresh and Excel acceptance are pending. Focused evidence:
-`~/corpora/results/ledger-page-setup-2026-10-09/`.
+The final `3cb0cd2` refresh completes all 2,853 driver attempts and 6,589 package/SDK states with
+unchanged statuses and zero added diagnostics; feature and independent cell comparisons are also
+unchanged. Its full LibreOffice pass is running. Office batch 6 files 01–04 cover absence,
+paper/quality edits, copied printer relationships and scoped namespace directives; all four pass
+focused package/SDK and LibreOffice checks and are accepted in Excel. Evidence:
+`~/corpora/results/ledger-page-setup-2026-10-09/`, `ledger-final-3cb0cd2/` and
+`office-final-corrections-2026-10-09/`.
 
 Ledger regenerates worksheets and keeps original package dependencies, workbook settings, style
 indices and shared strings. Save and drafts retain all four OOXML variants and encryption. The
@@ -169,13 +174,13 @@ including edited imported charts and opaque drawings. Drafts retain notices sile
 
 The pinned 951-file corpus saves and reopens **935 workbooks**, with **11 failures and 5 exclusions**.
 Cell edit/save/undo/redo completes in **933**, with **11 failures and 7 exclusions**; draft recovery
-completes in **935**, with **11 failures and 5 exclusions**. The current full run uses writer `3716a3b`,
-with the two pre-release worksheet-format corrections measured separately.
+completes in **935**, with **11 failures and 5 exclusions**. The current driver, validation and cell
+run uses writer `3cb0cd2`, including the pre-release worksheet-format and page-setup corrections.
 Package/SDK comparison reports **911 OK, 35 failed and
 5 excluded** for unedited saves. Across **6,589** save/edit/history/draft states, **6,371 pass,
 201 fail and 17 are excluded**; none adds diagnostics. Malformed or unvalidatable originals
 remain failures in the reports. All validation statuses match the preceding run. The shared review
-suite and audit regression pass; the latest Ledger test run has 68 passing tests.
+suite and audit regression pass; the 71-test Ledger run and subsequent chart-sheet regression pass.
 
 The feature inventory compares **922 readable pairs**. The independent openpyxl cell comparison
 covers **889 workbooks / 1,649,147 cells**: **883 workbooks** keep every compared value/formula;
@@ -198,7 +203,7 @@ part in `tdf76115` explicitly.
 | Kept; Excel samples accepted | Pivot tables and caches | 156/156 tables and 131/131 caches. Twelve focused cases / 34 saved states cover sources, shifts, refresh, copy and deletion; dependent slicers follow deleted sources and shared pivots |
 | Kept; Excel samples accepted | Threaded comments | 6/6 corpus records across four workbooks; five thread parts and four person parts remain byte-identical. Focused edits retain replies, mentions, person IDs and shifted cell references |
 | Kept | Notes, tables, merges, validation and names | 373/373 notes, 230/230 tables, 56,263/56,263 merges, 259/259 validations, 2,106/2,106 names |
-| Kept; full refresh and Excel check pending | Page setup, absent defaults and printer settings | Seven public fixtures / 49 save/edit/history/draft states add no package/SDK diagnostics; all seven unedited render pairs retain their page counts. Paper and print-quality edits retain sibling options and binary printer settings |
+| Kept; Excel samples accepted | Page setup, absent defaults and printer settings | Seven public fixtures / 49 save/edit/history/draft states add no package/SDK diagnostics; all seven unedited render pairs retain their page counts. Paper and print-quality edits retain sibling options and binary printer settings |
 | Kept, with exceptions | Charts, pictures and shapes | 155/157 charts, 164/165 pictures and 492/493 shapes; unedited raw shapes retain nested compatibility alternatives and relationships |
 | Kept; Excel samples accepted | Worksheet extensions and newer conditional formatting | The 65-workbook extension sweep retains 100/100 extension entries with unchanged expanded XML: 23/23 extended bars, 53/53 extended rules, 20/20 extended validations, 9/9 sparkline groups and 63/63 unknown entries. Package checks add no issues; SDK comparisons pass in 64, with one malformed original unvalidatable |
 | Kept; Excel samples accepted | Controls, OLE, non-comment VML and sheet custom properties | All 40 relevant workbooks save without new package/SDK errors: 344/344 control references, 370/370 control/ActiveX parts, 26/26 OLE entries, 367/367 non-note VML shapes and 31/31 sheet properties. All 43 VML parts retain their original bytes |
@@ -217,11 +222,12 @@ all **23 Strict workbooks / 92 emitted states** against original package/SDK dia
 its notice through draft recovery; the Strict Excel sample passed Office batch 2.
 Reports, failed attempts and historical measurements: `~/corpora/results/next-plan-head-2026-10-08/`
 and `~/corpora/results/strict-transitional-2026-10-08/`. Current full results:
-`~/corpora/results/ledger-final-3716a3b/`; feature edit checks are in
+`~/corpora/results/ledger-final-3cb0cd2/`; feature edit checks are in
 `~/corpora/results/ledger-group-2026-10-09/` and `~/corpora/results/review-fixes-2026-10-09/`.
-The convention scan has 187 signatures after the two pre-release corrections. Its two additions
-preserve inherited, scoped `mc:PreserveAttributes`/`mc:Ignorable` on worksheet-format properties;
-their processing scope cannot safely move to the root. The rebuilt 15-file **Office batch 3**
+The convention scan has 189 signatures after the pre-release and page-setup corrections. Its four
+additions preserve inherited, scoped `mc:PreserveAttributes`/`mc:Ignorable` on worksheet-format and
+page-setup properties; their processing scope cannot safely move to the root. The page-setup form
+passed Excel in batch 6. The rebuilt 15-file **Office batch 3**
 uses `56de065` and passes package/SDK and LibreOffice with expected counts, with explained changes
 against the previous handoff; **all 15 samples passed Excel**. File 04 also checks the root-comment
 edit correction measured in `~/corpora/results/thread-root-edit-2026-10-09/`; its updated sample keeps
@@ -408,7 +414,7 @@ comparisons pass and one original (`queryTableExport.xlsx`) has a missing depend
 be validated. Ledger does not execute a query or enable refresh. Current focused reports:
 `~/corpora/results/review-fixes-2026-10-09/guid-queries/`; sweep and browser reports:
 `~/corpora/results/ledger-preservation-2026-10-08/query-*`.
-The full Ledger group measurement is reported above; The batch-3 Excel samples are accepted.
+The full Ledger group measurement is reported above; the batch-3 Excel samples are accepted.
 
 ## Compatibility testing
 

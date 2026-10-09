@@ -216,7 +216,7 @@ The 18-deck sweep and all 26 edit/history/draft states introduce no package/SDK 
 Large slide IDs and empty sections are covered by a public one-slide deck with ten sections.
 Two edited samples and four history states open in LibreOffice with the expected inserted/deleted
 slide counts. The browser edit driver and app load report no console errors.
-The full group measurement is above; All 15 batch-4 samples passed PowerPoint. Reports:
+The full group measurement is above; all 15 batch-4 samples passed PowerPoint. Reports:
 `~/corpora/results/lectern-preservation-2026-10-09/membership-*`.
 
 ### Comments: edit behavior

@@ -205,6 +205,8 @@ records 33 archive/XML read failures separately. Seven command states and seven 
 save/edit/history/draft states add no package/SDK diagnostics; 25 browser assertions and all 27
 Quire unit tests pass. All seven emitted corpus states retain four LibreOffice pages.
 Reports: `~/corpora/results/quire-break-recovery-2026-10-09/`.
+Office batch 6 file 05 checks that correction in Word; its package/SDK and four-page LibreOffice
+comparisons pass, and the user accepted it in Word.
 
 The full LibreOffice pass renders **2,869/2,880 unedited saves**. Every unsuccessful saved render
 also fails or times out in its original. With the separately measured break correction, **12** readable
