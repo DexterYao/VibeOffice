@@ -71,3 +71,15 @@ test('blank cells keep source style identities through edits, clearing, row shif
   O.clear(sh, [range], 'all'); await check('clear-all', 0, false);
   wb.undo.undo(); await check('clear-all-undo');
 });
+
+test('authored table blank cells retain their explicit default-looking style', async t => {
+  const wb = await open(t, 'poi__a3232f095b4d__tableStyle.xlsx'); if (!wb) return;
+  const saved = await save(wb, 'table-blank-styles');
+  for (const c of [1, 2]) {
+    const original = wb.sheets[0].get(6, c), reopened = saved.wb.sheets[0].get(6, c);
+    assert.equal(original?.keep?.style, 1, 'B7/C7 have an explicit source style');
+    assert.equal(original.s || 0, 0);
+    assert.equal(reopened?.keep?.style, 1, 'blank cell and style survive the writer');
+    assert.equal(reopened.v, original.v);
+  }
+});

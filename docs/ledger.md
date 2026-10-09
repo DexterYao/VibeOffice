@@ -130,19 +130,24 @@ be served over https or from localhost. A workbook opened with its password keep
 
 ## What a save keeps, converts and drops
 
-The full LibreOffice pass on the versioned `3cb0cd2` artifacts renders **930/935 unedited saves**;
-**five** readable pairs change page count, down from 37 after the page-setup correction, with no
-new differences. Across **6,589** attempted states, **6,312** pass the paired render/count check,
-**260** fail and **17** are excluded. Failures include
+The full LibreOffice pass on the versioned `984eaf3` artifacts renders **930/935 unedited saves**;
+**three** readable pairs change page count, down from 37 after the page-setup and layout corrections,
+with no new differences. Across **6,589** attempted states, **6,326** pass the paired render/count
+check, **246** fail and **17** are excluded. Failures include
 unrenderable originals, missing outputs, conversion errors/timeouts and count differences. This does
 not establish visual fidelity for every workbook. All five saved-render failures also fail or time
-out in their originals. Reports: `~/corpora/results/ledger-final-3cb0cd2/`. A subsequent focused
+out in their originals. Reports: `~/corpora/results/lossless-final-984eaf3/ledger/`. The layout
 correction restores the original counts for `tdf66668` (two pages) and `pivottable_tabular_mode`
 (four). Signed drawing offsets are retained, and empty cells retain their original style identity
 even when it maps to the model's default style. These cells follow row shifts and undo; clearing
 formats or all content removes the retained style. All 74 Ledger tests, 19 command package/SDK
-comparisons and six browser draft/recovery comparisons pass. These two corrections await Excel
-acceptance and the next full refresh; their evidence is in `~/corpora/results/ledger-layout-final-2026-10-09/`.
+comparisons and six browser draft/recovery comparisons pass. The `984eaf3` full refresh confirms both
+count corrections. Office batch 7 file 07 passed. File 08 and its untouched Excel source both offer
+repair; removing the source recovery flag does not resolve it. An Office-authored replacement with
+the same blank-cell style behavior (`tableStyle.xlsx`, B7/C7) passes Excel, package/SDK and LibreOffice.
+The source failure remains a documented exception. Focused evidence is in
+`~/corpora/results/ledger-layout-final-2026-10-09/`.
+The isolation and accepted replacement are recorded in `~/corpora/results/office-batch-7-repair-2026-10-09/`.
 The remaining three count differences are `tdf118668` (invalid source sheet visibility),
 `Photo Formats - CGM-O12-XL-Pictures` (unresolved reflow despite retained picture formatting), and
 `clusterfuzz-testcase-minimized-POIXSSFFuzzer-5937385319563264` (a damaged source ZIP member).
@@ -161,7 +166,7 @@ and fonts, with a notice for unsupported details. The corpus scan identifies two
 attempts pass. Their 14 saved states pass the SDK independently with zero errors and add no package
 issues; comparisons against the unreadable originals remain failed. Both saves open in LibreOffice:
 the readable original keeps its one page, while the unreadable original has no comparable count.
-The pre-release conversion remains pending in Excel. Evidence:
+The pre-release conversion passed Excel in Office batch 7 files 03–04. Evidence:
 `~/corpora/results/ledger-preview-schema-2026-10-09/`. The automatic-height sample passed Excel in
 Office batch 5.
 
@@ -172,17 +177,18 @@ Deleting a picture removes its retained properties. Replacing its image removes 
 extensions/effects with a notice. Two real-file regressions and 14 package/SDK states pass through
 edits, copies, undo/redo and recovery. The picture-format workbook opens in LibreOffice but retains
 its separate 19→17-page layout difference. Invalid source sheet visibility, which accounts for another
-remaining count difference, now has an explicit conversion notice. These corrections await a full
-refresh and Office acceptance; evidence is in `~/corpora/results/lossless-evening-review-2026-10-09/`.
+remaining count difference, now has an explicit conversion notice. These corrections are included in
+the `984eaf3` full refresh; Office batch 7 file 06 passed Excel. Focused evidence is in
+`~/corpora/results/lossless-evening-review-2026-10-09/`.
 
 Page setup now retains its original absence, per-property values and printer-setting relationships.
 Cell edits no longer introduce a portrait orientation into a sheet that omitted page setup. Seven
 public save/edit/draft inputs produce 49 passing package/SDK states, with all seven unedited render
 pairs retaining their original page counts. Sixteen distinct command states cover paper/quality
 edits, chart sheets, history and copies.
-The final `3cb0cd2` refresh completes all 2,853 driver attempts and 6,589 package/SDK states with
-unchanged statuses and zero added diagnostics; feature and independent cell comparisons are also
-unchanged. Its full LibreOffice pass resolves 32 earlier count differences. Office batch 6 files 01–04 cover absence,
+The `984eaf3` refresh completes all 2,853 driver attempts and 6,589 package/SDK states with
+unchanged statuses and zero added diagnostics; independent cell comparisons are also unchanged.
+Its full LibreOffice pass resolves 34 earlier count differences. Office batch 6 files 01–04 cover absence,
 paper/quality edits, copied printer relationships and scoped namespace directives; all four pass
 focused package/SDK and LibreOffice checks and are accepted in Excel. Evidence:
 `~/corpora/results/ledger-page-setup-2026-10-09/`, `ledger-final-3cb0cd2/` and
@@ -195,13 +201,14 @@ including edited imported charts and opaque drawings. Drafts retain notices sile
 
 The pinned 951-file corpus saves and reopens **935 workbooks**, with **11 failures and 5 exclusions**.
 Cell edit/save/undo/redo completes in **933**, with **11 failures and 7 exclusions**; draft recovery
-completes in **935**, with **11 failures and 5 exclusions**. The current driver, validation and cell
-run uses writer `3cb0cd2`, including the pre-release worksheet-format and page-setup corrections.
+completes in **935**, with **11 failures and 5 exclusions**. The current full driver, validation and
+cell run uses writer `984eaf3`. The two-input `7f85450` preview-schema correction has its separately
+hashed 14-state validation/render evidence above; unchanged corpus inputs are not rerun.
 Package/SDK comparison reports **911 OK, 35 failed and
 5 excluded** for unedited saves. Across **6,589** save/edit/history/draft states, **6,371 pass,
 201 fail and 17 are excluded**; none adds diagnostics. Malformed or unvalidatable originals
 remain failures in the reports. All validation statuses match the preceding run. The shared review
-suite and audit regression pass; the 71-test Ledger run and subsequent chart-sheet regression pass.
+suite and audit regression pass; all 78 Ledger unit tests pass.
 
 The feature inventory compares **922 readable pairs**. The independent openpyxl cell comparison
 covers **889 workbooks / 1,649,147 cells**: **883 workbooks** keep every compared value/formula;
@@ -243,12 +250,13 @@ all **23 Strict workbooks / 92 emitted states** against original package/SDK dia
 its notice through draft recovery; the Strict Excel sample passed Office batch 2.
 Reports, failed attempts and historical measurements: `~/corpora/results/next-plan-head-2026-10-08/`
 and `~/corpora/results/strict-transitional-2026-10-08/`. Current full results:
-`~/corpora/results/ledger-final-3cb0cd2/`; feature edit checks are in
+`~/corpora/results/lossless-final-984eaf3/ledger/`; feature edit checks are in
 `~/corpora/results/ledger-group-2026-10-09/` and `~/corpora/results/review-fixes-2026-10-09/`.
-The convention scan has 189 signatures after the pre-release and page-setup corrections. Its four
-additions preserve inherited, scoped `mc:PreserveAttributes`/`mc:Ignorable` on worksheet-format and
-page-setup properties; their processing scope cannot safely move to the root. The page-setup form
-passed Excel in batch 6. The rebuilt 15-file **Office batch 3**
+The convention scan has 192 signatures: three additions to the preceding writer retain a Strict
+picture's round-rectangle adjustment and duotone colour/order in Transitional vocabulary. The
+subtrees otherwise match the source and passed Excel in batch 7. Scoped
+`mc:PreserveAttributes`/`mc:Ignorable` on worksheet-format and page-setup properties retain their
+original processing scope; the page-setup form passed Excel in batch 6. The rebuilt 15-file **Office batch 3**
 uses `56de065` and passes package/SDK and LibreOffice with expected counts, with explained changes
 against the previous handoff; **all 15 samples passed Excel**. File 04 also checks the root-comment
 edit correction measured in `~/corpora/results/thread-root-edit-2026-10-09/`; its updated sample keeps
@@ -361,7 +369,7 @@ Reports: `~/corpora/results/review-fixes-2026-10-09/guid-threads/` and
 
 Sixteen focused tests produce **63 passing package/SDK states**, including ActiveX copies with and
 without a numeric suffix, copies of copies, copied sheets and recovery. Both selected copied-control
-saves open in LibreOffice with unchanged counts; these new ActiveX corrections await Office review.
+saves open in LibreOffice with unchanged counts; Office batch 7 file 05 passes Excel.
 The earlier sweep also has **two passing browser draft states**
 after cross-workbook paste and undo/redo. Two edited samples open in LibreOffice with unchanged
 one-page counts. Core checks pass and all four pages load without console errors (existing

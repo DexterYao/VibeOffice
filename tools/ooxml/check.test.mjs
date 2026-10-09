@@ -54,6 +54,16 @@ test('PowerPoint graphic frames cannot carry DrawingML rotation or flips', async
   const bad = run('check', await pkg('rotated-frame', { 'slide.xml': frame(' rot="60000" flipH="0" flipV="1"') }));
   assert(bad.issues.some(i => i.code === 'graphic-frame-orientation'));
 });
+test('synthetic unread graphics need an unsupported compatibility choice with a fallback', async () => {
+  const graphic = '<p:graphicFrame><a:graphic><a:graphicData uri="urn:vibeoffice:test:unread"><probe:object xmlns:probe="urn:vibeoffice:test:unread"/></a:graphicData></a:graphic></p:graphicFrame>';
+  const check = async (name, xml) => run('check', await pkg(name, { 'slide.xml': slide(xml) }));
+  assert((await check('unguarded-probe', graphic)).issues.some(i => i.code === 'unguarded-test-graphic'));
+  const choice = (requires, fallback) => `<mc:AlternateContent xmlns:mc="${MC}" xmlns:probe="urn:vibeoffice:test:unread" xmlns:p="${P}"><mc:Choice Requires="${requires}">${graphic}</mc:Choice>${fallback}</mc:AlternateContent>`;
+  assert.equal((await check('guarded-probe', choice('probe', '<mc:Fallback/>'))).status, 'ok');
+  assert((await check('probe-without-fallback', choice('probe', ''))).issues.some(i => i.code === 'unguarded-test-graphic'));
+  assert((await check('probe-in-supported-choice', choice('p', '<mc:Fallback/>'))).issues.some(i => i.code === 'unguarded-test-graphic'));
+  assert.equal((await check('unknown-real-graphic', graphic.replaceAll('urn:vibeoffice:test:unread', 'urn:vendor:future-graphic'))).status, 'ok');
+});
 test('VML drawing parts name each shape once and each embedded object has its own preview', async () => {
   const parts = (ids, spids) => ({ 'slide.xml': slide(spids.map(id => `<p:oleObj spid="${id}"/>`).join('')),
     '_rels/slide.xml.rels': rels(rel('vml', 'vml.vml', 'vmlDrawing')),

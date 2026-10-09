@@ -225,6 +225,19 @@ class Package:
             for el, path, branches in walk(root):
                 ns, tag = split(el.tag)
                 parent = parents.get(el)
+                if ns in A and tag == 'graphicData' and el.get('uri') == 'urn:vibeoffice:test:unread':
+                    # Batch 7: our unguarded synthetic frame repairs in Office,
+                    # even in its original fixture. Do not reject unfamiliar
+                    # real-world graphic types on this limited evidence.
+                    choice = parent
+                    while choice is not None and choice.tag != '{' + MC + '}Choice':
+                        choice = parents.get(choice)
+                    ac = parents.get(choice)
+                    guarded = (choice is not None and '{urn:vibeoffice:test:unread}' in choice.get('Requires', '').split()
+                               and ac is not None and ac.tag == '{' + MC + '}AlternateContent'
+                               and ac.find('{' + MC + '}Fallback') is not None)
+                    if not guarded:
+                        self.issue('unguarded-test-graphic', part, 'Synthetic graphic type needs an unsupported Choice and a Fallback.', path)
                 if ns in P and tag == 'xfrm' and parent is not None and split(parent.tag) == (ns, 'graphicFrame'):
                     orientation = [name for name in ('rot', 'flipH', 'flipV') if name in el.attrib]
                     if orientation:

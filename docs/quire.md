@@ -117,16 +117,16 @@ its editable model. Save and drafts retain DOCX/DOCM/DOTX/DOTM and encryption. T
 Checker reports conversions from the prepared output before a user download. Drafts retain notices
 silently, and cancelling a conversion does not leave its notice on a later preserving save.
 
-The current pinned **2,902-file** run uses frozen writer `7c25bd7`, including section and numbering
+The current pinned **2,902-file** run uses frozen writer `984eaf3`, including section and numbering
 preservation. **2,880 save/reopen and draft-recovery attempts complete**, with **22 failures** in each
 scenario. Text edit/save/undo/redo completes in **2,281**, with **599 exclusions and 22 failures**.
 Protected, malformed and mislabeled inputs remain explicit failures.
 
 Across **19,028 emitted/attempted states**, package/SDK comparison reports **18,056 OK, 373 failed
 and 599 excluded**, with no added diagnostics. Save/reopen alone has **2,828 OK and 74 failed**;
-unvalidatable originals remain failures. The previous comment, formatting, compatibility-attribute
-and drawing-ID corrections are included in this full run. A later one-input break-recovery
-correction passes all seven emitted states separately and changes no valid-input path.
+unvalidatable originals remain failures. Comment, formatting, compatibility-attribute, drawing-ID,
+break-recovery and structure-loss notice corrections are included in this full run. Two initial text
+timeouts pass focused retries; the original failed attempts remain recorded alongside those results.
 Retained content properties normalize known invalid order, redundant identical properties and
 unambiguous color spelling, with one Compatibility Checker notice per affected source part.
 Styles, conflicting values and unknown Word children remain intact. A corpus scan found 74 candidate
@@ -204,7 +204,7 @@ pass 44 assertions and 23 package/SDK comparisons, including repeated imports, u
 Multi-column index insertion keeps the original section start before the index and makes the index
 and remainder continuous; two fixtures pass 18 assertions and 14 package/SDK comparisons through
 undo/redo and draft recovery. All four selected saves open in LibreOffice with unchanged counts.
-These corrections await the next full refresh and Office acceptance. Focused evidence:
+These corrections passed Word in Office batch 7 files 01–02 and are included in the full refresh. Focused evidence:
 `~/corpora/results/lossless-evening-review-2026-10-09/`.
 The render review also found seven misplaced breaks in `tdf108714`, which the reader previously
 skipped. Recovering them in valid paragraphs/runs retains all four pages on save and text edit,
@@ -217,23 +217,21 @@ Office batch 6 file 05 checks that correction in Word; its package/SDK and four-
 comparisons pass, and the user accepted it in Word.
 
 The full LibreOffice pass renders **2,869/2,880 unedited saves**. Every unsuccessful saved render
-also fails or times out in its original. With the separately measured break correction, **12** readable
+also fails or times out in its original. With the break correction included, **12** readable
 unedited pairs change page count. Across all **19,028** states, the paired render/count results are
 **18,000 OK, 429 failed and 599 excluded**. Missing outputs, unrenderable originals, saved conversion
 failures and count differences remain separate in the reports; these are not lossless-save percentages.
-The frozen report retains its original 13 count differences; the correction replaces only seven
-states in the combined report, retaining their independent hashes and provenance.
-The twelve remaining pairs are listed in
-`~/corpora/results/lossless-final-2026-10-09/RENDER-EXCEPTIONS.md`; known source defects and
+The current run and explicit retry results are retained in `~/corpora/results/lossless-final-984eaf3/`.
+The twelve remaining pairs are listed in its `consolidated/render-exceptions.json`; known source defects and
 unresolved reflow are distinguished. Malformed extra-body/final-section notices cover two readable
 corpus inputs: six save/edit/draft attempts and 14 package/SDK states pass, as do all 29 Quire unit
 tests. All emitted package content matches the frozen saves except generated metadata timestamps,
 so the existing layout evidence applies. The scope scan retains 35 failed archive/main-XML reads
 separately. Evidence: `~/corpora/results/quire-structure-notices-2026-10-09/`.
 
-The convention scan has 193 signatures. Its three additions retain scoped MC processing rules on
-section properties and a Strict source's `end` list alignment; two normalized default-value signatures
-are removed. No new package/SDK diagnostic accompanies them. Office batches 1–2, including the
+The convention scan has 193 signatures, unchanged from the preceding full writer. The earlier
+scoped MC rules and Strict list-alignment entries retain their reviewed source properties.
+No new package/SDK diagnostic accompanies them. Office batches 1–2, including the
 comment repair and all namespace follow-ups, are accepted. Batch 5's section/numbering samples
 are also accepted.
 The Office checklist is `~/Downloads/lossless-check/office-batch-2/CHECKLIST.md`; file 12 records its

@@ -91,11 +91,12 @@ Office review batches are documented in [testing.md](testing.md).
 
 ## What a save keeps, converts and drops
 
-The full LibreOffice pass on the versioned `56de065` artifacts renders **836/837 unedited saves**,
+The full LibreOffice pass on the versioned `984eaf3` artifacts renders **836/837 unedited saves**,
 with **zero** page-count differences among pairs that render. Across **5,302** attempted states,
 **4,939** pass the paired render/count check, **71** fail and **292** are excluded. Failures include
 missing outputs, unrenderable originals and LibreOffice crashes; they remain recorded separately
-from package/SDK results. All 15 batch-4 samples passed PowerPoint. Reports: `~/corpora/results/lo-final-2026-10-09/`.
+from package/SDK results. All 15 batch-4 samples and the batch-7 corrections passed PowerPoint,
+including the corrected fixture described below. Reports: `~/corpora/results/lossless-final-984eaf3/lectern/`.
 
 Lectern regenerates slides and keeps package dependencies and unsupported properties beside the model.
 Save and drafts retain all six OOXML variants and encryption. The Compatibility Checker reports
@@ -105,10 +106,12 @@ The pinned **844-file** run completes **837 saves and 837 draft recoveries**, wi
 1 password exclusion** in each scenario. Text edit/save/undo/redo completes in **548**, excludes
 **290** without editable text and fails in **6**. Across **5,302 emitted or attempted states**, package/SDK
 comparison has **4,914 OK, 96 failed and 292 excluded**, with **no new diagnostics**. Failed originals
-and incomplete recovered decks remain failures. The current full writer is `56de065`;
-reports retain every original attempt. SDK evidence is reused for 4,607 states only after the original
-hash and every saved ZIP member match the previous validated output; package checks are fresh.
-The remaining 695 attempted states use the normal validator, with all statuses matching the preceding run.
+and incomplete recovered decks remain failures. The current full writer is `984eaf3`.
+Two initial text/draft timeouts pass a focused retry with a 240-second deadline; the original failed
+attempts remain recorded. SDK evidence is reused for 4,608 states only after the original hash and
+every saved ZIP member match the previous validated output; package checks are fresh. Four PDF
+count comparisons are corrected for authored hidden slides, with unchanged slide identities,
+visibility and PDF hashes; those original failed comparisons also remain in the primary report.
 
 The independent inventory compares **827 readable pairs** and records **17 failed comparisons**.
 All **58,022 counted words** and every inventoried feature remain after an unchanged save, including
@@ -157,9 +160,9 @@ counts. Strict conversion passes **85 presentations / 340 emitted states** again
 package/SDK diagnostics; the Strict presentation sample passed Office batch 2. Rewritten parts now
 hoist fragment namespace declarations and `mc:Ignorable` to the root. The fresh namespace sample
 passes PowerPoint, package/SDK and LibreOffice with unchanged slide count. Opaque parts retain their
-bytes. Current full reports and exceptions are in `~/corpora/results/review-final-56de065/lectern/`.
-The convention scan has 166 signatures, with no additions; removing spurious rotation/flip attributes
-on retained ink transforms removes three signatures. Focused checks remain in
+bytes. Current full reports and exceptions are in `~/corpora/results/lossless-final-984eaf3/lectern/`.
+The convention scan has 163 signatures, with no additions; removing rotation/flip attributes from
+graphic-frame transforms removes three signatures from the preceding scan. Focused checks remain in
 `~/corpora/results/lectern-group-2026-10-09/` and `~/corpora/results/review-fixes-2026-10-09/`.
 
 ### Media: edit behavior
@@ -197,8 +200,12 @@ states pass package/SDK checks and cover geometry, theme changes, styles, indepe
 last-slide deletion, new layouts, interleaved unread shapes, stacking order, undo/redo and actual drafts.
 The corrected design-style case is included. Three earlier edited samples and the unread-decoration
 regression open in LibreOffice with expected slide counts.
-Master/layout decoration edits remain pending in Office; the accepted batch-4 design samples did
-not exercise those later corrections.
+Office batch 7 file 13 and its synthetic source both offered repair. Removing the invented graphic
+type passed PowerPoint with both decoration edits intact. The fixture now guards that test object
+inside an unsupported compatibility choice with an empty fallback. Its actual writer output passes
+PowerPoint, package/SDK and LibreOffice; two movement scenarios retain save/undo/redo behavior.
+The checker rejects the unguarded test type, and its regression fails on the previous checker.
+No production writer changed for this fixture defect. Evidence: `~/corpora/results/office-batch-7-repair-2026-10-09/`.
 All 15 batch-4 samples passed PowerPoint. Reports:
 `~/corpora/results/lectern-preservation-2026-10-09/designs-*` and
 `~/corpora/results/review-fixes-2026-10-09/designs*`.
@@ -273,7 +280,8 @@ Modern comment extensions retain their original sibling slots, including when a 
 creation ID; both added comment cases pass package/SDK checks. All five selected PowerPoint saves
 open in LibreOffice with unchanged slide counts. A scan finds seven illegal frame transforms in
 five preceding full-run saves and none in readable originals; the writer correction prevents them.
-These changes await the next full refresh and Office acceptance. Evidence:
+These changes are measured in the `984eaf3` refresh. Office batch 7 files 09–12 and 14 passed;
+file 13's corrected master/layout fixture also passed, as described above. Evidence:
 `~/corpora/results/lossless-evening-review-2026-10-09/`.
 Of 959 diagram, embedding, ink and model dependency parts, 928 are byte-identical, ten are Strict
 conversions, three remove missing optional cache references, and 18 are unreferenced orphan parts
