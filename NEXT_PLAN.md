@@ -5,8 +5,8 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 
 ## Status
 
-**Implementation is not complete.** The 2026-10-09 review (below) has remaining redundant-loss notices
-and final measurement/handoff work. Ledger copies use the shared GUID helper and allocate linked VML identities inside each sheet's blocks,
+**Review fixes are implemented; final measurement and Office handoff remain.** Ledger copies use the
+shared GUID helper and allocate linked VML identities inside each sheet's blocks,
 including nested controls; retained notes do not allocate unnecessary blocks.
 Design edits now retain unread shapes and stacking order; opaque-frame rotation
 is disabled and moves retain member orientations. Modern comment anchors retain creation IDs;
@@ -22,7 +22,8 @@ correction there clears all 31 failing SDK comparisons in six malformed-formatti
   and measured; [Excel batch 3](/home/john/Downloads/lossless-check/office-batch-3/CHECKLIST.md) pending.
 - Lectern sections/shows, comments, opaque frames, designs, tags/actions/effects and timing: implemented
   and measured; [PowerPoint batch 4](/home/john/Downloads/lossless-check/office-batch-4/CHECKLIST.md) pending.
-- Conversion notices, edit/history/draft checks, final corpus runs and current documentation are done.
+- Conversion notices and focused edit/history/draft checks are implemented. The review fixes pass
+  142 unit tests; current full Ledger/Lectern runs and rebuilt Office samples follow before signoff.
   Failed and excluded inputs remain explicit; the suite does not claim every arbitrary input is lossless.
 
 **Slide-6 repair: fixed** (`60c26b4`), confirmed in PowerPoint. The last batch-preparation defect,
@@ -194,8 +195,9 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
 Current reports: `~/corpora/results/final-suite-2026-10-09/` and
 `~/corpora/results/lectern-group-2026-10-09/`; the final Word correction and combined report are in
 `~/corpora/results/quire-property-repair-2026-10-09/`. Exact inputs, frozen writer revisions, initial failures,
-correction overlays, hashes and older progress notes stay with those reports. The next action is to
-record the two Office results, fix any reported repair and only then sign off the plan.
+correction overlays, hashes and older progress notes stay with those reports. The review fixes and
+their focused measurements are in `~/corpora/results/review-fixes-2026-10-09/`. Next: full current
+Ledger/Lectern runs, rebuilt/diffed batches 3–4, then actual Office acceptance before signoff.
 
 ## Review of 6d24c43..275406e (2026-10-08)
 Followed well: bounded Office batches with previous-writer comparison, checker rules for the WordArt
@@ -278,7 +280,9 @@ Remaining, in order:
      directive cases pass without treating their necessary local declaration as a failure.
    - The former `designs.mjs` `style` failure is fixed: paragraph preservation now writes an edited
      default run property while retaining its unknown siblings.
-   - Converting one SmartArt adds five generic "no remaining reference" notices beside the specific one.
+   - (Fixed.) An explicit frame conversion/deletion notice accounts for its opaque dependency tree;
+     unrelated losses remain visible. Three real-file cases / nine saved states pass package/SDK
+     comparison without the redundant notices. The change is in the loss audit, not SmartArt conversion.
 
 
 Leave SmartArt to the parallel SmartArt work: it replaces the "edited preview → plain group" path

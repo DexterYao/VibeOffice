@@ -255,6 +255,11 @@ All four pages load without console errors.
 PowerPoint batch 4 acceptance remains pending. Reports:
 `~/corpora/results/lectern-preservation-2026-10-09/frames-*`.
 
+An object conversion/removal notice also accounts for its unreachable opaque dependency parts;
+these no longer add generic part-loss notices beside the specific explanation. The focused SmartArt,
+animated SmartArt and OLE deletion cases pass all nine saved/history package/SDK comparisons.
+Unrelated orphan parts and distinct animation conversions remain reported.
+
 ### Shape properties, tags, actions and timing: edit behavior
 
 | Edit | Save behavior |

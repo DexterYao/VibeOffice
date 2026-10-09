@@ -141,7 +141,10 @@ JSON-safe mapping. Copies allocate these IDs during the edit, so undo, drafts an
 the same IDs. `remapGuids` applies that mapping when the app writes a dependent part. It changes
 identity attributes only: relationship IDs, text, URLs and extension URIs keep their own meaning.
 
-The loss ledger distinguishes conversion from deletion and keeps stable entry identities. Digital
+The loss ledger distinguishes conversion from deletion and keeps stable entry identities. Specific
+object conversion/deletion notices can account for their opaque dependency trees with `coverLoss`;
+this suppresses redundant part notices without removing any parts or crossing rewritten-content
+boundaries. Unexplained missing parts still produce their own loss entries. Digital
 signatures are removed and reported because a changed package cannot retain their validity. Missing
 dependencies and unavoidable conversions are reported by the writer; draft recovery retains pending
 entries even when the original content has already been converted in the draft.

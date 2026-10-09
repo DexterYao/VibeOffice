@@ -73,6 +73,24 @@ test('feature notices describe actual assembled losses, survive drafts, and clea
   assert.equal(K.pendingLosses(doc).length, 0);
 });
 
+test('one object notice covers its opaque dependency graph without hiding unrelated losses', async () => {
+  const source = await pkg({
+    'frame.xml': '<payload/>', 'leaf.xml': '<payload/>', 'content.xml': '<content/>', 'unrelated.xml': '<payload/>',
+    '_rels/frame.xml.rels': rels(rel('rId1', N.rel + '/customXml', 'leaf.xml') + rel('rId2', N.rel + '/slide', 'content.xml')),
+    '_rels/leaf.xml.rels': rels(rel('rId1', N.rel + '/customXml', 'frame.xml')),
+    '_rels/content.xml.rels': rels(rel('rId1', N.rel + '/customXml', 'unrelated.xml')),
+  }), doc = {}, w = new K.Writer(source, { doc });
+  w.claim('content.xml', 'regenerated'); w.put('content.xml', '<content/>', 'application/xml');
+  assert.equal(w.coverLoss('missing-notice', ['unrelated.xml']), false);
+  w.loss({ id: 'converted-frame', what: 'The object was converted.', where: 'content.xml', action: 'conversion' });
+  assert.equal(w.coverLoss('converted-frame', ['frame.xml']), true);
+  const losses = w.finish().dropped;
+  assert.equal(losses.length, 2);
+  assert.deepEqual(losses.filter(e => e.id.startsWith('unreferenced:')).map(e => e.where), ['unrelated.xml']);
+  const restored = new K.Writer(source, { doc }); restored.carry(source, 'frame.xml');
+  assert.deepEqual(restored.finish().dropped, [], 'undo/recovery recomputes both the notice and its coverage');
+});
+
 test('rewritten parts hoist fragment declarations and Ignorable once, retaining scoped QName meanings', () => {
   const xml = `<w:document xmlns:w="${N.w}" xmlns:mc="${N.mc}" xmlns:x="urn:one" mc:Ignorable="x"><w:p xmlns:w="${N.w}" xmlns:z="urn:new" mc:Ignorable="z"><x:outer xmlns:x="urn:two" mc:Ignorable="x"><x:reset xmlns:x="urn:one"/><z:payload xmlns:z="urn:new"/></x:outer></w:p></w:document>`;
   const result = K.hoistNamespaces(xml), parsed = K.parse(result);

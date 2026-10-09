@@ -914,6 +914,7 @@
       if (pkg?.main && pkg.xml(pkg.main)?.namespaceURI?.startsWith(strictBase)) this.standardFormatNotice();
       this.names = new Set((pkg?.names || []).map(n => n.toLowerCase())); this.mapping = new Map();
       this.classes = new Map(); this.omitted = new Set(); this.carried = new Set(); this.relationships = new Map(); this.emitted = new Set();
+      this.explained = new Set();
       this.ids = new Identities();
       if (pkg) {
         for (const name of pkg.names) {
@@ -930,6 +931,20 @@
       }
     }
     loss(entry) { return K.loss(this.doc, { ...entry, phase: 'save' }); }
+    // A specific object notice accounts for its unreachable opaque dependencies.
+    // This changes reporting only; shared parts can still be carried by another
+    // owner, and traversal stops at every merged/regenerated content boundary.
+    coverLoss(id, parts) {
+      if (!this.pkg || !this.doc.losses?.some(e => e.id === id && e.phase === 'save')) return false;
+      const pending = parts.slice();
+      while (pending.length) {
+        const part = pending.pop(), key = this.key(this.pkg, part);
+        if (!this.pkg.has(part) || this.explained.has(key) || this.mode(this.pkg, part) !== 'opaque') continue;
+        this.explained.add(key);
+        for (const rel of this.pkg.rels(part)) if (!rel.external) pending.push(rel.part);
+      }
+      return true;
+    }
     standardFormatNotice() { this.loss({ id: 'ooxml:strict-to-transitional', what: 'This file will be saved in the standard Office Open XML format (Transitional).', where: 'Strict Open XML', action: 'conversion' }); }
     key(pkg, part) { return JSON.stringify([pkg.id, part]); }
     name(dir, base, ext) {
@@ -1109,7 +1124,7 @@
       }
       if (this.pkg) for (const name of this.pkg.names) {
         if (name === '[Content_Types].xml' || name.endsWith('.rels') || this.mode(this.pkg, name) !== 'opaque') continue;
-        if (!this.parts.has(this.mapping.get(this.key(this.pkg, name))) && !this.omitted.has(this.key(this.pkg, name))) {
+        if (!this.parts.has(this.mapping.get(this.key(this.pkg, name))) && !this.omitted.has(this.key(this.pkg, name)) && !this.explained.has(this.key(this.pkg, name))) {
           this.loss({ id: 'unreferenced:' + this.pkg.id + ':' + name, what: 'This preserved part has no remaining reference in the saved file.', where: name, action: 'drop' });
         }
       }

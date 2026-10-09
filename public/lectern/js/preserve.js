@@ -100,6 +100,11 @@
     return output;
   };
   P.reportLosses = writer => {
+    const pkg = writer.pkg, losses = writer.doc.losses || [];
+    if (pkg) for (const record of writer.doc.keep?.frames || []) {
+      const notice = losses.find(e => e.phase === 'save' && (e.id === 'frame:' + record.key || e.id.startsWith('frame:' + pkg.id + '|' + record.part + '|' + record.key + '|')));
+      if (notice) writer.coverLoss(notice.id, pkg.rels(record.part).filter(r => !r.external && record.rels.includes(r.id)).map(r => r.part));
+    }
     K.reportFeatures(writer, {
       accepts: el => ['sld', 'notes', 'sldMaster', 'sldLayout'].includes(el.localName) && [N.p, 'http://purl.oclc.org/ooxml/presentationml/main'].includes(el.namespaceURI),
       classify: el => ['http://purl.oclc.org/ooxml/presentationml/main', N.p].includes(el.namespaceURI) && el.localName === 'control' ? 'controls' :

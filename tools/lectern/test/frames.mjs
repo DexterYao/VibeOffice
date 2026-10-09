@@ -36,6 +36,8 @@ try {
         fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, c.file), Buffer.from(data, 'base64'));
       }
       delete result.artifacts; Object.assign(row, result);
+      if (['smartart-content', 'smartart-animated-content', 'ole-delete'].includes(c.scenario) && result.losses.some(e => e.id.startsWith('unreferenced:')))
+        throw Error('An object notice is repeated as unreferenced dependency-part notices');
       if (page.errors.length) throw Error(page.errors.join('\n'));
       if (c.edit === 'draft' || c.edit === 'paste') {
         const shot = await page.send('Page.captureScreenshot', { format: 'png' });
