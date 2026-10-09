@@ -31,7 +31,7 @@
 - **Familiar.** The menus, toolbars and task panes of the classic Office 2003 look, so there is nothing new to learn.
 - **Real files.** Open what colleagues send you, and save files built to open in Microsoft Office and LibreOffice. Each app is tested against thousands of real documents from public test collections; the results are in its doc.
 - **Private.** Everything runs on your machine. There is no server behind it, no upload and no sign-in.
-- **Faithful.** What an app cannot edit, it keeps and writes back unchanged, and it tells you before a save would change something it can't keep.
+- **Faithful.** When a file uses a feature VibeOffice can't edit yet (VBA macros, for example), it keeps that part and writes it back unchanged when you save. If a save would change something it can't keep, it tells you first.
 - **Installable.** In Chrome or Edge, install it from the Start Center. It then opens .docx, .xlsx and .pptx files from your file manager.
 
 ## The apps
