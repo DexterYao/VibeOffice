@@ -76,13 +76,20 @@ try:
             ))
             result = {'status': 'ok', 'filter': export}
         except Exception as error:
-            result = {'status': 'failed', 'error': str(error)}
+            message = str(error)
+            result = {'status': 'failed', 'error': message,
+                      'workerFailure': office.poll() is not None or 'bridge' in message.lower() and 'disposed' in message.lower()}
         finally:
             if document is not None:
                 try:
                     document.close(True)
                 except Exception:
-                    document.dispose()
+                    try:
+                        document.dispose()
+                    except Exception as error:
+                        # Export may already have succeeded. Report its outcome
+                        # and retire this process before accepting another file.
+                        result.update(workerRestart=True, closeError=str(error))
         print(json.dumps(result), flush=True)
 finally:
     office.terminate()
@@ -90,4 +97,3 @@ finally:
         office.wait(timeout=5)
     except subprocess.TimeoutExpired:
         office.kill()
-

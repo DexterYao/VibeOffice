@@ -205,6 +205,12 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   Previous-writer differences are reviewed: 19 files have identical member contents, with explained
   XML changes in the other 11 and no binary changes. The batches contain 15 files each; Office acceptance is
   pending, not inferred from those checks. Full-corpus LibreOffice rendering has not been completed.
+- The first full LibreOffice attempt finished with a harness defect: four workers retained dead UNO
+  connections, affecting 23,232 states. Those counts are not app failures. The renderer now retires
+  failed workers and retries connection loss once, retaining the first attempt. Four audit-tool tests
+  and an actual killed-process recovery check pass. Recovery reuses only verified successful PDFs;
+  the initial report stays intact. Quire section-property preservation is also still incomplete:
+  untouched gutter/chapter/grid details must survive before final signoff.
 
 Current Ledger/Lectern reports and rebuilt Office batches: `~/corpora/results/review-final-56de065/`.
 The preceding Word full run is in `~/corpora/results/final-suite-2026-10-09/`; its final correction and combined report are in

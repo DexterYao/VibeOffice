@@ -80,3 +80,73 @@ with tempfile.TemporaryDirectory() as tmp:
   const result = spawnSync('python3', ['-c', probe, script], { encoding: 'utf8', timeout: 10000 });
   assert.equal(result.status, 0, result.stderr);
 });
+
+test('render workers retire on failure, recover a lost bridge once, and retain failed attempts', () => {
+  const script = fileURLToPath(new URL('./render.py', import.meta.url));
+  const probe = `
+import importlib.util, sys
+spec = importlib.util.spec_from_file_location('render', sys.argv[1])
+module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+lost = dict(status='failed', error='Binary URP bridge already disposed', workerFailure=True)
+bad = dict(status='failed', error='LibreOffice did not open the document')
+ok = dict(status='ok', pages=1)
+def run(replies):
+    worker = module.Worker(None, None)
+    pending = iter(replies); stopped = []
+    worker.attempt = lambda *args: next(pending)
+    worker.stop = lambda: stopped.append(True)
+    result = worker.render(None, None)
+    return result, len(stopped)
+result, stops = run([lost, ok])
+assert result['status'] == 'ok' and stops == 1
+assert result['workerAttempts'] == [lost]
+result, stops = run([lost, bad])
+assert result['status'] == 'failed' and stops == 2
+assert result['workerAttempts'] == [lost]
+result, stops = run([lost, lost])
+assert result['status'] == 'failed' and stops == 2
+assert result['workerAttempts'] == [lost]
+for failure in [bad, dict(status='failed', error='LibreOffice timed out after 90 seconds')]:
+    result, stops = run([failure])
+    assert result == failure and stops == 1
+result, stops = run([dict(ok, workerRestart=True)])
+assert result['status'] == 'ok' and stops == 1
+`;
+  const result = spawnSync('python3', ['-c', probe, script], { encoding: 'utf8', timeout: 10000 });
+  assert.equal(result.status, 0, result.stderr);
+});
+
+test('reviewed render reuse verifies source and PDF bytes, rejects changed policy, and never imports failures', () => {
+  const script = fileURLToPath(new URL('./render.py', import.meta.url));
+  const probe = `
+import importlib.util, json, pathlib, sys, tempfile
+spec = importlib.util.spec_from_file_location('render', sys.argv[1])
+module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+with tempfile.TemporaryDirectory() as tmp:
+    root = pathlib.Path(tmp)
+    source = root / 'a.docx'; source.write_bytes(b'input')
+    pdf = root / 'a.pdf'; pdf.write_bytes(b'pdf')
+    old = dict(converter='old', worker='old', fonts='same', policy='same')
+    new = dict(old, converter='new', worker='new')
+    (root / 'run.json').write_text(json.dumps(dict(engine=old)))
+    item = dict(status='ok', pdf=str(pdf), pdfSha256=module.sha(pdf), source=str(source),
+                sourceSha256=module.sha(source), payload=module.payload(source))
+    item['key'] = module.render_key(old, source.name, item['payload'])
+    (root / 'cache.jsonl').write_text(json.dumps(item) + '\\n' + json.dumps(dict(status='failed', error='lost bridge')) + '\\n')
+    imported = list(module.import_successes(root, new, 'Worker recovery only'))
+    assert len(imported) == 1 and imported[0]['key'] != item['key']
+    assert imported[0]['reusedFrom']['key'] == item['key']
+    for engine, reason in [(dict(new, fonts='changed'), 'reason'), (new, '')]:
+        try: list(module.import_successes(root, engine, reason))
+        except ValueError: pass
+        else: raise AssertionError('Unreviewed/changed rendering was accepted')
+    source.write_bytes(b'changed')
+    try: list(module.import_successes(root, new, 'reason'))
+    except ValueError: pass
+    else: raise AssertionError('Changed source was accepted')
+    source.write_bytes(b'input'); pdf.write_bytes(b'corrupt')
+    assert list(module.import_successes(root, new, 'reason')) == []
+`;
+  const result = spawnSync('python3', ['-c', probe, script], { encoding: 'utf8', timeout: 10000 });
+  assert.equal(result.status, 0, result.stderr);
+});

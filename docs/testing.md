@@ -268,6 +268,13 @@ changed members cannot reuse a render. Raw hashes identify malformed or oversize
 `--resume` requires the same manifest/environment and verifies pinned input hashes before using
 completed rows. Rendering failures and page-count differences remain separate from driver and SDK
 results; a successful PDF export alone is not a lossless-save claim.
+Failed conversions retire their worker. A lost worker connection gets one fresh-process retry,
+with the first failure retained in `workerAttempts`; timeouts and document errors are not retried.
+After reviewing a harness-only change that leaves loading/export unchanged, a fresh output may use
+`--reuse-successes PRIOR_OUTPUT --reuse-reason "reviewed change and rationale"`. This imports only
+successful PDFs with verified source/package/PDF hashes and identical LibreOffice, fonts, limits
+and rendering policy. Each reused record identifies the old engine and cache entry. Failed attempts
+stay in the original report and are attempted again; never publish worker-cascade errors as app failures.
 
 ### Lectern preservation
 

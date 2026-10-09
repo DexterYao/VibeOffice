@@ -90,6 +90,21 @@ class Worker:
             self.directory = None
 
     def render(self, source, key):
+        attempts = []
+        for _ in range(2):
+            result = self.attempt(source, key)
+            attempts.append(result)
+            if result['status'] != 'ok' or result.get('workerRestart'):
+                self.stop()
+            if result['status'] == 'ok' or not result.get('workerFailure'):
+                break
+        # Keep a crash even if the same file works in a fresh worker. Timeouts
+        # and ordinary document errors are not retried; each retires its worker.
+        if len(attempts) > 1:
+            result = dict(result, workerAttempts=attempts[:-1])
+        return result
+
+    def attempt(self, source, key):
         started = time.monotonic()
         try:
             if self.process is None:
@@ -116,8 +131,41 @@ class Worker:
                 return dict(result, pages=int(pages[1]), pdf=str(target), pdfSha256=pdf_hash,
                             seconds=round(time.monotonic() - started, 3))
         except Exception as error:
-            self.stop()
-            return dict(status='failed', error=str(error), seconds=round(time.monotonic() - started, 3))
+            message = str(error)
+            return dict(status='failed', error=message,
+                        workerFailure=isinstance(error, (BrokenPipeError, ConnectionError)) or
+                        'worker exited' in message or 'worker did not' in message,
+                        seconds=round(time.monotonic() - started, 3))
+
+
+def render_key(engine, name, fingerprint):
+    return hashlib.sha256((json.dumps(engine, sort_keys=True) + '\0' + name + '\0' + fingerprint).encode()).hexdigest()
+
+
+def reusable(item):
+    return item['status'] == 'ok' and Path(item['pdf']).is_file() and sha(item['pdf']) == item['pdfSha256']
+
+
+def import_successes(directory, engine, reason):
+    """Explicitly reviewed harness-only changes may reuse verified successful PDFs."""
+    directory = Path(directory).resolve()
+    previous = json.loads((directory / 'run.json').read_text())['engine']
+    changes = {k for k in previous.keys() | engine.keys() if previous.get(k) != engine.get(k)}
+    if changes - {'converter', 'worker'}:
+        raise ValueError('Reuse requires identical LibreOffice, fonts, limits and rendering policy')
+    if not reason.strip():
+        raise ValueError('Record why the reviewed code change leaves PDF generation unchanged')
+    for line in (directory / 'cache.jsonl').read_text().splitlines():
+        item = json.loads(line)
+        if not reusable(item):
+            continue
+        source = Path(item['source'])
+        if sha(source) != item['sourceSha256'] or payload(source) != item['payload']:
+            raise ValueError('Prior render input changed: ' + str(source))
+        if render_key(previous, source.name, item['payload']) != item['key']:
+            raise ValueError('Prior render cache identity does not match its environment')
+        yield dict(item, key=render_key(engine, source.name, item['payload']), reusedFrom=dict(
+            run=str(directory), key=item['key'], engine=previous, reason=reason))
 
 
 def main():
@@ -128,6 +176,8 @@ def main():
     parser.add_argument('--memory-mb', type=int, default=6144)
     parser.add_argument('--uno-python', default='/usr/bin/python3')
     parser.add_argument('--resume', action='store_true')
+    parser.add_argument('--reuse-successes', help='Prior run whose converter changes have been reviewed; successful PDFs only')
+    parser.add_argument('--reuse-reason', default='', help='Explain why the reviewed change leaves rendering unchanged')
     args = parser.parse_args()
     if min(args.jobs, args.timeout, args.memory_mb) < 1:
         parser.error('jobs, timeout and memory must be positive')
@@ -144,6 +194,11 @@ def main():
                   policy='hidden, read-only, no document/link updates, no macros, abort interactions')
     metadata = dict(manifest=str(Path(args.manifest).resolve()), manifestSha256=sha(args.manifest),
                     attempts=len(rows), engine=engine)
+    if args.reuse_successes:
+        if not args.reuse_reason.strip():
+            parser.error('--reuse-successes requires --reuse-reason')
+        metadata['reuse'] = dict(run=str(Path(args.reuse_successes).resolve()), reason=args.reuse_reason,
+                                metadataSha256=sha(Path(args.reuse_successes) / 'run.json'))
     meta = output / 'run.json'
     if args.resume and meta.exists() and json.loads(meta.read_text()) != metadata:
         parser.error('Manifest or rendering environment changed; use a fresh output directory')
@@ -165,15 +220,20 @@ def main():
     if cache_path.exists():
         for line in cache_path.read_text().splitlines():
             item = json.loads(line)
-            if item['status'] != 'ok' or Path(item['pdf']).is_file() and sha(item['pdf']) == item['pdfSha256']:
+            if item['status'] != 'ok' or reusable(item):
                 cache[item['key']] = item
     cache_out = open(cache_path, 'a')
-    engine_key = json.dumps(engine, sort_keys=True)
+    if args.reuse_successes:
+        for item in import_successes(args.reuse_successes, engine, args.reuse_reason):
+            if item['key'] not in cache:
+                cache[item['key']] = item
+                cache_out.write(json.dumps(item) + '\n')
+        cache_out.flush()
 
     def render(path):
         path = Path(path)
         fingerprint = payload(path)
-        key = hashlib.sha256((engine_key + '\0' + path.name + '\0' + fingerprint).encode()).hexdigest()
+        key = render_key(engine, path.name, fingerprint)
         with lock:
             if key in cache:
                 return dict(cache[key], reused=True)
