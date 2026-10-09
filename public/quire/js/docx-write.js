@@ -364,7 +364,10 @@
       case 'text': return runWrap(r, textXML(it.text, del), ctx);
       case 'tab': return runWrap(r, '<w:tab/>', ctx);
       case 'ptab': return runWrap(r, `<w:ptab w:relativeTo="${it.rel || 'margin'}" w:alignment="${it.al || 'left'}" w:leader="${it.leader || 'none'}"/>`, ctx);
-      case 'br': return runWrap(r, it.type === 'page' ? '<w:br w:type="page"/>' : it.type === 'column' ? '<w:br w:type="column"/>' : `<w:br${it.clear ? ` w:clear="${it.clear}"` : ''}/>`, ctx);
+      case 'br':
+        if (it.recoveredPlacement) ctx.writer.loss({ id: 'break-placement:' + ctx.part, where: ctx.part, action: 'conversion',
+          what: 'Page or line breaks outside their required text runs were moved into standard paragraphs and runs.' });
+        return runWrap(r, it.type === 'page' ? '<w:br w:type="page"/>' : it.type === 'column' ? '<w:br w:type="column"/>' : `<w:br${it.clear ? ` w:clear="${it.clear}"` : ''}/>`, ctx);
       case 'ruby': {
         const pr = it.pr || {};
         const prx = ['rubyAlign', 'hps', 'hpsRaise', 'hpsBaseText', 'lid'].filter((k) => pr[k] != null).map((k) => `<w:${k} w:val="${X(String(pr[k]))}"/>`).join('');

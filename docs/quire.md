@@ -171,7 +171,7 @@ malformed input, unreferenced stories and unsupported markup remain exceptions.
 | Kept, with remaining losses | Revisions, fields, pictures and tables | 1,385/1,427 insertions/deletions, 1,085/1,103 formatting revisions, 2,590/2,711 fields, 1,239/1,242 pictures and 1,605/1,606 tables |
 | Converted when edited | Unsupported contents inside an opaque frame; typed/complex controls | Edited or ungrouped converted content uses the model representation; incompatible typed-control edits unbind and report the conversion |
 | Normalized, with a notice | Invalid paragraph/run formatting that edits can duplicate | Six regression files / 36 emitted states pass; 74-file candidate scan checked, with 34 saves changing formatting; conflicting or unknown source properties remain intact |
-| Recovered, with a notice | Missing/incomplete table grids and conflicting default styles | The writer reports reconstructed column widths and normalized defaults; removing a recovered table clears its save notice, and undo/drafts restore it. These recoveries can change pagination |
+| Recovered, with a notice | Missing/incomplete table grids, conflicting default styles and misplaced page/line breaks | The writer reports reconstructed column widths, normalized defaults and breaks moved into valid paragraphs/runs. Removing recovered content clears its save notice; undo/drafts restore it. Grid/default recovery can change pagination; retaining misplaced breaks restores the affected four-page document |
 | Mostly converted, with a notice | Smart tags and inline custom-XML markup | 18/519 original wrappers remain; their text is represented as ordinary content |
 | Kept; Office accepted | Per-property drawing edits, row/cell alternatives and watermarks | 62 focused checks and 48 save/edit/history/draft states pass; full corpus completed; 14 original batch-2 files pass Office and the comment repair has a confirmed correction |
 
@@ -209,6 +209,12 @@ lists and section settings. All five add no package/SDK diagnostics and retain t
 page counts; their previous-writer differences are reviewed. Word acceptance is pending.
 The pinned inventory finds numbering parts in 810 inputs. The writer keeps their source level counts,
 including absent defaults, rather than serializing all nine levels used internally for layout.
+The render review also found seven misplaced breaks in `tdf108714`, which the reader previously
+skipped. Recovering them in valid paragraphs/runs retains all four pages on save and text edit,
+with a Compatibility Checker notice. The pinned scan finds one affected readable input and
+records 33 archive/XML read failures separately. Seven command states and seven corpus
+save/edit/history/draft states add no package/SDK diagnostics; 25 browser assertions and all 27
+Quire unit tests pass. Reports: `~/corpora/results/quire-break-recovery-2026-10-09/`.
 
 The completed LibreOffice pass on the preceding saved artifacts renders **2,869/2,880 unedited saves**;
 **14** readable pairs change page count. It accounts for all **19,028** states: **17,986 OK, 443 failed,

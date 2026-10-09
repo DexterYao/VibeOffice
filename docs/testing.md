@@ -391,6 +391,10 @@ undo/redo and actual draft recovery. An optional final `custom` or `style` selec
 The loss audit also inventories picture bullets, list identities/templates, legacy settings and
 cleanup metadata; the numbering harness compares metadata values and original level counts.
 
+`node tools/quire/test/recovered-breaks.mjs ~/corpora/word OUTDIR` checks the public malformed-break
+fixture through text edits, deletion, undo/redo and actual draft recovery. It verifies valid saved
+break placement and that the Compatibility Checker follows surviving recovered content.
+
 `node tools/quire/test/drawing-properties.mjs ~/corpora/word OUTDIR` checks authored picture/shape
 properties and watermarks, plus generated row/cell alternatives with populated and empty choices.
 It writes originals and every edit/history/draft state, checking that deletion cannot restore hidden

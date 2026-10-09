@@ -690,6 +690,15 @@
         switch (c.localName) {
           case 'p': { const p = parseP(c, ctx); if (p) out.push(p); break; }
           case 'tbl': { const t = parseTbl(c, ctx); if (t) out.push(t); break; }
+          case 'br': case 'cr': {
+            // Damaged files sometimes put a break directly in a body/cell.
+            // Recover its position in a valid paragraph instead of losing pages.
+            let p = out.at(-1);
+            if (p?.t !== 'p') { p = D.para(); out.push(p); }
+            if (ctx.pendingBm.length) { p.runs.push(...ctx.pendingBm); ctx.pendingBm = []; }
+            p.runs.push(breakItem(c, {}, true));
+            break;
+          }
           case 'sdt': {
             const sc = kid(c, 'sdtContent');
             if (!sc) break;
@@ -742,12 +751,18 @@
     }
 
     /* inline content */
+    function breakItem(el, props, recovered) {
+      const type = el.localName === 'cr' ? 'line' : at(el, 'type');
+      return D.item('br', { type: type === 'page' ? 'page' : type === 'column' ? 'column' : 'line',
+        clear: at(el, 'clear') || undefined, ...(recovered ? { recoveredPlacement: true } : {}) }, props);
+    }
     function parseInline(el, p, ctx, inh) {
       const ac = L.preserve.readAlternates(el, p.runs, ctx, doc, 'inline', inh);
       for (const c of el.children) {
         const from = p.runs.length;
         switch (c.localName) {
           case 'r': parseRun(c, p, ctx, inh); break;
+          case 'br': case 'cr': p.runs.push(breakItem(c, L.clone(inh), true)); break;
           case 'hyperlink': {
             const r = rid(c);
             const link = {};
@@ -846,12 +861,7 @@
           }
           case 'delText': if (!inInstr(ctx)) text(c.textContent); break;
           case 'tab': push(D.item('tab', null, base)); break;
-          case 'br': {
-            const ty = at(c, 'type');
-            push(D.item('br', { type: ty === 'page' ? 'page' : ty === 'column' ? 'column' : 'line', clear: at(c, 'clear') || undefined }, base));
-            break;
-          }
-          case 'cr': push(D.item('br', { type: 'line' }, base)); break;
+          case 'br': case 'cr': push(breakItem(c, base)); break;
           case 'noBreakHyphen': text('‑'); break;
           case 'softHyphen': text('­'); break;
           case 'sym': {

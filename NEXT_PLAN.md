@@ -271,6 +271,12 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   covers materialized inherited formatting. Office acceptance is pending. Batches 3–4 are unchanged.
   Exact inputs, diffs and the superseded preparation-only copy case are retained in
   `office-followup-2026-10-09/`.
+- The Word render review recovered seven misplaced page/line breaks in `tdf108714`, restoring
+  four pages on save and text edit instead of one. The writer reports the structural recovery;
+  deletion, undo/redo and drafts recompute or retain its notice. Seven command states and seven
+  corpus states add no package/SDK diagnostics, 25 browser assertions and all 27 Quire tests pass.
+  The scan found one affected readable input and recorded 33 archive/XML failures separately.
+  Evidence: `quire-break-recovery-2026-10-09/`; this focused correction supplements the frozen Word run.
 
 Current Ledger/Lectern reports and rebuilt Office batches: `~/corpora/results/review-final-56de065/`.
 The preceding Word full run is in `~/corpora/results/final-suite-2026-10-09/`; its final correction and combined report are in
