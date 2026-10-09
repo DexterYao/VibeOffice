@@ -167,7 +167,8 @@ malformed input, unreferenced stories and unsupported markup remain exceptions.
 | Kept, with a remaining exception | Content controls | 2,675/2,676 wrappers; inline, block, row and cell controls retain properties and scalar bindings |
 | Kept | OLE, SmartArt, charts and embedded documents | 516/516 OLE/object inventory nodes, 39/39 SmartArt data parts, 133/133 chart parts and 4/4 altChunk blocks; geometry edits retain payloads |
 | Kept | Text effects, pictures in page backgrounds and drawing properties while untouched | 205/205 Word 2010 effect entries, 62/62 backgrounds, 1,054/1,054 text boxes and 1,803/1,803 DrawingML shape entries |
-| Kept; full refresh pending | Section properties, their alternatives and header/footer dependencies | Four fixtures / 24 save/edit/history/draft states retain untouched XML and unrelated margin attributes. Another 24 states cover actual numbering/section commands, copies, undo/redo and drafts without new package/SDK errors; two sampled outputs retain two pages. Three earlier corpus fixtures still have pagination differences |
+| Kept; full refresh pending | Section properties, their alternatives and header/footer dependencies | Four fixtures / 24 save/edit/history/draft states retain untouched XML and unrelated margin attributes. Another 24 states cover actual numbering/section commands, copies, undo/redo and drafts without new package/SDK errors; two sampled outputs retain two pages. Two diagnosed source-recovery cases still change page counts |
+| Kept; Office check pending | Picture bullets, including unused definitions, image dependencies and imported identities | 36 affected inputs / 237 saved states retain expanded picture XML, reference counts and original image bytes. Of 242 validation states, 233 pass, four have an SDK-unreadable original and five are excluded. Twelve command states pass; six save/text-edit render pairs keep their page counts, fixing the extra page in `tdf149089` |
 | Kept, with range/story exceptions | Comments, notes, bookmarks and permissions | 1,404/1,421 comments, 674/684 footnotes, 57/57 endnotes, 4,870/4,965 bookmarks and 50/54 permission ranges |
 | Kept, with remaining losses | Revisions, fields, pictures and tables | 1,385/1,427 insertions/deletions, 1,085/1,103 formatting revisions, 2,590/2,711 fields, 1,239/1,242 pictures and 1,605/1,606 tables |
 | Converted when edited | Unsupported contents inside an opaque frame; typed/complex controls | Edited or ungrouped converted content uses the model representation; incompatible typed-control edits unbind and report the conversion |
@@ -199,15 +200,17 @@ Section preservation is measured in `~/corpora/results/quire-sections-2026-10-09
 numbers above do not yet include it. It fixes dropped gutter/chapter/grid settings, not all layout
 differences. The nested-table source omits two required grids; restoring that invalid omission in a
 diagnostic copy restores its old page count. The duplicate-default-style source has ambiguous defaults.
-Both recoveries now have save notices. The `tdf149089` pagination difference is isolated to numbering
-regeneration and remains unresolved. The expanded four-file check covers 77 browser assertions and
-26 package/SDK states, including actual draft recovery and deletion/undo of a recovered table.
+Both recoveries now have save notices. The `tdf149089` extra page is fixed by picture-bullet carry;
+its original two pages survive saves and text edits. The expanded section/recovery check covers 77
+browser assertions and 26 package/SDK states, including draft recovery and table deletion/undo.
+Picture-bullet evidence is in `~/corpora/results/quire-numbering-2026-10-09/`. Unrepresented list
+definition/level metadata and abstract-number identities still need preservation before full signoff.
 
 The completed LibreOffice pass on the preceding saved artifacts renders **2,869/2,880 unedited saves**;
 **14** readable pairs change page count. It accounts for all **19,028** states: **17,986 OK, 443 failed,
 599 excluded**. Those failures distinguish missing outputs, unrenderable originals, saved-file conversion
 errors/timeouts and pagination differences. This is render evidence, not a lossless-save percentage;
-the section/notice changes still need the updated full Word run. Raw reports and the corrected worker
+the section and numbering changes still need the updated full Word run. Raw reports and the corrected worker
 recovery are in `~/corpora/results/lo-final-2026-10-09/`.
 The Office checklist is `~/Downloads/lossless-check/office-batch-2/CHECKLIST.md`; file 12 records its
 original repair and links the accepted corrected save. Both samples in
@@ -246,6 +249,9 @@ a built-in document-property binding into another document also unbinds it and r
 | Change a page size, margin, numbering or grid setting | Change its owned attributes; keep other section settings, revision metadata and compatibility branches |
 | Change page-number format or starting number | Keep the existing chapter heading level and separator unless chapter numbering is explicitly disabled |
 | Insert a section, apply page setup/columns forward, build a multi-column index or merge letters | Allocate independent retained revision IDs for new sections; keep identities when reusing an existing boundary |
+| Edit text or list alignment/spacing around a picture bullet | Keep its picture definition and image bytes; undo and drafts restore its metadata |
+| Replace a picture bullet with another symbol/number format | Convert that level to the chosen symbol, remove its picture reference and report the conversion; unused original definitions remain available |
+| Insert a file containing picture bullets | Carry its referenced definitions and image parts, allocating identities that do not collide with the current document |
 | Edit body text or save without changing section settings | Keep original section XML, including absent defaults and header/footer references |
 | Undo/redo or drafts | Restore property fragments and range metadata |
 

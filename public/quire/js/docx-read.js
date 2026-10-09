@@ -535,13 +535,17 @@
     const numRel = relOfType('numbering');
     const numX = numRel ? await xml(numRel.target) : null;
     const numPicMedia = {};
+    const numPictures = {};
     const numRels = numRel ? await rels(numRel.target) : {};
     if (numX) {
       for (const pb of kids(numX, 'numPicBullet')) {
+        const id = at(pb, 'numPicBulletId');
+        numPictures[id] = { id, fragment: L.preserve.pictureBullet(pb, { pkg: doc.pkg, part: numRel.target }) };
         const im = desc(pb, 'imagedata') || desc(pb, 'blip');
         const r = im && (rid(im, 'id') || rid(im, 'embed'));
         if (r && numRels[r]) { const m = await loadMedia(numRels[r].target); if (m) numPicMedia[at(pb, 'numPicBulletId')] = m; }
       }
+      doc.numbering.keep = { pictures: Object.values(numPictures) };
       const lvlOf = (lv) => {
         const fmtEl = kid(lv, 'numFmt');
         const o = {
@@ -557,8 +561,10 @@
         if (kid(lv, 'isLgl')) o.isLgl = true;
         if (kid(lv, 'lvlRestart')) o.restart = num(kid(lv, 'lvlRestart'), 'val', 0) - 1;
         if (kid(lv, 'pStyle')) o.pStyle = rn(at(kid(lv, 'pStyle'), 'val'));
-        if (kid(lv, 'lvlPicBulletId')) { const m = numPicMedia[at(kid(lv, 'lvlPicBulletId'), 'val')]; if (m) o.picture = m; }
+        const pictureId = at(kid(lv, 'lvlPicBulletId'), 'val');
+        if (pictureId != null && numPicMedia[pictureId]) o.picture = numPicMedia[pictureId];
         if (o.fmt === 'bullet') o.glyph = bulletGlyph(o.text, o.rPr.font);
+        if (pictureId != null && numPictures[pictureId]) o.pictureKeep = { ...numPictures[pictureId], values: { picture: o.picture, fmt: o.fmt, text: o.text, glyph: o.glyph } };
         if (kid(lv, 'legacy')) o.legacy = true;
         return o;
       };

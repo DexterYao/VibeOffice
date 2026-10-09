@@ -370,6 +370,7 @@
     else if (isS && name === 'cacheId') { kind = 'cache'; scope = 'workbook'; definition = tag === 'pivotCache'; }
     else if (isW && name === 'val' && ['numId', 'abstractNumId'].includes(tag)) { kind = tag; scope = 'numbering'; }
     else if (isW && ((tag === 'num' && name === 'numId') || (tag === 'abstractNum' && name === 'abstractNumId'))) { kind = name; scope = 'numbering'; definition = true; }
+    else if (isW && (tag === 'numPicBullet' && name === 'numPicBulletId' || tag === 'lvlPicBulletId' && name === 'val')) { kind = 'numPicBulletId'; scope = 'numbering'; definition = tag === 'numPicBullet'; }
     else if (isW && tag === 'id' && name === 'val' && el.parentNode?.localName === 'sdtPr') { kind = 'control'; scope = 'document'; definition = true; }
     else if (isS && name === 'dxfId') { kind = 'dxf'; scope = 'styles'; }
     return kind ? { kind, scope, id: a.value, definition } : null;
@@ -920,7 +921,7 @@
         for (const name of pkg.names) {
           this.mapping.set(this.key(pkg, name), name);
           const text = /\.(xml|vml)$/i.test(name) ? pkg.text(name) : null;
-          if (!text || !/docPr|cNvPr|cTn|bookmark|permStart|permEnd|sldId|sldMasterId|sldLayoutId|sheetId|cacheId|numId|abstractNumId|sdtPr|dxf|_x0000_|PrChange|numberingChange|cellIns|cellDel|cellMerge|\b(?:ins|del|moveFrom|moveTo)\b/.test(text)) continue;
+          if (!text || !/docPr|cNvPr|cTn|bookmark|permStart|permEnd|sldId|sldMasterId|sldLayoutId|sheetId|cacheId|numId|abstractNumId|PicBulletId|sdtPr|dxf|_x0000_|PrChange|numberingChange|cellIns|cellDel|cellMerge|\b(?:ins|del|moveFrom|moveTo)\b/.test(text)) continue;
           let tree; try { tree = K.parse(text); } catch (e) { continue; } // carried opaque if the original XML is malformed
           walk(tree, el => {
             if (el.localName === 'dxfs' && el.namespaceURI === NS.s) elements(el).forEach((e, i) => this.ids.reserve('styles', 'dxf', i));

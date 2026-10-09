@@ -100,8 +100,10 @@ def main():
             if tag == 'maxInclusive': bound['max'] = value
             if tag == 'maxExclusive': bound['max'] = value - 1
         limits[kind] = bound
-    # Word's tracked-change IDs use the SDK's Int32Value (CT_TrackChange@id).
-    limits['revision'] = {'min': 0, 'max': 2147483647}
+    # Word's tracked-change and picture-bullet IDs use the SDK's Int32Value
+    # (CT_TrackChange@id and CT_NumPicBullet@numPicBulletId).
+    for kind in ('revision', 'numPicBulletId'):
+        limits[kind] = {'min': 0, 'max': 2147483647}
     # every preset shape's adjustment values, in order, with their defaults (presetShapeDefinitions.xml)
     data1 = part1.read_bytes()
     with zipfile.ZipFile(io.BytesIO(data1)) as outer, zipfile.ZipFile(io.BytesIO(outer.read('OfficeOpenXML-DrawingMLGeometries.zip'))) as g:

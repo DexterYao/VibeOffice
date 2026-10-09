@@ -7,6 +7,7 @@
   const kids = el => Array.from(el?.children || []);
   const attr = (el, name) => Array.from(el?.attributes || []).find(a => a.localName === name && a.prefix !== 'xmlns')?.value;
   const same = (a, b) => JSON.stringify(a ?? null) === JSON.stringify(b ?? null);
+  P.pictureBulletIntact = level => level.pictureKeep && ['picture', 'fmt', 'text', 'glyph'].every(key => same(level[key], level.pictureKeep.values[key]));
   const coreRel = N.pkg + '/metadata/core-properties';
   P.commentMetadata = doc => Object.entries(doc.comments).map(([id, c]) => [id, c.keep?.paraId, c.parent ?? null, !!c.done]);
   P.keepCommentExtension = doc => doc.keep?.commentExtension && same(P.commentMetadata(doc), doc.keep.commentExtension.values);
@@ -90,7 +91,7 @@
     // Capture before compatibility choices are normalised. A property fragment
     // belongs to this element, even when the element itself is inside a choice.
     const nodes = Array.from(root.getElementsByTagName('*'));
-    for (const el of nodes) if (wordNS(el.namespaceURI) && ['rPr', 'pPr', 'sectPr', 'tbl', 'tblPr', 'drawing', 'pict', 'object', 'control', 'altChunk', 'contentPart'].includes(el.localName)) originalProperties.set(el, K.raw(el));
+    for (const el of nodes) if (wordNS(el.namespaceURI) && ['rPr', 'pPr', 'sectPr', 'numPicBullet', 'tbl', 'tblPr', 'drawing', 'pict', 'object', 'control', 'altChunk', 'contentPart'].includes(el.localName)) originalProperties.set(el, K.raw(el));
     // Leave an anchor when compatibility normalisation selects an empty branch.
     // captureAC still reads the immutable source text, without this sentinel.
     for (const el of nodes) if (el.namespaceURI === N.mc && ['Choice', 'Fallback'].includes(el.localName) && !el.children.length) el.appendChild(el.ownerDocument.createElementNS('urn:vibeoffice:keep', 'keep'));
@@ -99,6 +100,7 @@
       fallback.appendChild(el.ownerDocument.createElementNS('urn:vibeoffice:keep', 'keep')); el.appendChild(fallback);
     }
   };
+  P.pictureBullet = (el, context) => K.fragment(K.alternate(el) ? el : K.parse(originalProperties.get(el) || K.raw(el)), context);
   const alternatives = e => e.namespaceURI === N.mc && ['AlternateContent', 'Choice', 'Fallback'].includes(e.localName);
   const propertyChildren = el => kids(el).flatMap(c => alternatives(c) ? propertyChildren(c) : [c]);
   P.propertyFields = Object.freeze({

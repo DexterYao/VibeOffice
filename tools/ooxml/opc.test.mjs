@@ -171,6 +171,19 @@ test('revision-only parts reserve later IDs before emitting a copied section', a
   assert.equal(w.ids.fresh('document', 'revision'), '13');
 });
 
+test('picture-bullet definitions and copied level references share their numbering identity', async () => {
+  const source = `<w:numbering xmlns:w="${N.w}"><w:numPicBullet w:numPicBulletId="4"><w:pict/></w:numPicBullet><w:lvlPicBulletId w:val="4"/></w:numbering>`;
+  const p = await pkg({ 'word/numbering.xml': source }), w = new K.Writer(p);
+  const [definition, reference] = p.xml('word/numbering.xml').children.map(e => K.fragment(e, { pkg: p, part: 'word/numbering.xml' }));
+  const copied = K.duplicate({ definition, reference });
+  assert.match(w.emit(copied.reference, 'word/numbering.xml'), /w:val="5"/);
+  assert.match(w.emit(copied.definition, 'word/numbering.xml'), /w:numPicBulletId="5"/);
+  assert.match(w.emit(definition, 'word/numbering.xml'), /w:numPicBulletId="4"/);
+  assert.match(w.emit(reference, 'word/numbering.xml'), /w:val="4"/);
+  w.ids.reserve('numbering', 'numPicBulletId', '2147483647');
+  assert.equal(w.ids.fresh('numbering', 'numPicBulletId'), '1');
+});
+
 test('baseline bytes are immutable; the graph retains full types, sharing, cycles and external URLs', async () => {
   const p = await pkg({ 'a.xml': '<a/>', 'b.xml': '<b/>', 'shared.bin': new Uint8Array([3, 4]),
     '_rels/.rels': rels(rel('rId40', N.rel + '/officeDocument', 'a.xml')),

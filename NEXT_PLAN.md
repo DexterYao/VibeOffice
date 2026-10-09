@@ -227,7 +227,8 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   kept through actual draft recovery and recomputed when a recovered table is deleted/undone.
   Four cases / 77 browser assertions and 26 package/SDK states pass (18 byte-identical comparisons
   reused, eight fresh). The initial test omitted a required draft display name; that failed harness
-  attempt is retained. `tdf149089` is isolated to numbering regeneration and still needs a fix.
+  attempt is retained. `tdf149089` was isolated to numbering regeneration; its picture-bullet loss
+  is fixed by the following correction.
 - The section review findings are fixed: new sections remap revision identities, the shared writer
   reserves IDs even in revision-only parts, and page-number edits retain chapter level/separator.
   Page setup/columns preserve existing section identities; index insertion and merged letters use
@@ -235,6 +236,15 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   two sampled outputs render with the original two pages. All 151 unit tests pass and all four pages
   load without console errors. The index command's missing field reference was corrected during
   this check; its earlier failed attempt is retained. Evidence: `quire-section-review-2026-10-09/`.
+- Picture bullets now carry their original definitions and image dependencies, including unused
+  definitions and imports with colliding IDs. Symbol edits convert only the changed level, with a
+  notice restored through undo/drafts. The 36 affected inputs produce 108 attempts (103 OK, five
+  excluded) and 237 saved states retaining expanded picture XML, references and image bytes.
+  Package/SDK comparison: 233 OK, four failed because their original is SDK-unreadable, five excluded.
+  The UI fixture passes 34 assertions / twelve validation states. Six sampled save/edit render pairs
+  retain page counts; `tdf149089` is now 2 → 2 rather than 2 → 3. The 152-test suite and the final
+  43-test identity pass succeed. Evidence: `quire-numbering-2026-10-09/`. Unrepresented list metadata
+  and abstract-number identities still need preservation before the full Word refresh and signoff.
 
 Current Ledger/Lectern reports and rebuilt Office batches: `~/corpora/results/review-final-56de065/`.
 The preceding Word full run is in `~/corpora/results/final-suite-2026-10-09/`; its final correction and combined report are in
@@ -242,7 +252,7 @@ The preceding Word full run is in `~/corpora/results/final-suite-2026-10-09/`; i
 correction overlays, hashes and older progress notes stay with those reports. The review fixes and
 their focused measurements are in `~/corpora/results/review-fixes-2026-10-09/`. Root-comment editing
 and updated batch-3 file 04 are measured in `~/corpora/results/thread-root-edit-2026-10-09/`.
-Next: fix the identified Word numbering loss, review other render failures/count differences, refresh
+Next: retain the remaining Word numbering metadata, review other render failures/count differences, refresh
 the affected Word corpus and render artifacts, and obtain actual Excel/PowerPoint acceptance of
 batches 3–4 before signoff. The section correction also needs a Word acceptance sample.
 

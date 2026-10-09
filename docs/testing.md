@@ -374,6 +374,11 @@ forward at new and existing boundaries, multi-column index insertion and merged 
 `--fixture` to run only these focused cases, including copied revision IDs through history and drafts.
 It writes the original and each saved state for package/SDK and external rendering comparisons.
 
+`node tools/quire/test/picture-bullets.mjs ~/corpora/word OUTDIR` exercises the public SDK picture-bullet
+fixture through the list dialog, symbol conversion, undo/redo, actual draft recovery and an import
+with colliding source IDs. It compares retained definition XML and image bytes and checks unused
+definitions after all list references have been removed.
+
 `node tools/quire/test/drawing-properties.mjs ~/corpora/word OUTDIR` checks authored picture/shape
 properties and watermarks, plus generated row/cell alternatives with populated and empty choices.
 It writes originals and every edit/history/draft state, checking that deletion cannot restore hidden

@@ -562,6 +562,7 @@
       lv.fmt = numStyle.value;
       if (lv.fmt === 'bullet') { lv.text = bullet.raw || bullet.ch; lv.glyph = bullet.ch; lv.rPr = Object.assign({}, fontR, { font: bullet.font }); }
       else { lv.text = numText.value.replace(/\{(\d)\}/g, '%$1'); delete lv.glyph; lv.rPr = Object.assign({}, fontR); if (lv.rPr.font && /symbol|wingdings/i.test(lv.rPr.font)) delete lv.rPr.font; }
+      if (lv.pictureKeep && !L.preserve.pictureBulletIntact(lv)) delete lv.picture;
       lv.start = start.get();
       lv.jc = align.value;
       const at = alignedAt.get() || 0, ind = indentAt.get() || 0;

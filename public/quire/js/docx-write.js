@@ -684,7 +684,8 @@
     if (lv.isLgl) x += '<w:isLgl/>';
     if (lv.suff && lv.suff !== 'tab') x += `<w:suff w:val="${lv.suff}"/>`;
     x += `<w:lvlText w:val="${X(lv.text == null ? '' : lv.text)}"/>`;
-    if (lv.pictureId != null) x += `<w:lvlPicBulletId w:val="${lv.pictureId}"/>`;
+    const pictureId = ctx.pictureBullet(lv);
+    if (pictureId != null) x += `<w:lvlPicBulletId w:val="${X(pictureId)}"/>`;
     x += `<w:lvlJc w:val="${lv.jc || 'left'}"/>`;
     const pp = { ...lv.pPr };
     if (!lv.pPrValues || lv.tabPos !== lv.pPrValues.tabPos) {
@@ -700,6 +701,33 @@
   function numberingXML(doc, ctx) {
     const nb = doc.numbering;
     let x = HEAD + `<w:numbering xmlns:w="${NS.w}" xmlns:r="${NS.r}">`;
+    const pictures = new Map(); let pictureXML = '';
+    const picture = record => {
+      const f = record.fragment, key = JSON.stringify([f.source, f.part, record.id, f.copy || '']);
+      if (!pictures.has(key)) {
+        try {
+          pictureXML += ctx.writer.emit(f, ctx.part);
+          pictures.set(key, ctx.writer.ids.resolve(f.source, 'numbering', 'numPicBulletId', record.id, { primary: ctx.writer.pkg?.id, copy: f.copy }));
+        } catch (error) {
+          pictures.set(key, null);
+          ctx.writer.loss({ id: 'picture-bullet:' + key, what: 'A picture bullet could not be retained: ' + error.message, where: ctx.part, action: 'conversion' });
+        }
+      }
+      return pictures.get(key);
+    };
+    // Definitions belong to the numbering model, including unused originals.
+    // Imported levels bring their own definition and dependency references.
+    for (const record of nb.keep?.pictures || []) picture(record);
+    ctx = Object.assign({}, ctx, { pictureBullet: lv => {
+      if (!lv.pictureKeep) return null;
+      if (L.preserve.pictureBulletIntact(lv)) return picture(lv.pictureKeep);
+      ctx.writer.loss({ id: 'picture-bullet-edit:' + lv.pictureKeep.fragment.source + ':' + lv.pictureKeep.id, what: 'Editing this list symbol replaced its original picture bullet.', where: ctx.part, action: 'conversion' });
+      return null;
+    } });
+    // Collect imported pictures before writing any abstract/concrete definitions.
+    for (const a of Object.values(nb.abs)) for (const lv of a.levels) if (lv?.pictureKeep && L.preserve.pictureBulletIntact(lv)) picture(lv.pictureKeep);
+    for (const n of Object.values(nb.nums)) for (const o of Object.values(n.ov || {})) if (o.lvl?.pictureKeep && L.preserve.pictureBulletIntact(o.lvl)) picture(o.lvl.pictureKeep);
+    x += pictureXML;
     const absIds = Object.keys(nb.abs);
     const absMap = new Map();
     absIds.forEach((k, i) => absMap.set(String(k), i));
@@ -1074,7 +1102,7 @@
     add('word/styles.xml', stylesXML(doc, stylesCtx));
     docRels.add(RT('styles'), 'styles.xml');
     overrides.push(['word/styles.xml', CT.styles]);
-    const usesNumbering = Object.keys(doc.numbering.nums).length > 0;
+    const usesNumbering = Object.keys(doc.numbering.nums).length > 0 || Object.keys(doc.numbering.abs).length > 0 || doc.numbering.keep?.pictures?.length;
     if (usesNumbering) {
       add('word/numbering.xml', numberingXML(doc, mkCtx(pack.rels('word/numbering.xml'), false)));
       docRels.add(RT('numbering'), 'numbering.xml');
