@@ -237,13 +237,13 @@
         }
       }
     }
-    /** recompute the used range (cells with value, formula or non-default style) */
+    /** recompute the used range, including retained source styles on blank cells */
     recalcBounds() {
       let mr = -1, mc = -1;
       this.rows.forEach((row, r) => {
         if (!row) return;
         let any = false;
-        row.cells.forEach((cell, c) => { if (cell && (cell.v != null || cell.f != null || cell.s)) { any = true; if (c > mc) mc = c; } });
+        row.cells.forEach((cell, c) => { if (cell && (cell.v != null || cell.f != null || cell.s || cell.keep?.style != null)) { any = true; if (c > mc) mc = c; } });
         if (any && r > mr) mr = r;
       });
       this.maxR = mr; this.maxC = mc;

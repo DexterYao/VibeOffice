@@ -374,7 +374,7 @@
       if (headers && headers.size) for (const [k, name] of headers) { const rr = Math.floor(k / 16384), cc = k % 16384; if (rr === r && !cells[cc]) (extra || (extra = [])).push([cc, cellXml({ v: name }, rr, cc, ctx, name)]); }
       cells.forEach((cell, c) => {
         if (!cell || c >= M.MAXC) return;
-        if (cell.v == null && cell.f == null && !cell.s && !cell.dt && !(headers && headers.has(r * 16384 + c))) return;
+        if (cell.v == null && cell.f == null && !cell.s && cell.keep?.style == null && !cell.dt && !(headers && headers.has(r * 16384 + c))) return;
         parts.push(extra ? [c, cellXml(cell, r, c, ctx, headers.get(r * 16384 + c))] : cellXml(cell, r, c, ctx, headers ? headers.get(r * 16384 + c) : undefined));
         if (first < 0) first = c;
         last = c;
@@ -631,8 +631,10 @@
 
   /* ------------------------------------------------------------ drawings */
   const XDR = 'http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing', NS_A = 'http://schemas.openxmlformats.org/drawingml/2006/main', NS_C = 'http://schemas.openxmlformats.org/drawingml/2006/chart';
-  const emu = (pt) => Math.max(0, Math.round((pt || 0) * EMU));
-  const ptXml = (tag, p) => `<xdr:${tag}><xdr:col>${p.c}</xdr:col><xdr:colOff>${emu(p.cOff)}</xdr:colOff><xdr:row>${p.r}</xdr:row><xdr:rowOff>${emu(p.rOff)}</xdr:rowOff></xdr:${tag}>`;
+  const coordinate = (pt) => Math.round((pt || 0) * EMU);
+  const emu = (pt) => Math.max(0, coordinate(pt));
+  // Anchor positions and cell offsets are signed; only extents are nonnegative.
+  const ptXml = (tag, p) => `<xdr:${tag}><xdr:col>${p.c}</xdr:col><xdr:colOff>${coordinate(p.cOff)}</xdr:colOff><xdr:row>${p.r}</xdr:row><xdr:rowOff>${coordinate(p.rOff)}</xdr:rowOff></xdr:${tag}>`;
   /** size in points of an anchor (for xfrm / ext) */
   function anchorSize(sh, a) {
     if (a.type !== 'two' || !a.to) return { w: a.w || 72, h: a.h || 72 };
@@ -861,7 +863,7 @@
         let open, close = '<xdr:clientData' + (d.unlocked ? ' fLocksWithSheet="0"' : '') + (d.noPrint ? ' fPrintsWithSheet="0"' : '') + '/>';
         if (a.type === 'two' && a.from && a.to) { open = `<xdr:twoCellAnchor${a.editAs && a.editAs !== 'twoCell' ? ` editAs="${a.editAs}"` : ''}>` + ptXml('from', a.from) + ptXml('to', a.to); close += '</xdr:twoCellAnchor>'; }
         else if (a.type === 'one' && a.from) { open = '<xdr:oneCellAnchor>' + ptXml('from', a.from) + `<xdr:ext cx="${emu(a.w)}" cy="${emu(a.h)}"/>`; close += '</xdr:oneCellAnchor>'; }
-        else { open = `<xdr:absoluteAnchor><xdr:pos x="${emu(a.x)}" y="${emu(a.y)}"/><xdr:ext cx="${emu(a.w)}" cy="${emu(a.h)}"/>`; close += '</xdr:absoluteAnchor>'; }
+        else { open = `<xdr:absoluteAnchor><xdr:pos x="${coordinate(a.x)}" y="${coordinate(a.y)}"/><xdr:ext cx="${emu(a.w)}" cy="${emu(a.h)}"/>`; close += '</xdr:absoluteAnchor>'; }
         let obj = L.sheetObjects.frame(d, objects, drels.owner, sz);
         const nameAttr = esc(d.name || (d.kind === 'chart' ? 'Chart ' : d.kind === 'image' ? 'Picture ' : 'Shape ') + (id - 1));
         if (obj) { /* preserved picture representation of a control or embedded object */ }

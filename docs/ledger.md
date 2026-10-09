@@ -136,33 +136,28 @@ new differences. Across **6,589** attempted states, **6,312** pass the paired re
 **260** fail and **17** are excluded. Failures include
 unrenderable originals, missing outputs, conversion errors/timeouts and count differences. This does
 not establish visual fidelity for every workbook. All five saved-render failures also fail or time
-out in their originals. Reports: `~/corpora/results/ledger-final-3cb0cd2/`. The five remaining count
-differences are `tdf66668`, `tdf118668`, `pivottable_tabular_mode`, `Photo Formats - CGM-O12-XL-Pictures`
-and `clusterfuzz-testcase-minimized-POIXSSFFuzzer-5937385319563264`; exact paths, counts and known
-limits are in `~/corpora/results/lossless-final-2026-10-09/RENDER-EXCEPTIONS.md`.
+out in their originals. Reports: `~/corpora/results/ledger-final-3cb0cd2/`. A subsequent focused
+correction restores the original counts for `tdf66668` (two pages) and `pivottable_tabular_mode`
+(four). Signed drawing offsets are retained, and empty cells retain their original style identity
+even when it maps to the model's default style. These cells follow row shifts and undo; clearing
+formats or all content removes the retained style. All 74 Ledger tests, 19 command package/SDK
+comparisons and six browser draft/recovery comparisons pass. These two corrections await Excel
+acceptance and the next full refresh; their evidence is in `~/corpora/results/ledger-layout-final-2026-10-09/`.
+The remaining three count differences are `tdf118668` (invalid source sheet visibility),
+`Photo Formats - CGM-O12-XL-Pictures` (picture formatting under investigation), and
+`clusterfuzz-testcase-minimized-POIXSSFFuzzer-5937385319563264` (a damaged source ZIP member).
 
-The worksheet-format correction retains authored automatic row heights and unread attributes;
+Worksheet-format preservation retains authored automatic row heights and unread attributes;
 changing a default width or height replaces only that property. Cell edits, sheet copies, history
-and drafts keep the retained settings. Literal `true`/`false` view flags now retain reading direction.
-The full refresh resolves eight page-count differences without adding new ones. The initial 67-test
-pass, 13 distinct focused package/SDK states and nine browser draft states remain recorded in
-`~/corpora/results/ledger-sheet-properties-2026-10-09/`. The row-height sample passed Excel in Office batch 5.
-Pre-release worksheet-size markup is converted to current settings with a notice. Two affected
-inputs / six browser attempts pass save/edit/draft recovery; all 68 Ledger tests pass. Their 14
-validation states remain failures because the SDK cannot read the originals; they are not counted
-as successful comparisons. Both saved files render in LibreOffice: the readable original retains
-one page, and the unreadable original has no comparable count. The scope scan records 25 archive/XML
-failures separately. Evidence: `~/corpora/results/ledger-legacy-format-2026-10-09/`.
-Office batch 5 file 06 supplies the row-height check. It adds no package/SDK diagnostics and
-retains the original five LibreOffice pages; its only differences from the previous writer are
-the three restored default row heights. The row-height sample passed Excel in Office batch 5.
+and drafts keep the retained settings. Literal `true`/`false` view flags retain reading direction.
+Pre-release worksheet-size markup converts to current settings with a notice; unreadable originals
+remain failed validator comparisons. The automatic-height sample passed Excel in Office batch 5.
 
 Page setup now retains its original absence, per-property values and printer-setting relationships.
 Cell edits no longer introduce a portrait orientation into a sheet that omitted page setup. Seven
 public save/edit/draft inputs produce 49 passing package/SDK states, with all seven unedited render
-pairs retaining their original page counts; this fixes five diagnosed count differences. Sixteen
-distinct command states cover paper/quality edits, chart sheets, history and copies. The 71-test
-Ledger suite and the additional chart-sheet regression pass.
+pairs retaining their original page counts. Sixteen distinct command states cover paper/quality
+edits, chart sheets, history and copies.
 The final `3cb0cd2` refresh completes all 2,853 driver attempts and 6,589 package/SDK states with
 unchanged statuses and zero added diagnostics; feature and independent cell comparisons are also
 unchanged. Its full LibreOffice pass resolves 32 earlier count differences. Office batch 6 files 01–04 cover absence,

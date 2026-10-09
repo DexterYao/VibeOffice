@@ -5,9 +5,9 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 
 ## Status
 
-**The planned preservation features and review fixes are implemented. All full corpus measurements
-are complete, and Office batches 1–6 are accepted. Known content and layout exceptions remain;
-this is not a claim that every input saves losslessly.**
+**The core preservation features and reviewed fixes are implemented. Full corpus measurements
+are complete, and Office batches 1–6 are accepted. The final fidelity audit found further Excel
+corrections; work continues on those and the documented exceptions.**
 
 The pinned corpus contains **4,697 files** (2,902 Word, 951 Excel, 844 PowerPoint), exercised in
 **14,091 driver attempts / 30,919 package/SDK states**, with no added validator diagnostics.
@@ -31,6 +31,14 @@ The exact 36 batch-3–5 files pass a fresh LibreOffice check; the five batch-6 
 expected counts. All 41 handoff hashes are recorded, and the files remain unchanged. No Office
 sample is pending. The final notice-only Word correction changes no document content or layout;
 14 saved package states match the frozen output except generated metadata timestamps.
+
+The subsequent Excel layout correction retains signed drawing coordinates and blank cells with
+source style identities. Both affected samples regain their original LibreOffice counts (two and
+four pages); 74 unit tests, 19 command and six browser draft/recovery package/SDK comparisons pass.
+These new corrections await Office acceptance and the next full refresh. The three remaining Excel
+count differences involve invalid source visibility, ordinary picture formatting (a preservation
+gap being fixed), and a damaged source ZIP member. The focused evidence is
+`~/corpora/results/ledger-layout-final-2026-10-09/`; the preceding full artifacts remain frozen.
 
 Current consolidated evidence: `~/corpora/results/lossless-final-2026-10-09/`. The remaining fidelity
 work concerns the documented content/layout exceptions, not another broad test of unchanged code.

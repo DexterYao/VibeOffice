@@ -450,7 +450,7 @@
       const s = cAttr.s ? +cAttr.s : 0;
       if (s) { const id = xf[s]; if (id) cell.s = id; }
       if (cAttr.s != null && xf[s] != null && ctx.wb.pkg) cell.keep = { ...cell.keep, source: ctx.wb.pkg.id, style: s, modelStyle: cell.s || 0 };
-      if (cell.v == null && cell.f == null && !cell.s && !cell.dt) { /* nothing to keep */ }
+      if (cell.v == null && cell.f == null && !cell.s && cell.keep?.style == null && !cell.dt) { /* nothing to keep */ }
       else {
         if (!row) row = sh.rowObj(r);
         row.cells[c] = cell;
