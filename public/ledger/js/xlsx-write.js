@@ -562,10 +562,11 @@
     if (!authors.length) aid('');
     return HDR + `<comments xmlns="${NS_MAIN}"${list.some(L.threads.active) ? L.threads.noteNamespaces : ''}><authors>` + authors.map((a) => `<author>${escX(a)}</author>`).join('') + '</authors><commentList>' + items.join('') + '</commentList></comments>';
   }
-  function vmlXml(sh, idmap) {
+  function vmlXml(sh, idmaps) {
+    const idmap = [].concat(idmaps || 1)[0];
     const list = Array.from(sh.comments.values()).filter((c) => c.r < M.MAXR && c.c < M.MAXC);
     let s = '<xml xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">' +
-      `<o:shapelayout v:ext="edit"><o:idmap v:ext="edit" data="${idmap}"/></o:shapelayout>` +
+      `<o:shapelayout v:ext="edit"><o:idmap v:ext="edit" data="${[].concat(idmaps || 1).join(',')}"/></o:shapelayout>` +
       '<v:shapetype id="_x0000_t202" coordsize="21600,21600" o:spt="202" path="m,l,21600r21600,l21600,xe"><v:stroke joinstyle="miter"/><v:path gradientshapeok="t" o:connecttype="rect"/></v:shapetype>';
     list.forEach((cm, i) => {
       const w = cm.w || 108, hgt = cm.h || 59.25;
@@ -741,7 +742,7 @@
       }
       pack.bind(part, sh.extra.ooxmlPart);
       const rels = relsFor(part);
-      const objects = L.sheetObjects.begin(sh, pack, pack.part(part));
+      const objects = L.sheetObjects.begin(sh, pack, pack.part(part), idmaps.get(sh));
       L.tableKeep.sheet(sh, pack, pack.part(part));
       if (sh.kind === 'chartsheet') {
         let body = HDR + `<chartsheet xmlns="${NS_MAIN}" xmlns:r="${NS_R}">` + (sh.tabColor ? `<sheetPr>${colorEl('tabColor', sh.tabColor)}</sheetPr>` : '') + `<sheetViews><sheetView${si === wb.active ? ' tabSelected="1"' : ''}${sh.view.zoom && sh.view.zoom !== 100 ? ` zoomScale="${Math.round(sh.view.zoom)}"` : ''}${sh.view.zoomToFit ? ' zoomToFit="1"' : ''} workbookViewId="0"/></sheetViews>`;
@@ -814,7 +815,7 @@
       }
       if (sh.comments.size || L.sheetObjects.hasVML(sh)) {
         const vPart = `xl/drawings/vmlDrawing${++nVml}.vml`;
-        const data = L.sheetObjects.vml(vmlXml(sh, idmaps.get(sh)), vPart, objects);
+        const data = L.sheetObjects.vml(vmlXml(sh, objects.vml.blocks), vPart, objects);
         if (data) {
           defaults.set('vml', CT.vml); add(vPart, data);
           out.push(`<legacyDrawing r:id="${rels.add('vmlDrawing', '../drawings/' + vPart.split('/').pop())}"/>`);
@@ -1016,6 +1017,7 @@
     for (const [n, t] of overrides) ct += `<Override PartName="${esc(n)}" ContentType="${t}"/>`;
     ct += '</Types>';
     files.unshift({ name: '[Content_Types].xml', data: ct });
+    pack.sheetParts = new Map(sheetEntries.map(e => [e.sh, pack.part(e.part)]));
     L.pivots.write(wb, pack);
     L.slicers.write(slicers);
     L.threads.write(wb, pack);

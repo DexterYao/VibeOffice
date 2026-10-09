@@ -109,6 +109,14 @@
     for (const t of wb.tables) if (!t.copyKeep) for (const r of t.queries || []) used.add(r.part);
     for (const sh of wb.sheets) if (!sh.extra.queryCopy) for (const r of sh.extra.queryParts || []) used.add(r.part);
     for (const q of wb.extra.queries || []) if (!used.has(q.part)) pack.writer.omit(q.part, 'The table or worksheet that owned this query was deleted.');
+    const names = new Set([...used].map(part => (at(wb.pkg.xml(part), 'name') || '').toLowerCase())), copies = new Map();
+    pack.writer.queryName = (name, copy, part) => {
+      const key = copy.id + ':' + part; if (copies.has(key)) return copies.get(key);
+      let next = name, n = +(name.match(/\d+$/)?.[0] || 0), base = name.replace(/\d+$/, '');
+      if (base === name) base += '_';
+      while (names.has(next.toLowerCase())) next = base + ++n;
+      names.add(next.toLowerCase()); copies.set(key, next); return next;
+    };
   };
   T.prepare = function (t, columns) {
     const current = { ...t, columns }, pkg = t.sheet.wb.pkg;
@@ -163,7 +171,7 @@
       target = w.name('xl/queryTables', 'queryTable', 'xml');
       w.copyPart(pkg, rel.part, target);
       const tree = K.parse(xml), name = at(tree, 'name');
-      xml = K.partXML(xml, copyIds(K.attributes(K.raw(tree), { name: copy.keepName ? name : name + '_Copy' + copy.id.slice(1, 9) }), copy));
+      xml = K.partXML(xml, copyIds(K.attributes(K.raw(tree), { name: copy.keepName ? name : w.queryName(name, copy, rel.part) }), copy));
     } else target = w.target(pkg, rel.part);
     if (!copy && xml === original) w.carry(pkg, rel.part);
     else {

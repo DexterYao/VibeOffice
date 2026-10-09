@@ -62,6 +62,7 @@ test('each spreadsheet VML drawing has its own shape id block', async () => {
   const vml = (data, id) => `<xml xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office"><o:shapelayout v:ext="edit"><o:idmap v:ext="edit" data="${data}"/></o:shapelayout><v:shape id="_x0000_s${id}"/></xml>`;
   const types = '<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="xml" ContentType="application/xml"/><Default Extension="vml" ContentType="application/vnd.openxmlformats-officedocument.vmlDrawing"/></Types>';
   assert.equal(run('check', await pkg('vml-blocks', { '[Content_Types].xml': types, 'xl/drawings/a.vml': vml(1, 1025), 'xl/drawings/b.vml': vml(2, 2049) })).status, 'ok');
+  assert.ok(run('check', await pkg('vml-id-across-sheets', { '[Content_Types].xml': types, 'xl/drawings/a.vml': vml('1,2', 2049), 'xl/drawings/b.vml': vml(3, 2049) })).issues.some(i => i.code === 'duplicate-vml-id'));
   assert.ok(run('check', await pkg('vml-block-clash', { '[Content_Types].xml': types, 'xl/drawings/a.vml': vml(1, 1025), 'xl/drawings/b.vml': vml(1, 1025) })).issues.some(i => i.code === 'duplicate-vml-block'));
 });
 test('SmartArt drawing caches may repeat shape id 0, as PowerPoint writes them', async () => {

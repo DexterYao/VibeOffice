@@ -181,12 +181,10 @@
     for (const cache of p.caches) for (const src of cache.sources) {
       const a = area(sh.wb, src);
       if (a.sheet !== sh.id || !a.ref) continue;
-      const rg = a.ref;
-      if (whole(rg)) { cache.refresh = true; continue; }
-      const next = O.shiftRange(rg, axis, at, n);
-      if (same(rg, next)) continue;
+      const rg = a.ref, kept = whole(rg), next = kept ? rg : O.shiftRange(rg, axis, at, n);
+      if (!kept && same(rg, next)) continue;
       if (!next) cache.drop = 'The complete pivot source range was deleted.';
-      if (src.kind === 'range') src.ref = next;
+      if (src.kind === 'range' && !kept) src.ref = next;
       cache.refresh = true;
       if (axis === 'c' && cache.columns && cache.sources.length === 1) {
         if (n < 0) {
@@ -195,7 +193,7 @@
           for (const t of p.tables) if (!t.drop && t.cache === cache.id && t.used.some(i => removed.includes(i)))
             t.drop = 'A source column used by the pivot table was deleted. Its remaining result cells are kept.';
           if (to >= from) cache.columns.splice(from, to - from + 1);
-        } else if (at > rg.c1 && at <= rg.c2) cache.columns.splice(at - rg.c1, 0, ...Array(n).fill(null));
+        } else if (at > rg.c1 && at <= rg.c2 || kept && at - rg.c1 < cache.columns.length) cache.columns.splice(at - rg.c1, 0, ...Array(n).fill(null));
       }
     }
     for (const t of p.tables) if (!t.drop && t.sheet === sh.id && t.ref) {
@@ -283,8 +281,8 @@
         if (!t.copy) w.claim(t.part, 'merged', target);
         w.put(target, xml, pkg.type(t.part)); w.carryRels(pkg, t.part, target);
       }
-      const sh = sheet(wb, t.sheet), index = wb.sheets.indexOf(sh), base = 'xl/worksheets/sheet' + (index + 1) + '.xml';
-      const owner = pack.part(base), rel = relation(pkg, sh.extra.ooxmlPart || '', 'pivotTable').find(r => r.part === t.part);
+      const sh = sheet(wb, t.sheet), owner = pack.sheetParts.get(sh);
+      const rel = relation(pkg, sh.extra.ooxmlPart || '', 'pivotTable').find(r => r.part === t.part);
       w.rels(owner).add(K.NS.rel + '/pivotTable', K.relative(owner, target), false, t.copy ? undefined : rel?.id);
       if (t.reshaped) w.loss({ id: 'pivot-layout:' + t.sheet + ':' + t.name, what: 'Rows or columns were inserted or deleted inside a pivot table. Excel rebuilds it from its source when the file opens.', where: sh.name + '!' + F.rangeName(t.ref), action: 'conversion' });
       if (t.edited) w.loss({ id: 'pivot-output:' + t.sheet + ':' + t.name, what: 'Cells in a pivot result were edited. Excel can replace these values when the pivot is refreshed.', where: sh.name + '!' + F.rangeName(t.ref), action: 'conversion' });

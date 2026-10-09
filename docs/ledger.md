@@ -163,14 +163,14 @@ remains in the report. The feature audit now rejects an invalid UTF-8 part in `t
 | Kept | Custom XML, typed custom properties, external links | 97/97 custom-XML relationships and property dependencies, 114/114 custom-property relationships, 49/49 external links (one converted from Strict); 97/99 XML parts in the inventory because unreferenced parts are not reattached |
 | Kept | VBA, people, labels and web extensions | 26/26 VBA, 4/4 persons, 2/2 label and 3/3 web-extension relationships |
 | Kept, with source exception | Connections | 35/36 relationships, including one Strict conversion; one original dependency is missing. All 58/58 actual connection/query parts remain; ZIP directory markers are excluded from counts |
-| Kept; Excel edit acceptance pending | Pivot tables and caches | 156/156 tables and 131/131 caches. Ten focused cases / 31 saved states cover sources, shifts, refresh, copy and deletion; dependent slicers follow deleted sources and shared pivots |
+| Kept; Excel edit acceptance pending | Pivot tables and caches | 156/156 tables and 131/131 caches. Twelve focused cases / 34 saved states cover sources, shifts, refresh, copy and deletion; dependent slicers follow deleted sources and shared pivots |
 | Kept; Excel edit acceptance pending | Threaded comments | 6/6 corpus records across four workbooks; five thread parts and four person parts remain byte-identical. Focused edits retain replies, mentions, person IDs and shifted cell references |
 | Kept | Notes, tables, merges, validation and names | 373/373 notes, 230/230 tables, 56,263/56,263 merges, 259/259 validations, 2,106/2,106 names |
 | Kept, with exceptions | Charts, pictures and shapes | 155/157 charts, 164/165 pictures and 492/493 shapes; unedited raw shapes retain nested compatibility alternatives and relationships |
 | Kept; Excel edit acceptance pending | Worksheet extensions and newer conditional formatting | The 65-workbook extension sweep retains 100/100 extension entries with unchanged expanded XML: 23/23 extended bars, 53/53 extended rules, 20/20 extended validations, 9/9 sparkline groups and 63/63 unknown entries. Package checks add no issues; SDK comparisons pass in 64, with one malformed original unvalidatable |
 | Kept; Excel edit acceptance pending | Controls, OLE, non-comment VML and sheet custom properties | All 40 relevant workbooks save without new package/SDK errors: 344/344 control references, 370/370 control/ActiveX parts, 26/26 OLE entries, 367/367 non-note VML shapes and 31/31 sheet properties. All 43 VML parts retain their original bytes |
 | Kept; Excel edit acceptance pending | Slicers and timelines | Three pinned supplemental workbooks retain 7/7 views and 12/12 definition/cache parts byte for byte; edits cover shared pivots, table copies, source deletion and drafts. OLAP cases remain unmeasured |
-| Kept; Excel edit acceptance pending | Query tables and column metadata | Ten public workbooks retain 23/23 query parts and 10/10 connections parts byte for byte, with 20/20 query tables and 68/68 column identities. Six focused cases cover column edits, copies, deletion and history |
+| Kept; Excel edit acceptance pending | Query tables and column metadata | Ten public workbooks retain 23/23 query parts and 10/10 connections parts byte for byte, with 20/20 query tables and 68/68 column identities. Eight focused cases cover column edits, copies, deletion and history |
 | Converted, with a notice | Edited imported charts, opaque drawing contents and macro/dialog sheets | Regenerate the edited model content; report its conversion before download |
 | Dropped, with a notice | Missing or unreferenced package dependencies; VBA in macro-free Save As | One source connection dependency is missing; two unreferenced custom-XML parts are not reattached. Macro removal requires the selected format and successful save |
 
@@ -215,7 +215,7 @@ LibreOffice, with explained changes against the previous writer; **Excel accepta
 | Edit pivot source cells, insert/delete rows or columns, rename/delete a sheet | Pivot sources, output locations and shared caches follow the rules below; slicer/timeline connections are pruned when their source disappears |
 | Move or edit a threaded comment | References follow the note; editing its displayed text converts that thread to an ordinary note with a notice |
 | Edit conditional formatting | Keep extended rule identities and unchanged properties; update base/extended bar links together, and retain unknown worksheet extensions by URI |
-| Save a sheet containing controls, OLE or non-comment VML | Keep their worksheet entries, previews, VML and dependencies together; they remain uneditable; each sheet's VML drawing keeps or gets its own `o:idmap` block, and new or copied notes are numbered inside it |
+| Save a sheet containing controls, OLE or non-comment VML | Keep their worksheet entries, previews, VML and dependencies together; they remain uneditable. Each sheet reserves its own `o:idmap` blocks, extending only when fresh identities need space. Notes, controls and nested group members use those blocks; unchanged VML retains its bytes |
 | Edit a query table | Retain external field identities; added columns are unbound and never reuse a column ID from the file, deleted fields stay excluded from refresh, and copied tables get independent query parts |
 
 ### Pivots: edit behavior
@@ -245,13 +245,13 @@ The pinned inventory contains 105 pivot workbooks, including 14 with shared cach
 defined-name or consolidation source. `tools/ledger/test/pivot-fixtures.py` supplies those two
 structural fixtures from a pinned range-source workbook. Both have zero package/SDK diagnostics;
 an independent reader confirms their source kinds, and the consolidation's ten input values match
-its cache and output. Ten focused pivot cases pass, covering all five source kinds, shared caches,
-format-only edits, shifts, copy/deletion and undo/redo. All **31 emitted states** introduce no
+its cache and output. Twelve focused pivot cases pass, covering all five source kinds, shared caches,
+format-only edits, whole-row/column sources, shifts, copy/deletion and undo/redo. All **34 emitted states** introduce no
 package/SDK diagnostics; unchanged definitions and records retain their bytes. The real browser
 draft/recovery hooks keep a source-edit refresh request and its notice. Two samples open in
 LibreOffice with the same two-page counts. These are focused measurements, separate from the frozen
 full-corpus figures above; Excel batch 3 remains pending. Reports:
-`~/corpora/results/ledger-preservation-2026-10-08/`.
+`~/corpora/results/review-fixes-2026-10-09/current-pivots/`.
 
 ### Threaded comments: edit behavior
 
@@ -278,20 +278,21 @@ the public corpus.
 |---|---|
 | Leave the object untouched | Keep its worksheet XML, both compatibility branches, preview and dependent parts; VML-only objects remain retained without an editing UI |
 | Move/resize or insert/delete rows and columns | Update linked worksheet, drawing and VML anchors; fixed-size objects move without shrinking |
-| Copy an object or sheet | Remap worksheet/drawing/VML identities together and copy mutable control/OLE payload parts independently |
+| Copy an object or sheet | Remap worksheet/drawing/VML identities together, including controls nested in groups; copy mutable control/OLE payload parts independently. Copied controls use the worksheet's numeric name sequence |
 | Paste into another workbook | Transfer preview and payload dependencies; IDs remain valid in the destination |
 | Delete the displayed object | Remove all its representations and unreachable dependencies; undo restores them |
 | Edit converted drawing content | Convert only that object to its displayed drawing, with a compatibility notice |
 | Add, edit or remove a note | Merge note VML while keeping non-comment shapes and their dependencies |
 | Undo/redo or recover a draft | Retain object ownership, payloads, current anchors and pending notices |
 
-Nine focused cases produce **26 passing package/SDK states**, plus **two passing browser draft states**
+Fifteen focused cases produce **38 passing package/SDK states**, plus **two passing browser draft states**
 after cross-workbook paste and undo/redo. Two edited samples open in LibreOffice with unchanged
 one-page counts. Core checks pass and all four pages load without console errors (existing
 font requests remain). The 40-workbook feature sweep keeps **396 dependent parts byte-identical**;
 13 ActiveX XML parts in a Strict input undergo the approved Transitional conversion. One unrelated
 unsupported drawing in `stress020.xlsx` remains reported. Excel batch 3 is pending.
-Reports and failed pre-fix attempts: `~/corpora/results/ledger-preservation-2026-10-08/`.
+Current focused reports: `~/corpora/results/review-fixes-2026-10-09/current-objects/`;
+the broader sweep and browser reports remain in `~/corpora/results/ledger-preservation-2026-10-08/`.
 
 ### Slicers and timelines: edit behavior
 
@@ -347,16 +348,17 @@ not reintroduce the repeated namespace declarations removed by the namespace fol
 | Edit a result cell or column heading | Keep the external field identity; write the local value/heading without changing the external query or requesting refresh |
 | Insert/delete columns through a table | Keep retained column IDs, mark new columns as unbound, and record deleted bound fields so a later refresh does not restore them |
 | Insert/delete rows or columns | Shift table, filter and sort ranges together |
-| Copy a table's worksheet | Give the table independent query parts and fresh UIDs; retain field links and duplicate sheet-scoped destination names |
+| Copy a table's worksheet | Give the table independent query parts and fresh UIDs; use numeric query-name suffixes. Retain field links and duplicate sheet-scoped destination names for range queries |
 | Delete a table or its worksheet | Remove its query parts with a Compatibility Checker entry; keep workbook-owned connections |
 | Undo/redo or recover a draft | Restore table membership, columns, scoped names and query changes; saving does not mutate model headings |
 
-Six focused cases produce **20 unique passing package/SDK states**, plus **two actual browser
+Eight focused cases produce **23 unique passing package/SDK states**, plus **two actual browser
 draft/recovery states**. Edited and copied samples and three history states open in LibreOffice
 with unchanged page counts. The ten-file query sweep has no new package issues; nine SDK
 comparisons pass and one original (`queryTableExport.xlsx`) has a missing dependency and cannot
-be validated. All **113 unit tests** pass and four pages load without console errors. Ledger does
-not execute a query or enable refresh. Reports: `~/corpora/results/ledger-preservation-2026-10-08/query-*`.
+be validated. Ledger does not execute a query or enable refresh. Current focused reports:
+`~/corpora/results/review-fixes-2026-10-09/current-queries/`; sweep and browser reports:
+`~/corpora/results/ledger-preservation-2026-10-08/query-*`.
 The full Ledger group measurement is reported above; Excel batch 3 remains pending.
 
 ## Compatibility testing

@@ -72,7 +72,7 @@
   // Copied definitions and parent/mention references change together. Person
   // IDs are shared unless the destination uses the same ID for another person.
   T.copy = function (cm, wb) {
-    const copy = clone(cm);
+    const copy = K.duplicate(cm);
     if (copy.keepNote) {
       const f = copy.keepNote.fragment, tree = K.parse(f.xml), uid = Array.from(tree.attributes).find(a => a.localName === 'uid' && attrNS(tree, a) === XR);
       if (uid) f.xml = K.attributes(f.xml, { [uid.name]: guid() });
@@ -111,8 +111,8 @@
   }
   T.write = function (wb, pack) {
     const w = pack.writer, pkg = wb.pkg, needed = new Map();
-    for (let i = 0; i < wb.sheets.length; i++) {
-      const sh = wb.sheets[i], source = sh.extra.threadPart, originals = source && pkg?.xml(source), items = [];
+    for (const sh of wb.sheets) {
+      const source = sh.extra.threadPart, originals = source && pkg?.xml(source), items = [];
       for (const cm of sh.comments.values()) {
         if (T.active(cm)) {
           for (const t of cm.thread) items.push({ cm, t });
@@ -131,7 +131,7 @@
         w.put(target, K.hoistNamespaces(K.mergeBag(xml, { ['{' + NS + '}threadedComment']: items.map(({ cm, t }) => commentXML(cm, t, w, target)) })), pkg?.type(source) || 'application/vnd.ms-excel.threadedcomments+xml');
         if (source) w.carryRels(pkg, source, target);
       }
-      const owner = pack.part('xl/worksheets/sheet' + (i + 1) + '.xml'), rel = related(pkg, sh.extra.ooxmlPart, 'threadedComment');
+      const owner = pack.sheetParts.get(sh), rel = related(pkg, sh.extra.ooxmlPart, 'threadedComment');
       w.rels(owner).add(RT + 'threadedComment', K.relative(owner, target), false, rel?.id);
     }
     const rel = related(pkg, pkg?.main, 'person'), source = rel?.part, tree = source && pkg.xml(source);

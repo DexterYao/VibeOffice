@@ -177,14 +177,16 @@ use fresh browser saves, package/SDK comparisons and Office samples for integrat
 `tools/quire/test/comment-office-copies.py BATCH PREVIOUS_BATCH OUTPUT` recreates the bounded first
 Word comment-repair isolation round. Package checks now reject excess comment references beyond
 their matching definitions; comparison also rejects automatic pre-release thread-namespace promotion.
-They also reject a shape ID repeated within a PowerPoint or Excel VML part (`duplicate-vml-id`), two
+They also reject a shape ID repeated within a PowerPoint VML part or across spreadsheet VML parts (`duplicate-vml-id`), two
 embedded objects sharing one preview (`shared-vml-preview`), two spreadsheet VML parts sharing an
 `o:idmap` block (`duplicate-vml-block`) and diagram/chart/OLE part animations whose target is not a
 graphic frame (`animation-part-target`). None occurs in the 4,697 pinned originals.
 
 Ledger's `pivots.test.js` and `threads.test.js` use the pinned public inputs (`VO_CORPORA` overrides
 `~/corpora`). `PIVOT_RESULTS=DIR` / `THREAD_RESULTS=DIR` retain the emitted edit/history states and
-their source paths for package/SDK comparisons. The thread test also authors a mention/no-legacy-note
+their source paths for package/SDK comparisons. Pivot source fixtures are generated automatically from
+the pinned input into `PIVOT_RESULTS/fixtures` (or a temporary directory); `PIVOT_FIXTURES` overrides
+that destination. They do not depend on an earlier results directory. The thread test also authors a mention/no-legacy-note
 fixture missing from the public corpus. `node tools/ledger/test/threads-ui.mjs INPUT.xlsx OUTPUT`
 checks the real Paste Special, undo/redo and suite draft/recovery hooks on a thread in the first sheet.
 `objects.test.js` uses `OBJECT_RESULTS=DIR` to retain controls/OLE/VML edit states from the same corpus.

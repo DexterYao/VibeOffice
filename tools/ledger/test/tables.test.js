@@ -44,6 +44,15 @@ test('query definitions, original field IDs and custom column attributes survive
     }
   }
 });
+test('copied query names follow the numeric source sequence and survive repeat saves', async t => {
+  const wb = await open(t, 'empty'); if (!wb) return;
+  const source = wb.tables[0].sheet;
+  O.copySheet(wb, source, wb.sheets.length); O.copySheet(wb, source, wb.sheets.length);
+  const one = await save(wb, 'copy-names'), two = await save(wb, 'copy-names-repeat');
+  const names = pkg => queryParts(pkg).map(p => pkg.xml(p).getAttribute('name')).sort();
+  assert.deepEqual(names(one.pkg), ['ExternalData_1', 'ExternalData_2', 'ExternalData_3']);
+  assert.deepEqual(names(two.pkg), names(one.pkg));
+});
 test('inserted query-table columns are unbound; retained columns keep their identities through history', async t => {
   const wb = await open(t, 'basic'); if (!wb) return;
   const tab = wb.tables[0], sh = tab.sheet, ids = tab.columns.map(c => c.id), before = JSON.stringify(tab.columns);
@@ -107,6 +116,8 @@ test('range query copies retain sheet-scoped destination names through moves, un
   const copy = O.copySheet(wb, sh, 0, 'Copied query');
   const local = wb.names.find(n => n.scope === 0); assert(local.ref.includes('Copied query'));
   let saved = await save(wb, 'copy-range-query'); assert.equal(queryParts(saved.pkg).length, 2);
+  const queryName = wb.pkg.xml(queryParts(wb.pkg)[0]).getAttribute('name');
+  assert(queryParts(saved.pkg).every(p => saved.pkg.xml(p).getAttribute('name') === queryName), 'range query names stay aligned with their copied sheet-scoped destinations');
   wb.undo.undo(); assert.equal(JSON.stringify(wb.names), before); await save(wb, 'copy-range-query-undo'); wb.undo.redo();
   O.insertLines(copy, 'r', 0, 2); saved = await save(wb, 'range-rows');
   const draft = await L.xlsxRead.read(saved.bytes); Object.defineProperty(draft, '_input', { value: wb._input });

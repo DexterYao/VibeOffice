@@ -257,9 +257,13 @@ class Package:
                     if id_ in caches:
                         self.issue('duplicate-cache-id', part, id_, path)
                     caches.add(id_)
-                elif ns == V and tag != 'shapetype' and part.endswith('.vml') and (ident or '').startswith('_x0000_s'):
-                    # Excel and PowerPoint drawing parts name each shape once (Word repeats VML ids in its own files)
+                elif ns == V and tag != 'shapetype' and part.endswith('.vml') and re.fullmatch(r'_x0000_s\d+', ident or ''):
+                    # Excel and PowerPoint drawing parts name each shape once (Word repeats VML ids in its own files);
+                    # Excel's numbered ids are unique across the whole workbook (0 of 951 corpus workbooks repeat
+                    # one; Excel Online writes the placeholder _x0000_s-1 in several parts)
                     kind = 'vml'
+                    if part.startswith('xl/'):
+                        scope = 'workbook-vml'
                 if kind and ident is not None:
                     key = (scope, kind, ident)
                     allowance = 1

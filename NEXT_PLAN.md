@@ -5,8 +5,10 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 
 ## Status
 
-**Implementation is not complete.** The 2026-10-09 review (below) has remaining Ledger copy-identity
-and hygiene work. Design edits now retain unread shapes and stacking order; opaque-frame rotation
+**Implementation is not complete.** The 2026-10-09 review (below) has remaining shared GUID-remapping
+and hygiene work. Ledger copies now allocate linked VML identities inside each sheet's blocks,
+including nested controls; retained notes do not allocate unnecessary blocks.
+Design edits now retain unread shapes and stacking order; opaque-frame rotation
 is disabled and moves retain member orientations. Modern comment anchors retain creation IDs;
 copied comments no longer carry an extra relationship to the source thread.
 Fixes after `9f18001` also mean Office batches 3–4 no
@@ -260,16 +262,16 @@ Remaining, in order:
    definitions and anchors together. Replaced extensions do not first carry their old comment
    relationship. Thirteen scenarios / 41 saved states pass package/SDK comparisons, including the
    explicit creation-ID check and deletion of an anchored shape on a copied slide.
-4. **Ledger copies, smaller.**
-   - Controls/OLE on a copied sheet still take shape IDs from `X.begin`'s drawing counter, not the
-     sheet's new VML block (`objects.js:96`).
-   - Copied query tables and objects still get `_Copy<hex>` names (`tables.js:166`, `objects.js:155`);
-     use Excel's naming.
+4. **Ledger copies (fixed).** Controls/OLE, notes and nested VML group members allocate linked
+   identities from the destination sheet's blocks. Originals reserve all their blocks; copies extend
+   only when needed, and a reopened 512-note sheet keeps its bytes. Copied query/control names use
+   numeric suffixes; range-query names retain their sheet scope. Fifteen object cases / 38 saved
+   states and eight query cases / 23 saved states pass package/SDK comparison.
 5. **Hygiene.**
    - Fresh-uid remapping is written four times (tables, extensions, slicers, threads); use `K.duplicate`.
-   - `'xl/worksheets/sheet'+(i+1)` is hardcoded at `pivots.js:279` and `threads.js:134`.
-   - Pivot source-kind tests read fixtures from a dated results folder, so they skip on a fresh machine.
-   - docs/ledger.md quotes stale per-feature test counts.
+   - (Fixed.) Pivots and threads use the writer's sheet-to-part map.
+   - (Fixed.) Pivot source-kind tests generate missing fixtures from the pinned corpus, with no dated path.
+   - (Fixed.) docs/ledger.md uses the current per-feature test counts.
    - `namespace-size.mjs` fails on the deliberate local `Ignorable` kept beside `PreserveAttributes`.
    - The former `designs.mjs` `style` failure is fixed: paragraph preservation now writes an edited
      default run property while retaining its unknown siblings.
