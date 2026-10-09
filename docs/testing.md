@@ -106,6 +106,8 @@ references, bookmark/permission endpoints, and pivot cache references. Alternate
 checked without falsely counting mutually exclusive IDs as duplicates. Output is JSONL; a failure exits
 nonzero. `node --test tools/ooxml/*.test.mjs` exercises malformed packages, cycles, shared dependencies,
 alternate branches, target swaps and ordered text.
+`audit.test.mjs` also checks that a cell-reader timeout remains a failed, timed-out attempt instead of
+being mislabeled as an unreadable style; genuine style errors stay separate.
 
 ### Office conventions: tools/ooxml/conventions.py
 
@@ -242,6 +244,11 @@ combines package checks and SDK comparison, accounting for unsuccessful driver a
 It validates every emitted artifact, including before-edit, undo, redo, second-save and recovered
 draft states. A diagnostic comparison requires a validatable original; standalone validation of
 repaired output is reported separately when its original cannot be opened by the SDK.
+Reusing an earlier SDK comparison requires an unchanged SDK/version, the same original SHA-256,
+and byte-identical content for every uncompressed member of the saved package. Record the source
+report and equivalence proof, rerun package checks if their rules changed, and validate all other
+states normally. Preserve fresh failures/timeouts in the raw reports even when an identical artifact
+has earlier successful independent evidence; disclose that reuse in the run README.
 `--dotnet PATH` selects the SDK runtime. `--lo PDF_DIRECTORY` additionally converts original and saved
 files using LibreOffice with its own temporary profile, checks conversion success and extracts page
 counts with `pdfinfo`. Unedited saves must keep the page count; edit scenarios can record
@@ -263,7 +270,8 @@ pass merely because the remaining package is valid.
 `tools/lectern/test/designs.mjs OUTPUT [SCENARIO_REGEX]` checks imported design edits, independent
 copies, unused-master retention, history and draft recovery. It checks that unrelated layouts
 retain their exact bytes, theme effects retain their expanded XML, and new layouts allocate unique
-shape IDs including the structural group. Reports follow the same
+shape IDs including the structural group. It also covers interleaved unread master/layout shapes,
+stacking order, deletion, addition and edited default run properties. Reports follow the same
 package/SDK and LibreOffice comparison workflow.
 
 `node tools/lectern/test/frames.mjs OUTPUT_DIR [SCENARIO_REGEX]` exercises opaque SmartArt, OLE,

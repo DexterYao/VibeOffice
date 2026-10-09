@@ -5,15 +5,16 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 
 ## Status
 
-**Review fixes are implemented; final measurement and Office handoff remain.** Ledger copies use the
+**Review fixes and final measurements are complete; Excel and PowerPoint acceptance remain.** Ledger copies use the
 shared GUID helper and allocate linked VML identities inside each sheet's blocks,
 including nested controls; retained notes do not allocate unnecessary blocks.
 Design edits now retain unread shapes and stacking order; opaque-frame rotation
 is disabled and moves retain member orientations. Modern comment anchors retain creation IDs;
 copied comments no longer carry an extra relationship to the source thread.
-Fixes after `9f18001` also mean Office batches 3–4 no
-longer represent the current writer. The measurements below describe `9f18001`; the final Word
-correction there clears all 31 failing SDK comparisons in six malformed-formatting fixtures.
+Office batches 3–4 have been rebuilt from writer `56de065`, compared with the previous handoffs,
+and checked in LibreOffice. Both current full corpus runs add no package/SDK diagnostics.
+The Word writer is unchanged by this review group; its preceding full run and final formatting
+correction remain the Word evidence, clearing all 31 failing SDK comparisons in six fixtures.
 **The plan is not signed off:** Excel and PowerPoint Office acceptance remain pending.
 
 - Quire and whole-package preservation: Office batches 1–2 accepted, including the corrected
@@ -23,7 +24,8 @@ correction there clears all 31 failing SDK comparisons in six malformed-formatti
 - Lectern sections/shows, comments, opaque frames, designs, tags/actions/effects and timing: implemented
   and measured; [PowerPoint batch 4](/home/john/Downloads/lossless-check/office-batch-4/CHECKLIST.md) pending.
 - Conversion notices and focused edit/history/draft checks are implemented. The review fixes pass
-  142 unit tests; current full Ledger/Lectern runs and rebuilt Office samples follow before signoff.
+  142 unit tests, plus the new audit-timeout regression. Full Ledger/Lectern runs are complete;
+  all 30 rebuilt Office samples pass package/SDK and LibreOffice checks with expected counts.
   Failed and excluded inputs remain explicit; the suite does not claim every arbitrary input is lossless.
 
 **Slide-6 repair: fixed** (`60c26b4`), confirmed in PowerPoint. The last batch-preparation defect,
@@ -159,10 +161,12 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
 
 ## Current execution
 
-- Final suite: **14,091 driver attempts** and **30,919 package/SDK rows** across the pinned sets.
+- Current suite evidence: **14,091 driver attempts** and **30,919 package/SDK rows** across the pinned sets.
   With the final focused Word correction, 29,341 validation rows pass, 670 fail and 908 are excluded.
   There are no added package issues or SDK diagnostics. The original reports retain the 31 Word
   regression states; their corrections are recorded separately, alongside failed and excluded inputs.
+  Ledger and Lectern are freshly measured at `56de065`; Quire retains its preceding full run because
+  this review group does not change its writer behavior. These are explicitly versioned runs.
 - Quire: save/draft each 2,880 OK and 22 failed; text 2,281 OK, 22 failed, 599 excluded. Its 19,028
   validation rows have 18,056 OK, 373 failed and 599 excluded. Feature counts remain at the documented
   final levels; the independent inventory retains 776,207/776,869 counted words. The formatting repair
@@ -171,33 +175,39 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
 - Ledger: save/draft each 935 OK, 11 failed, 5 excluded; text 933 OK, 11 failed, 7 excluded. Its 6,589
   validation rows have 6,371 OK, 201 failed and 17 excluded. Independent comparison covers 889 saves
   and 887 edits; one timed-out large workbook reuses its earlier passing checks after all 18 current
-  output parts match byte for byte. Existing cell/formula exceptions remain documented.
+  output parts match byte for byte. The fresh large-file failures remain in the report; the audit's
+  timeout-inside-style-access reporting bug is fixed and has a focused regression. Existing
+  cell/formula exceptions remain documented.
 - Lectern: save/draft each 837 OK, 6 failed, 1 excluded; text 548 OK, 6 failed, 290 excluded. Its 5,302
   validation rows have 4,914 OK, 96 failed and 292 excluded. All 827 readable unchanged pairs retain
   every inventoried feature and all 58,022 counted words. The script converts 67 selected SmartArt
-  previews with notices; other inventoried features remain.
-- Each app's full run has a convention scan. Word: 192 signatures, no additions over its preceding
-  run. Excel: 185; three additional signatures come from a recovered fuzzer omitted by the old scan,
-  whose corrected/current parts differ only by the save timestamp. PowerPoint: 169, including retained
-  and Strict-converted vocabulary, scoped MC, frame transforms and content-type forms. Reports
-  distinguish convention differences from confirmed defects.
-- All 124 unit tests pass; all four pages load with no console errors (known font requests remain).
+  previews with notices. Two part-animation effects attached to one edited SmartArt object are
+  removed with their own notice; every other inventoried feature remains.
+- Current SDK evidence reuses 10,735 previous comparisons only after the original SHA-256 and every
+  uncompressed saved ZIP member match exactly, with unchanged SDK code/version. Package checks are
+  fresh; the remaining 1,156 attempted states go through the normal validator. All validation statuses
+  match the previous reports. No failed or excluded attempt is relabeled as a pass.
+- Each app's full run has a convention scan. Word: 192 signatures from its preceding run. Excel: 185,
+  unchanged. PowerPoint: 166, with no additions; the three removed signatures are spurious rotation
+  and flip attributes on retained ink transforms. Reports distinguish convention differences from defects.
+- The 142-test review suite and the new audit regression pass; all four pages load with no console errors (known font requests remain).
   Markdown stays at 652/652 CommonMark, 22/22 GFM and 24/24 exact saves with confined edits.
   The three-app Compatibility Checker has 21 passing save/cancel/draft/acknowledgement checks;
   five public conversion cases produce nine passing SDK/LibreOffice states.
 - Shared namespace cleanup now assembles XML slices once. All 98,574 old/new patch comparisons are
   byte-identical; time within patch calls fell from 52,301.5 to 243.2 ms on the large-deck comparison.
   This is a patch benchmark, not total save time. No passing corpus files were rerun for that optimization.
-- Every final file in Office batches 3 and 4 passes package/SDK and LibreOffice with expected counts.
-  Previous-writer differences are reviewed. The batches contain 15 files each; Office acceptance is
+- Every current file in Office batches 3 and 4 passes package/SDK and LibreOffice with expected counts.
+  Previous-writer differences are reviewed: 19 files have identical member contents, with explained
+  XML changes in the other 11 and no binary changes. The batches contain 15 files each; Office acceptance is
   pending, not inferred from those checks. Full-corpus LibreOffice rendering has not been completed.
 
-Current reports: `~/corpora/results/final-suite-2026-10-09/` and
-`~/corpora/results/lectern-group-2026-10-09/`; the final Word correction and combined report are in
+Current Ledger/Lectern reports and rebuilt Office batches: `~/corpora/results/review-final-56de065/`.
+The preceding Word full run is in `~/corpora/results/final-suite-2026-10-09/`; its final correction and combined report are in
 `~/corpora/results/quire-property-repair-2026-10-09/`. Exact inputs, frozen writer revisions, initial failures,
 correction overlays, hashes and older progress notes stay with those reports. The review fixes and
-their focused measurements are in `~/corpora/results/review-fixes-2026-10-09/`. Next: full current
-Ledger/Lectern runs, rebuilt/diffed batches 3–4, then actual Office acceptance before signoff.
+their focused measurements are in `~/corpora/results/review-fixes-2026-10-09/`. Next: actual Excel and
+PowerPoint acceptance of rebuilt batches 3–4, then address any reported defects before signoff.
 
 ## Review of 6d24c43..275406e (2026-10-08)
 Followed well: bounded Office batches with previous-writer comparison, checker rules for the WordArt
@@ -239,8 +249,8 @@ the package rules `duplicate-vml-id`, `shared-vml-preview`, `duplicate-vml-block
 `animation-part-target`. They cover copied OLE previews, SmartArt part animations, reused query
 column IDs, note VML blocks, and slicer copy names and workbook names.
 
-**First:** batches 3 and 4 were built before `1a33733`. Rebuild them from the current writer and
-diff against the old batch files before the user opens them.
+**Rebuilt:** batches 3 and 4 now use `56de065`, with every previous-writer difference reviewed.
+The earlier handoffs are archived; the current copies await Excel and PowerPoint acceptance.
 
 Also fixed afterwards:
 - namespace processing cost: a fast path in `K.hoistNamespaces` with identical output on 11,595
@@ -251,7 +261,7 @@ Also fixed afterwards:
 - sheets needing more than one VML id block: every needed block is reserved, and `duplicate-vml-id`
   is workbook-wide for spreadsheets.
 
-Remaining, in order:
+Review items, now implemented:
 1. **Lectern rotation (fixed).** Rotation and flip commands, handles and the size dialog disable
    unsupported transforms on retained frames and groups containing them. Moving/resizing a
    multi-member wrapper keeps each original rotation and flip. Three focused scenarios and their

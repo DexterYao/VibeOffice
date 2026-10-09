@@ -99,8 +99,10 @@ The pinned **844-file** run completes **837 saves and 837 draft recoveries**, wi
 1 password exclusion** in each scenario. Text edit/save/undo/redo completes in **548**, excludes
 **290** without editable text and fails in **6**. Across **5,302 emitted or attempted states**, package/SDK
 comparison has **4,914 OK, 96 failed and 292 excluded**, with **no new diagnostics**. Failed originals
-and incomplete recovered decks remain failures. The full writer is `11a9f1e`, with isolated damaged-source
-and timeout corrections through `5247af8`; reports retain every original attempt.
+and incomplete recovered decks remain failures. The current full writer is `56de065`;
+reports retain every original attempt. SDK evidence is reused for 4,607 states only after the original
+hash and every saved ZIP member match the previous validated output; package checks are fresh.
+The remaining 695 attempted states use the normal validator, with all statuses matching the preceding run.
 
 The independent inventory compares **827 readable pairs** and records **17 failed comparisons**.
 All **58,022 counted words** and every inventoried feature remain after an unchanged save, including
@@ -120,20 +122,23 @@ Counts alone do not establish rendering fidelity; the edit checks below verify o
 | Kept; PowerPoint edit acceptance pending | Ink and 3-D models | 44/44 ink/content-part entries and 2/2 3-D models; unavailable previews have editable placeholder frames |
 | Kept; PowerPoint edit acceptance pending | Extended visual effects | The property sweep retains all 18 glow, 30 reflection, 16 soft-edge, 36 inner-shadow, 136 scene3d, 123 sp3d and 6 picture-treatment entries; unknown run/paragraph details remain with their properties |
 | Kept; PowerPoint edit acceptance pending | Program/macro actions and shape tags | All 29 action settings and 13 slide/shape tag lists remain in the property sweep; copied tag parts and shape identities are independent |
-| Converted, with a notice | Edited opaque contents, imported charts and notes formatting | The text script converts 67 selected SmartArt previews; untouched inventoried features remain |
+| Converted, with a notice | Edited opaque contents, imported charts and notes formatting | The text script converts 67 selected SmartArt previews and removes two effects targeting one converted object's parts; untouched inventoried features remain |
 | Dropped, with a notice | Missing source dependencies, invalidated signatures and VBA in macro-free Save As | Damaged source parts cannot be reconstructed; explicit deletion and format changes remove their owned parts |
 
 The custom-XML/tag inventory retains **234/234 parts**, excluding ZIP directory markers. Package
 carry checks pass byte comparison in **818 files**; **9 Strict inputs** deliberately convert retained
 XML and relationship vocabulary. Sixteen malformed/failed inputs and one password exclusion remain
-separate. The edit inventory covers **545 readable pairs**: its only feature reduction is **67 SmartArt
-objects whose preview text the script edits**, each reported as converted. Other inventoried features
-remain. Run-boundary edits and those converted previews account for the word-count differences.
+separate. The edit inventory covers **545 readable pairs**: **67 SmartArt objects whose preview text
+the script edits** are converted, with **two part-animation effects** on one of those objects removed
+with their own notice. Other inventoried features remain. Run-boundary edits and those converted
+previews account for the word-count differences. Specific frame notices now explain their opaque
+dependencies too; generic unreferenced-part notices fall from 375 to 58 in the edited run, with
+unrelated losses still reported.
 
 Documented exceptions are damaged or missing source dependencies, signatures invalidated by a save,
 Strict-to-Transitional conversion, edited chart/opaque-frame content, and edited notes-page formatting.
 Form-control or field markup that requires conversion is also reported. Full-corpus LibreOffice
-rendering is not complete; the **15 PowerPoint batch-4 samples** pass package/SDK and LibreOffice with
+rendering is not complete; the **15 PowerPoint batch-4 samples rebuilt from `56de065`** pass package/SDK and LibreOffice with
 expected counts. Their previous-writer differences are reviewed. **PowerPoint acceptance is pending**
 at `~/Downloads/lossless-check/office-batch-4/CHECKLIST.md`.
 
@@ -144,8 +149,10 @@ counts. Strict conversion passes **85 presentations / 340 emitted states** again
 package/SDK diagnostics; the Strict presentation sample passed Office batch 2. Rewritten parts now
 hoist fragment namespace declarations and `mc:Ignorable` to the root. The fresh namespace sample
 passes PowerPoint, package/SDK and LibreOffice with unchanged slide count. Opaque parts retain their
-bytes. Current reports, convention signatures, correction history and exceptions are in
-`~/corpora/results/lectern-group-2026-10-09/`; earlier runs remain archived separately.
+bytes. Current full reports and exceptions are in `~/corpora/results/review-final-56de065/lectern/`.
+The convention scan has 166 signatures, with no additions; removing spurious rotation/flip attributes
+on retained ink transforms removes three signatures. Focused checks remain in
+`~/corpora/results/lectern-group-2026-10-09/` and `~/corpora/results/review-fixes-2026-10-09/`.
 
 ### Media: edit behavior
 

@@ -141,11 +141,14 @@ including edited imported charts and opaque drawings. Drafts retain notices sile
 
 The pinned 951-file corpus saves and reopens **935 workbooks**, with **11 failures and 5 exclusions**.
 Cell edit/save/undo/redo completes in **933**, with **11 failures and 7 exclusions**; draft recovery
-completes in **935**, with **11 failures and 5 exclusions**. The final full run uses writer `69be775`.
+completes in **935**, with **11 failures and 5 exclusions**. The current full run uses writer `56de065`.
 Package/SDK comparison reports **911 OK, 35 failed and
 5 excluded** for unedited saves. Across **6,589** save/edit/history/draft states, **6,371 pass,
 201 fail and 17 are excluded**; none adds diagnostics. Malformed or unvalidatable originals
-remain failures in the reports. The complete unit set has **120 passing tests**.
+remain failures in the reports. The 142-test review suite and the additional audit-timeout regression pass.
+SDK evidence is reused for 6,128 states only after the original hash and every saved ZIP member match
+the previous validated output; package checks are fresh. The remaining 461 attempted states use
+the normal validator, and all statuses match the preceding run.
 
 The feature inventory compares **922 readable pairs**. The independent openpyxl cell comparison
 covers **889 workbooks / 1,649,147 cells**: **883 workbooks** keep every compared value/formula;
@@ -154,9 +157,10 @@ cells, a template and dynamic-array formulas. The other **62 attempts** remain r
 including six saved copies openpyxl cannot read. The edited comparison excludes only the scripted
 A1 target: **879 of 887 workbooks** match every other value/formula; six have existing differences
 and two recalculate dependent array-result cells. No blanket lossless claim is made for these inputs.
-One large workbook reached the fresh audit's 40-second limit; its previous passing save/edit cell comparisons are reused after
-verifying that all 18 ZIP members in each current output are byte-identical. The original timeout
-remains in the report. The feature audit now rejects an invalid UTF-8 part in `tdf76115` explicitly.
+One large workbook's fresh cell comparisons did not complete; its previous passing save/edit comparisons are reused after
+verifying that all 18 ZIP members in each current output are byte-identical. The fresh failed attempts
+remain in the report. A timeout raised while reading a cell style could be mislabeled as an unreadable
+style; the audit now distinguishes them. The feature audit rejects an invalid UTF-8 part in `tdf76115` explicitly.
 
 | Status | Feature | Current measured result / limit |
 |---|---|---|
@@ -184,9 +188,11 @@ all **23 Strict workbooks / 92 emitted states** against original package/SDK dia
 its notice through draft recovery; the Strict Excel sample passed Office batch 2.
 Reports, failed attempts and historical measurements: `~/corpora/results/next-plan-head-2026-10-08/`
 and `~/corpora/results/strict-transitional-2026-10-08/`. Current full results:
-`~/corpora/results/final-suite-2026-10-09/ledger/`; feature edit checks remain in
-`~/corpora/results/ledger-group-2026-10-09/`. The 15-file **Office batch 3** passes package/SDK and
-LibreOffice, with explained changes against the previous writer; **Excel acceptance is pending**.
+`~/corpora/results/review-final-56de065/ledger/`; feature edit checks are in
+`~/corpora/results/ledger-group-2026-10-09/` and `~/corpora/results/review-fixes-2026-10-09/`.
+The convention scan has 185 signatures with no additions. The rebuilt 15-file **Office batch 3**
+uses `56de065` and passes package/SDK and LibreOffice with expected counts, with explained changes
+against the previous handoff; **Excel acceptance is pending**.
 
 ### Package, styles and strings: edit behavior
 
