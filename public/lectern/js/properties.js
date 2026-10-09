@@ -233,9 +233,13 @@
   Q.finishSlide = function (slide, ctx, xml) {
     const keep = slide.keep?.details; if (!keep) return xml;
     for (const where of ['common', 'root']) for (const f of keep[where]) {
-      let text = Q.emit(f, ctx); if (text == null) continue;
-      const tag = K.parse(text).localName, tree = K.parse(xml), parent = where === 'common' ? kid(tree, 'cSld') : tree;
+      const tag = K.parse(f.xml).localName, tree = K.parse(xml), parent = where === 'common' ? kid(tree, 'cSld') : tree;
       if (tag === 'clrMapOvr' && slide.design !== keep.design) continue;
+      // Replaced extensions must not first carry their old dependencies. A copied
+      // comment extension otherwise adds a second relationship to the source thread.
+      const generated = tag === 'extLst' && kid(parent, tag);
+      const retained = generated ? K.slice(f, K.mergeBag(f.xml, Object.fromEntries(kids(generated).map(e => [e.getAttribute('uri'), ''])), e => e.getAttribute('uri'))) : f;
+      let text = Q.emit(retained, ctx); if (text == null) continue;
       if (tag === 'extLst') text = extensions(text, raw(kid(parent, tag)));
       const next = K.merge(raw(parent), { ['{' + N.p + '}' + tag]: text }, where === 'common' ? 'p:CT_CommonSlideData' : 'p:CT_Slide');
       xml = where === 'common' ? replace(xml, parent, next) : next;

@@ -7,7 +7,8 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 
 **Implementation is not complete.** The 2026-10-09 review (below) has remaining Ledger copy-identity
 and hygiene work. Design edits now retain unread shapes and stacking order; opaque-frame rotation
-is disabled and moves retain member orientations. Modern comment corrections are being verified.
+is disabled and moves retain member orientations. Modern comment anchors retain creation IDs;
+copied comments no longer carry an extra relationship to the source thread.
 Fixes after `9f18001` also mean Office batches 3–4 no
 longer represent the current writer. The measurements below describe `9f18001`; the final Word
 correction there clears all 31 failing SDK comparisons in six malformed-formatting fixtures.
@@ -255,8 +256,10 @@ Remaining, in order:
    Edits replace only those shapes, retaining unread siblings and their stacking positions. Sixteen
    scenarios / 50 saved states pass package/SDK comparison, including interleaved unread frames,
    deletion, explicit reorder, addition, style edits, undo/redo and drafts.
-3. **Lectern comments.** A comment re-anchored to its slide gets `<pc:sldMk>` without `cId`
-   (`comments.js:128`). Reuse the slide's creation ID, as Office does; the test must require it.
+3. **Lectern comments (fixed).** Re-anchored comments use the slide's creation ID; copies remap
+   definitions and anchors together. Replaced extensions do not first carry their old comment
+   relationship. Thirteen scenarios / 41 saved states pass package/SDK comparisons, including the
+   explicit creation-ID check and deletion of an anchored shape on a copied slide.
 4. **Ledger copies, smaller.**
    - Controls/OLE on a copied sheet still take shape IDs from `X.begin`'s drawing counter, not the
      sheet's new VML block (`objects.js:96`).

@@ -211,19 +211,22 @@ The full group measurement is above; PowerPoint batch 4 acceptance remains pendi
 | Text elsewhere, slide move or shape geometry | Keep comments, replies, authors and task metadata; retain unchanged comment parts byte for byte |
 | Copy a slide or paste a slide from another document | Independent comment parts and identities; remap authors, per-author indices, reply links, slide/shape anchors and creation identities together |
 | Duplicate only a shape | Existing comments remain on the original shape |
-| Delete a commented shape or edit its anchored text | Keep the thread attached to the slide; report the anchor conversion |
+| Delete a commented shape or edit its anchored text | Keep the thread attached to the slide with its slide ID and creation ID; report the anchor conversion |
 | Delete a slide | Remove its comment parts; retain parts owned by other slides and copied comments |
 | Undo/redo or recover a draft | Restore ownership and dependencies; retain pending notices |
 
 All 30 public comment/author inputs save and reopen; package/SDK comparison passes for 29, with one
-original ZIP CRC failure explicitly retained as a failed comparison. Twelve focused cases / 38
+original ZIP CRC failure explicitly retained as a failed comparison. Thirteen focused cases / 41
 saved states pass package/SDK comparison and cover
 legacy and Strict copies, modern replies/tasks, shape and text anchors, detached clipboard transfer,
 undo/redo and actual drafts. The modern fixture is schema-authored because the pinned corpus has
-modern authors but no modern comment threads; it passes the SDK's Microsoft365 target.
-Two edited samples and four history states open in LibreOffice with expected slide counts.
+modern authors but no modern comment threads; it passes the SDK's Microsoft365 target. Copies carry
+only their own thread relationship, and re-anchored comments must match a declared slide creation ID.
+Two earlier edited samples, four history states and the corrected text-anchor sample open in
+LibreOffice with expected slide counts.
 PowerPoint acceptance remains pending in batch 4. Reports:
-`~/corpora/results/lectern-preservation-2026-10-09/comments-*`.
+`~/corpora/results/lectern-preservation-2026-10-09/comments-*` and
+`~/corpora/results/review-fixes-2026-10-09/*comments*`.
 
 ### Opaque frames: edit behavior
 
