@@ -227,7 +227,8 @@ PowerPoint acceptance remains pending in batch 4. Reports:
 | Edit | Save behavior |
 |---|---|
 | Text outside an opaque object | Keep its original frame and dependent parts |
-| Move, resize or rotate its preview | Update the outer frame; retain internal 3-D coordinates, data and effects |
+| Move or resize its preview | Update the outer frame; retain each member's orientation, internal 3-D coordinates, data and effects |
+| Rotate or flip a preserved preview | Rotation and flip controls are disabled, including for groups containing preserved frames; the existing orientation remains |
 | Copy or paste the object | Independent dependent parts and remapped identities; import preview renditions, diagram cache links and OLE/VML preview identities |
 | Change converted content or ungroup SmartArt | Save the edited group/picture and record the conversion; animations of its parts are removed with their own notice |
 | Delete the object | Remove its original frame; do not restore it from package parts |
@@ -239,6 +240,8 @@ have missing parts and remain failed comparisons. Twenty focused cases / 62 save
 geometry, copying, clipboard previews, content edits, ungrouping, deletion and actual draft recovery,
 including a schema-authored fallback with two displayed members. The two OLE identity corrections
 and the missing-cache correction were rerun separately; the original measurements remain recorded.
+Three orientation regressions add nine passing save/undo/redo package/SDK comparisons: disabled
+preview rotation/flip and moved wrappers whose members have different rotations and flips.
 Of 959 diagram, embedding, ink and model dependency parts, 928 are byte-identical, ten are Strict
 conversions, three remove missing optional cache references, and 18 are unreferenced orphan parts
 in one damaged source. Five edited samples open in LibreOffice with expected slide counts.

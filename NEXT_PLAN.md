@@ -5,8 +5,12 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 
 ## Status
 
-**Implementation and automated measurements are complete.** The final Word correction clears all
-31 failing SDK comparisons in six malformed-formatting fixtures; the 74-file affected subset adds no errors.
+**Implementation is not complete.** The 2026-10-09 review (below) found substantive remaining work:
+master/layout decoration edits can discard unrelated shapes and modern comment anchors need their
+creation IDs. Opaque-frame rotation is now disabled and moves retain member orientations.
+Fixes after `9f18001` also mean Office batches 3–4 no
+longer represent the current writer. The measurements below describe `9f18001`; the final Word
+correction there clears all 31 failing SDK comparisons in six malformed-formatting fixtures.
 **The plan is not signed off:** Excel and PowerPoint Office acceptance remain pending.
 
 - Quire and whole-package preservation: Office batches 1–2 accepted, including the corrected
@@ -233,15 +237,20 @@ column IDs, note VML blocks, and slicer copy names and workbook names.
 **First:** batches 3 and 4 were built before `1a33733`. Rebuild them from the current writer and
 diff against the old batch files before the user opens them.
 
-Also fixed afterwards: the save cost (a fast path in `K.hoistNamespaces`, identical output on
-11,595 corpus parts, 30 MB sheet 2,956 → 3 ms), whole-column pivot sources, and pivot outputs
-reshaped by inserted or deleted lines (refresh plus a notice).
+Also fixed afterwards:
+- namespace processing cost: a fast path in `K.hoistNamespaces` with identical output on 11,595
+  corpus parts. On a 30 MB sheet, namespace processing alone went from 2,956 ms to 3 ms; total save
+  time was not measured.
+- whole-column and whole-row pivot sources: they keep their extent, and field bookkeeping still runs;
+- pivot outputs reshaped by inserted or deleted lines: refresh plus a notice;
+- sheets needing more than one VML id block: every needed block is reserved, and `duplicate-vml-id`
+  is workbook-wide for spreadsheets.
 
 Remaining, in order:
-1. **Lectern rotation.** Rotating a single-member opaque frame writes `rot` on the graphicFrame,
-   which PowerPoint ignores (`frames.js:69`). Multi-member wrappers drop member rotation
-   (`frames.js:183`). Disable rotation for opaque frames, or convert with a notice. Fix the
-   docs/lectern.md row "Move, resize or rotate".
+1. **Lectern rotation (fixed).** Rotation and flip commands, handles and the size dialog disable
+   unsupported transforms on retained frames and groups containing them. Moving/resizing a
+   multi-member wrapper keeps each original rotation and flip. Three focused scenarios and their
+   nine saved/undo/redo states pass package/SDK comparison; the edit matrix describes the limitation.
 2. **Lectern designs.** Editing one decoration on a kept master or layout replaces all its
    non-placeholder shapes (`designs.js:86`). Unmodelled shapes are lost without a notice and z-order
    changes. Patch only changed decorations in place.

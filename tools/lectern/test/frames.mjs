@@ -11,7 +11,7 @@ const samples = [
   ['smartart', 'libreoffice__12c1c1d6e7c5__smartart-linear-rule-vert.pptx', ['geometry', 'copy', 'content', 'ungroup', 'paste', 'draft']],
   // animated by diagram parts: editing it must not leave animations aimed at a plain group
   ['smartart-animated', 'libreoffice__2bd1fc189c8b__tdf104792-smart-art-animation.pptx', ['content']],
-  ['ole', 'libreoffice__12b5c8257d02__ole-emf_min.pptx', ['geometry', 'copy', 'paste', 'delete']],
+  ['ole', 'libreoffice__12b5c8257d02__ole-emf_min.pptx', ['geometry', 'copy', 'paste', 'delete', 'rotation']],
   // its preview IDs start at 1026, so a second copy meets an original ID
   ['ole-low', 'libreoffice__52988001bcd8__embedded.pptx', ['copy2']],
   ['ink', 'poi__8436edcd55b8__stress013.pptx', ['geometry', 'copy']],
@@ -19,7 +19,7 @@ const samples = [
   ['chartEx', 'openxml-sdk__254c9ac4ef06__Of16-03.pptx', ['geometry', 'copy']],
 ];
 const cases = samples.flatMap(([name, file, scenarios]) => scenarios.map(edit => ({ file, kind: name.replace(/-.*/, ''), edit, scenario: name + '-' + edit })));
-cases.push(...['geometry', 'copy', 'paste-partial', 'delete'].map(edit => ({ file: 'multiple-fallback.pptx', kind: 'chartEx', multi: true, edit, scenario: 'multiple-' + edit })));
+cases.push(...['geometry', 'copy', 'paste-partial', 'delete', 'rotation'].map(edit => ({ file: 'multiple-fallback.pptx', kind: 'chartEx', multi: true, edit, scenario: 'multiple-' + edit })));
 const selected = cases.filter(c => new RegExp(filter).test(c.scenario));
 fs.mkdirSync(out, { recursive: true });
 const results = path.join(out, 'results.jsonl');
@@ -81,6 +81,16 @@ async function run(o) {
   if (o.multi) check(members.length === 2, 'Expected two fallback members');
   const piece = count(K.parse(shape.keep.frame.fragment.xml)), after = { ...before };
   E.goto(pres.slides.indexOf(slide), { force: true }); A.view = 'normal'; A.focusArea = 'editor'; E.select([shape.id]); H.clear();
+  if (o.edit === 'rotation') {
+    const original = JSON.stringify(members);
+    check(!M.canRotate(shape), 'Preserved preview allows unsupported rotation');
+    check(!M.canRotate({ type: 'group', kids: members }), 'Group allows unsupported child rotation');
+    check(M.canRotate({ type: 'shape' }), 'Ordinary shapes must remain rotatable');
+    check(!E.overlay.querySelector('.hd-rot'), 'Preserved preview exposes a rotation handle');
+    A.rotate(90); A.flip('h');
+    check(JSON.stringify(members) === original, 'Rotation or flip changed the preserved preview');
+    check(!H.undo.length, 'Disabled rotation added undo history');
+  }
   let expected = after;
   async function save(state, blob) {
     blob ||= await L.pptx.write(L.pres);
@@ -93,6 +103,10 @@ async function run(o) {
     }
     for (const r of pkg.rels(pkg.main).filter(r => r.type.endsWith('/slide'))) {
       const tree = pkg.xml(r.part), spids = all(tree).filter(e => e.localName === 'oleObj' && e.hasAttribute('spid')).map(e => e.getAttribute('spid'));
+      if (o.multi && ['geometry', 'rotation'].includes(o.edit)) {
+        const orientations = root => all(root).filter(e => e.localName === 'Fallback').flatMap(e => all(e).filter(e => e.localName === 'xfrm').map(e => [+(e.getAttribute('rot') || 0), /^(1|true)$/.test(e.getAttribute('flipH')), /^(1|true)$/.test(e.getAttribute('flipV'))]));
+        check(JSON.stringify(orientations(tree)) === JSON.stringify(orientations(pres.pkg.xml(r.part))), 'Moving or resizing a wrapper changed member orientation');
+      }
       check(new Set(spids).size === spids.length, 'Embedded objects share a preview on ' + r.part + ': ' + spids.join(' '));
       const frames = new Set(all(tree).filter(e => e.localName === 'cNvPr' && e.parentNode.localName === 'nvGraphicFramePr').map(e => e.getAttribute('id')));
       const parts = all(tree).filter(e => e.localName === 'spTgt' && [...e.children].some(k => ['graphicEl', 'oleChrtEl', 'subSp'].includes(k.localName)) || ['bldGraphic', 'bldDgm', 'bldOleChart'].includes(e.localName) && e.hasAttribute('spid'));
