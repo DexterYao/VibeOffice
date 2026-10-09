@@ -45,9 +45,10 @@ used focused regressions and an Office recheck.
      kept / converted / dropped, with the current numbers, plus one edit-behaviour table per feature.
    - No dated increment sections and no superseded tables. History and run details go in
      `~/corpora/results/<run>/README.md` and in commit bodies.
-3. **Commit bodies.** Every commit body says three things:
+3. **Commit bodies.** A few lines, saying three things:
    - what changed for the user;
-   - the measured numbers, from a full run or focused;
+   - the measured numbers, from a full run or focused, and that the new test fails on the previous
+     commit;
    - what is still pending.
 4. **AGENTS.md stays short.**
    - Move the six preservation rule paragraphs to a "Preservation" section in docs/suite.md, or a
@@ -55,6 +56,22 @@ used focused regressions and an Office recheck.
    - Keep one line in AGENTS.md pointing there.
 5. **Full runs before features.** After each app's group of steps, run the full corpus, not only
    focused fixtures. Never let the documented corpus numbers predate the code by more than one step.
+   Run it once per feature group and per Office batch, not after every fix; a fix needs its focused
+   regression test.
+
+Added after the 2026-10-09 reviews (same quality in less time):
+
+6. **A fix's test must fail on the previous commit.** Run it against the old code before committing.
+   Two tests passed on the old code (the frame-orientation and whole-column cases).
+7. **New identities and names follow Office.** Before allocating any new ID or name (list `nsid`,
+   VML ids and blocks, slicer/cache/query names, control names, creation IDs), look up how
+   Office-authored corpus files do it and copy that. Each review found this mistake again.
+8. **Notices say exactly what happened.** "Converted" only when the value was really converted;
+   otherwise name what was dropped.
+9. **The plan's status is updated at milestones.** That means a feature group done, or an Office
+   batch prepared or answered, not after every commit. No commits whose only change is plan totals.
+10. **Other agents' work in progress.** Don't edit or commit files that hold another session's
+    uncommitted changes; ask first, or work around them.
 
 ## Order
 1. **Office batch 1** (now, about 15 files):
