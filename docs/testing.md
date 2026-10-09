@@ -256,6 +256,19 @@ files using LibreOffice with its own temporary profile, checks conversion succes
 counts with `pdfinfo`. Unedited saves must keep the page count; edit scenarios can record
 `expectedPages` or `expectedSlides`. LibreOffice and the validator cannot certify acceptance by Office itself.
 
+For a full rendering pass over already saved artifacts, use
+`python3 tools/ooxml/render.py MANIFEST.jsonl OUTPUT --jobs 4`. Each manifest row names `app`, `file`,
+`scenario`, `original`, `saved` and the driver `status`; `originalSha256`/`savedSha256` pin the inputs.
+The optional `expectedPages` overrides comparison with the original PDF count. The tool uses warm,
+isolated LibreOffice processes through the distribution's Python UNO bindings (`--uno-python`, default
+`/usr/bin/python3`), with read-only loading, no macro/link updates and a timeout per document.
+It stores PDFs, page counts and every failed/excluded attempt outside the repo. Exact member-byte
+fingerprints plus filenames and rendering-environment identities deduplicate history/draft states;
+changed members cannot reuse a render. Raw hashes identify malformed or oversized packages.
+`--resume` requires the same manifest/environment and verifies pinned input hashes before using
+completed rows. Rendering failures and page-count differences remain separate from driver and SDK
+results; a successful PDF export alone is not a lossless-save claim.
+
 ### Lectern preservation
 
 `node tools/ooxml/conversions.mjs OUTPUT_DIR [SCENARIO_REGEX]` checks conversion notices on public

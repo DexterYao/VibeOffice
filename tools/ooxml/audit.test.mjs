@@ -52,3 +52,31 @@ with tempfile.TemporaryDirectory() as tmp:
       mode === 'timeout' ? 'Cell comparison timeout' : 'Cannot compare cell style at A1');
   }
 });
+
+test('render reuse ignores ZIP compression but detects every changed member and malformed input', () => {
+  const script = fileURLToPath(new URL('./render.py', import.meta.url));
+  const probe = `
+import importlib.util, pathlib, sys, tempfile, zipfile
+spec = importlib.util.spec_from_file_location('render', sys.argv[1])
+module = importlib.util.module_from_spec(spec); spec.loader.exec_module(module)
+with tempfile.TemporaryDirectory() as tmp:
+    root = pathlib.Path(tmp)
+    def write(name, compression, value=b'<document/>', extra=False):
+        p = root / name
+        with zipfile.ZipFile(p, 'w', compression=compression) as z:
+            z.writestr('word/document.xml', value)
+            z.writestr('word/media/image1.png', b'image bytes')
+            if extra: z.writestr('unknown.xml', b'<extra/>')
+        return p
+    a = write('original.docx', zipfile.ZIP_STORED)
+    b = write('repacked.docx', zipfile.ZIP_DEFLATED)
+    assert module.sha(a) != module.sha(b)
+    assert module.payload(a) == module.payload(b)
+    assert module.payload(a) != module.payload(write('changed.docx', zipfile.ZIP_STORED, b'<changed/>'))
+    assert module.payload(a) != module.payload(write('extra.docx', zipfile.ZIP_STORED, extra=True))
+    bad = root / 'malformed.docx'; bad.write_bytes(b'not a ZIP')
+    assert module.payload(bad) == 'file:' + module.sha(bad)
+`;
+  const result = spawnSync('python3', ['-c', probe, script], { encoding: 'utf8', timeout: 10000 });
+  assert.equal(result.status, 0, result.stderr);
+});
