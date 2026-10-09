@@ -194,6 +194,8 @@ the pinned input into `PIVOT_RESULTS/fixtures` (or a temporary directory); `PIVO
 that destination. They do not depend on an earlier results directory. The thread test also authors a mention/no-legacy-note
 fixture missing from the public corpus. `node tools/ledger/test/threads-ui.mjs INPUT.xlsx OUTPUT`
 checks the real Paste Special, undo/redo and suite draft/recovery hooks on a thread in the first sheet.
+Add `--edit` to first edit its root through the actual comment editor; replies and untouched mentions
+must survive, including edits around both ends of a mentioned name and later clipboard/draft recovery.
 `objects.test.js` uses `OBJECT_RESULTS=DIR` to retain controls/OLE/VML edit states from the same corpus.
 `node tools/ledger/test/objects-ui.mjs INPUT.xlsx OUTPUT` checks object paste into another workbook,
 undo/redo and actual draft recovery, including the dependent payload bytes.

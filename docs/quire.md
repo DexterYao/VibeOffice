@@ -255,7 +255,7 @@ relationships. Editing the watermark replaces those originals; removing it omits
 the originals, and drafts retain the current state. Eight focused cases cover drawing properties,
 row/cell alternatives (including empty choices) and watermarks: **62 checks and 48 emitted states**
 pass, with no added package/SDK diagnostics. The two watermark inputs retain all six original VML
-watermark elements byte for byte before editing. Office review of these changes is still pending.
+watermark elements byte for byte before editing. The relevant Office batch-2 samples are accepted.
 
 ### Package and file identity: edit behavior
 

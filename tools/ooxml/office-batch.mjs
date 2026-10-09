@@ -90,6 +90,12 @@ async function save(c, data) {
       else if (step.kind === 'copy-sheet') { O.copySheet(doc, sh, doc.sheets.length); if (step.deleteSource) O.deleteSheet(doc, sh); }
       else if (step.kind === 'delete-sheet') O.deleteSheet(doc, sh);
       else if (step.kind === 'note') O.tx(doc, 'Review note', () => O.setComment(sh, step.row, step.col, { r: step.row, c: step.col, author: 'Review', text: step.text }));
+      else if (step.kind === 'thread-text') {
+        const cm = [...sh.comments.values()].find(cm => cm.thread?.some(t => !t.parent));
+        if (!cm) throw new Error('Missing threaded comment');
+        const root = cm.thread.find(t => !t.parent), text = step.text ?? (root.text + (step.append || ' EDITED'));
+        O.tx(doc, 'Review thread root', () => O.setComment(sh, cm.r, cm.c, { ...cm, text, runs: undefined }));
+      }
       else if (step.kind === 'bar') {
         const cf = L.clone(sh.cf), rule = cf.flatMap(c => c.rules).find(r => r.bar);
         if (!rule) throw new Error('Missing data bar');

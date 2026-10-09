@@ -5,7 +5,7 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 
 ## Status
 
-**Review fixes and final measurements are complete; Excel and PowerPoint acceptance remain.** Ledger copies use the
+**Review fixes are implemented; full-corpus LibreOffice checks and Office acceptance remain.** Ledger copies use the
 shared GUID helper and allocate linked VML identities inside each sheet's blocks,
 including nested controls; retained notes do not allocate unnecessary blocks.
 Design edits now retain unread shapes and stacking order; opaque-frame rotation
@@ -13,9 +13,13 @@ is disabled and moves retain member orientations. Modern comment anchors retain 
 copied comments no longer carry an extra relationship to the source thread.
 Office batches 3–4 have been rebuilt from writer `56de065`, compared with the previous handoffs,
 and checked in LibreOffice. Both current full corpus runs add no package/SDK diagnostics.
+The completion audit also corrected Ledger root-comment editing: edits retain replies and identities,
+shift untouched mentions, and report changed or ambiguous mentions. All 62 Ledger tests and 24 current
+package/SDK states pass. Batch-3 file 04 now exercises that correction as well.
 The Word writer is unchanged by this review group; its preceding full run and final formatting
 correction remain the Word evidence, clearing all 31 failing SDK comparisons in six fixtures.
-**The plan is not signed off:** Excel and PowerPoint Office acceptance remain pending.
+**The plan is not signed off:** the approved plan's full-corpus LibreOffice gate remains beyond the
+completed sample checks, and Excel/PowerPoint Office acceptance is pending.
 
 - Quire and whole-package preservation: Office batches 1–2 accepted, including the corrected
   comments and all four namespace follow-up copies.
@@ -206,8 +210,10 @@ Current Ledger/Lectern reports and rebuilt Office batches: `~/corpora/results/re
 The preceding Word full run is in `~/corpora/results/final-suite-2026-10-09/`; its final correction and combined report are in
 `~/corpora/results/quire-property-repair-2026-10-09/`. Exact inputs, frozen writer revisions, initial failures,
 correction overlays, hashes and older progress notes stay with those reports. The review fixes and
-their focused measurements are in `~/corpora/results/review-fixes-2026-10-09/`. Next: actual Excel and
-PowerPoint acceptance of rebuilt batches 3–4, then address any reported defects before signoff.
+their focused measurements are in `~/corpora/results/review-fixes-2026-10-09/`. Root-comment editing
+and updated batch-3 file 04 are measured in `~/corpora/results/thread-root-edit-2026-10-09/`.
+Next: complete the outstanding LibreOffice corpus check using the saved artifacts, obtain actual
+Excel/PowerPoint acceptance of batches 3–4, and address reported defects before signoff.
 
 ## Review of 6d24c43..275406e (2026-10-08)
 Followed well: bounded Office batches with previous-writer comparison, checker rules for the WordArt

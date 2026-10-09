@@ -145,7 +145,8 @@ completes in **935**, with **11 failures and 5 exclusions**. The current full ru
 Package/SDK comparison reports **911 OK, 35 failed and
 5 excluded** for unedited saves. Across **6,589** save/edit/history/draft states, **6,371 pass,
 201 fail and 17 are excluded**; none adds diagnostics. Malformed or unvalidatable originals
-remain failures in the reports. The 142-test review suite and the additional audit-timeout regression pass.
+remain failures in the reports. The shared review suite and audit regression pass; the latest comment
+fix passes all 62 Ledger tests.
 SDK evidence is reused for 6,128 states only after the original hash and every saved ZIP member match
 the previous validated output; package checks are fresh. The remaining 461 attempted states use
 the normal validator, and all statuses match the preceding run.
@@ -192,7 +193,9 @@ and `~/corpora/results/strict-transitional-2026-10-08/`. Current full results:
 `~/corpora/results/ledger-group-2026-10-09/` and `~/corpora/results/review-fixes-2026-10-09/`.
 The convention scan has 185 signatures with no additions. The rebuilt 15-file **Office batch 3**
 uses `56de065` and passes package/SDK and LibreOffice with expected counts, with explained changes
-against the previous handoff; **Excel acceptance is pending**.
+against the previous handoff; **Excel acceptance is pending**. File 04 also checks the root-comment
+edit correction measured in `~/corpora/results/thread-root-edit-2026-10-09/`; its updated sample keeps
+the reply and mention after editing, shifting and copying the thread.
 
 ### Package, styles and strings: edit behavior
 
@@ -219,7 +222,7 @@ against the previous handoff; **Excel acceptance is pending**.
 |---|---|
 | No edit to pivot/thread content | Package parts are carried; there is no pivot or threaded-comment editor |
 | Edit pivot source cells, insert/delete rows or columns, rename/delete a sheet | Pivot sources, output locations and shared caches follow the rules below; slicer/timeline connections are pruned when their source disappears |
-| Move or edit a threaded comment | References follow the note; editing its displayed text converts that thread to an ordinary note with a notice |
+| Move or edit a threaded comment | References follow the note; the comment editor updates the root text and retains replies, people and thread identities |
 | Edit conditional formatting | Keep extended rule identities and unchanged properties; update base/extended bar links together, and retain unknown worksheet extensions by URI |
 | Save a sheet containing controls, OLE or non-comment VML | Keep their worksheet entries, previews, VML and dependencies together; they remain uneditable. Each sheet reserves its own `o:idmap` blocks, extending only when fresh identities need space. Notes, controls and nested group members use those blocks; unchanged VML retains its bytes |
 | Edit a query table | Retain external field identities; added columns are unbound and never reuse a column ID from the file, deleted fields stay excluded from refresh, and copied tables get independent query parts |
@@ -268,15 +271,18 @@ full-corpus figures above; Excel batch 3 remains pending. Reports:
 | Delete a note or its row | Remove the whole thread; undo restores it |
 | Copy a note or sheet | Give copied comments, parent links, mentions and legacy note identities fresh IDs together through the shared copy helper; keep shared persons, remapping conflicting person IDs on paste |
 | Paste into another workbook | Include referenced authors and mentioned persons with their original metadata |
-| Edit the displayed comment text | Convert that thread to an ordinary note and report it; other threads stay intact. Undo restores the original thread and clears the conversion |
+| Edit the displayed comment text | Edit the root text, retaining replies, original thread/person IDs and unknown metadata. Untouched mentions stay attached and shift with their text; changed or ambiguous mentions are removed with a notice. Undo restores the original thread and mention positions |
 | Save or recover a draft | Keep current references, replies and mentions; draft recovery retains the pending notices |
 
-Five focused cases cover the four pinned thread workbooks and an authored mention/no-legacy-note
-fixture. All **16 emitted states** pass package/SDK comparison. Actual browser Paste Special,
+Six focused cases cover the four pinned thread workbooks and an authored mention/no-legacy-note
+fixture. All **22 emitted states** pass package/SDK comparison. Actual browser root editing, Paste Special,
 undo/redo and draft recovery keep two threads, four comments and their mention/parent links without
 console errors. Two LibreOffice samples retain their one-page counts. Excel batch 3 remains pending. The authored fixture
 and failed pre-fix SDK attempts are retained with the reports; mention coverage is not claimed from
-the public corpus. Current focused reports: `~/corpora/results/review-fixes-2026-10-09/guid-threads/`.
+the public corpus. Two current browser draft/recovery states also pass package/SDK comparison;
+the root-edit Office sample opens in LibreOffice with the same one-page count.
+Reports: `~/corpora/results/review-fixes-2026-10-09/guid-threads/` and
+`~/corpora/results/thread-root-edit-2026-10-09/`.
 
 ### Controls, embedded objects and VML: edit behavior
 
@@ -404,7 +410,7 @@ support for every formula or external data source.
 | --- | --- |
 | `index.html`, `tools/ledger/build/` | Window chrome, Ledger's CSS after the shared `../common/luna.css`, script order (generated by the build script) |
 | `js/pivots.js` | Preserved pivot/cache identities, source and output edits, shared-cache history and refresh notices |
-| `js/threads.js` | Complete threads beside notes, mentions/persons, copied identities and ordinary-note conversion |
+| `js/threads.js` | Complete threads beside notes, root-text edits, mentions/persons and copied identities |
 | `js/objects.js` | Controls/OLE ownership, linked DrawingML/VML identities, payload copies and note/VML merging |
 | `js/slicers.js` | Slicer/timeline frames, source-cache ownership, sheet/workbook extension links and copied view identities |
 | `js/extensions.js` | Extended rule/validation/sparkline ownership, per-property merges, copied identities and unknown worksheet extension entries |

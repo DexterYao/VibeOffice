@@ -450,6 +450,7 @@
   O.setComment = function (sh, r, c, cm) {
     const k = M.key(r, c);
     const old = sh.comments.get(k) || null;
+    cm = L.threads.editNote(cm);
     const apply = (v) => { if (v) sh.comments.set(k, Object.assign({}, v, { r, c })); else sh.comments.delete(k); };
     apply(cm);
     sh.wb.undo.op(() => apply(old), () => apply(cm));
