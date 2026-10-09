@@ -606,6 +606,7 @@
     return `<w:p>${pPr}${runs}</w:p>`;
   }
   function tableXML(t, ctx) {
+    if (t.keep?.gridRepair) ctx.writer.loss({ id: 'table-grid:' + ctx.part, what: 'Incomplete or unusable table column widths were reconstructed. Table layout may change.', where: ctx.part, action: 'conversion' });
     const map = L.R.tblMap(t);
     const pr = L.preserve.propertyXML('tblPr', t.tblPr, tblPrXML(Object.assign({}, t.tblPr, { w: t.tblPr.w || { type: 'auto', v: 0 } }), { full: true }), ctx);
     let x = `<w:tbl>${pr}<w:tblGrid>${t.grid.map((g) => `<w:gridCol w:w="${tw(g)}"/>`).join('')}</w:tblGrid>`;
@@ -638,6 +639,7 @@
     const order = Object.values(doc.styles).sort((a, b) => (a.id === 'Normal' ? -1 : b.id === 'Normal' ? 1 : 0));
     for (const s of order) {
       if (!s || !s.id) continue;
+      if (s.keep?.defaultStyleRepair) ctx.writer.loss({ id: 'default-styles:' + ctx.part, what: 'Conflicting default styles were normalized. Text layout may change.', where: ctx.part, action: 'conversion' });
       const type = s.type || 'paragraph';
       let st = `<w:style w:type="${type}"${s.isDefault ? ' w:default="1"' : ''}${s.custom ? ' w:customStyle="1"' : ''} w:styleId="${X(s.id)}"><w:name w:val="${X(s.name || s.id)}"/>`;
       if (s.basedOn && doc.styles[s.basedOn]) st += `<w:basedOn w:val="${X(s.basedOn)}"/>`;

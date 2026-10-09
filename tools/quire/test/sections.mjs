@@ -62,6 +62,10 @@ async function check(data) {
   artifacts.original = data;
   const doc = (await L.docx.read(Uint8Array.from(atob(data), c => c.charCodeAt(0)))).doc;
   L.app.loadDoc(doc, 'Section preservation', { saved: true });
+  const hasGridRepair = b => b.t === 'tbl' && (b.keep?.gridRepair || b.rows.some(r => r.cells.some(c => c.blocks.some(hasGridRepair))));
+  const repairedGrid = doc.main.blocks.some(hasGridRepair), repairedStyle = Object.values(doc.styles).some(s => s.keep?.defaultStyleRepair);
+  const repairLoss = (d, name) => (d.losses || []).filter(e => e.id.startsWith(name + ':'));
+  assert(!repairLoss(doc, 'table-grid').length && !repairLoss(doc, 'default-styles').length, 'Recovery notice was emitted before a save was prepared');
   const content = (el, pkg) => [el.namespaceURI, el.localName,
     Array.from(el.attributes).filter(a => a.name !== 'xmlns' && a.prefix !== 'xmlns' && !(a.localName === 'Ignorable' && el.lookupNamespaceURI(a.prefix) === K.NS.mc)).map(a => {
       const ns = a.prefix ? el.lookupNamespaceURI(a.prefix) : '';
@@ -77,6 +81,15 @@ async function check(data) {
   };
   const before = await save('before');
   assert(sectionValues(before.pkg) === original, 'An unedited section changed');
+  assert(!!repairLoss(doc, 'table-grid').length === repairedGrid, 'Table recovery notice does not match the written tables');
+  assert(!!repairLoss(doc, 'default-styles').length === repairedStyle, 'Style recovery notice does not match the written styles');
+  if (repairedGrid) {
+    D.tx('Delete table with recovered columns', () => { D.touchKey(doc.main, 'blocks'); doc.main.blocks = doc.main.blocks.filter(b => !hasGridRepair(b)); });
+    await save('delete-repaired-table');
+    assert(!repairLoss(doc, 'table-grid').length, 'Deleted recovered tables left a stale save notice');
+    assert(D.undo(), 'Missing table deletion undo'); await save('restore-repaired-table');
+    assert(repairLoss(doc, 'table-grid').length === 1, 'Undo did not restore the grouped table recovery notice');
+  }
   D.tx('Change top margin', () => { D.touchKey(doc, 'sect'); doc.sect.mt += 9; });
   const expected = sections(doc.pkg).map(e => content(e, doc.pkg));
   const margin = expected.at(-1)[3].find(e => e[1] === 'pgMar');
@@ -87,8 +100,13 @@ async function check(data) {
   assert(sectionValues(undo.pkg) === original, 'Undo did not restore the section');
   assert(D.redo(), 'Missing redo'); const redo = await save('redo');
   assert(sectionValues(redo.pkg) === JSON.stringify(expected), 'Redo did not restore the margin edit');
-  const draft = await save('draft', doc, await window.__corpusHooks.snapshot(doc));
-  const recovered = await save('recovered', draft);
+  const blob = await window.__corpusHooks.snapshot(doc), info = window.__corpusHooks.docInfo(doc);
+  await save('draft', doc, blob);
+  VO.opened = () => {};
+  await window.__corpusHooks.open(new File([blob], 'sections.docx'), { draft: true, name: info.name, saved: true, lossState: info.lossState });
+  const recovered = await save('recovered', window.__corpusHooks.current());
   assert(sectionValues(recovered.pkg) === JSON.stringify(expected), 'Draft recovery changed section settings');
+  assert(!!repairLoss(window.__corpusHooks.current(), 'table-grid').length === repairedGrid, 'Draft recovery lost the unacknowledged table notice');
+  assert(!!repairLoss(window.__corpusHooks.current(), 'default-styles').length === repairedStyle, 'Draft recovery lost the unacknowledged style notice');
   return { artifacts, checks };
 }

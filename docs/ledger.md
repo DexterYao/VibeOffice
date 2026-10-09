@@ -134,6 +134,12 @@ be served over https or from localhost. A workbook opened with its password keep
 
 ## What a save keeps, converts and drops
 
+The full LibreOffice pass on the versioned `56de065` artifacts renders **930/935 unedited saves**;
+**45** readable pairs change page count and still need investigation. Across **6,589** attempted states,
+**6,032** pass the paired render/count check, **540** fail and **17** are excluded. Failures include
+unrenderable originals, missing outputs, conversion errors/timeouts and count differences. This does
+not establish visual fidelity or Excel acceptance. Reports: `~/corpora/results/lo-final-2026-10-09/`.
+
 Ledger regenerates worksheets and keeps original package dependencies, workbook settings, style
 indices and shared strings. Save and drafts retain all four OOXML variants and encryption. The
 Compatibility Checker reports conversions from the prepared output before a user download,

@@ -428,7 +428,7 @@
     for (const id in imported) {
       const s = imported[id];
       if (!s.isDefault || !CANON[s.type] || id === CANON[s.type]) continue;
-      if (haveDefault[s.type] || imported[CANON[s.type]]) { delete s.isDefault; continue; }
+      if (haveDefault[s.type] || imported[CANON[s.type]]) { s.keep = { defaultStyleRepair: true }; delete s.isDefault; continue; }
       rename[id] = CANON[s.type];
       haveDefault[s.type] = true;
     }
@@ -1077,6 +1077,7 @@
       /* zero-width columns get a minimal width */
       g = g.map((x) => (x > 0 ? L.round(x, 2) : 4));
       const t = D.table(rows, g, tp);
+      if (grid.length !== g.length || grid.some((w, i) => Math.abs(w - g[i]) > 0.0001)) t.keep = { gridRepair: true };
       return t;
     }
 

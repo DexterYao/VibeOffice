@@ -5,7 +5,7 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 
 ## Status
 
-**Review fixes are implemented; full-corpus LibreOffice checks and Office acceptance remain.** Ledger copies use the
+**Review fixes are implemented; render findings, updated Word measurements and Office acceptance remain.** Ledger copies use the
 shared GUID helper and allocate linked VML identities inside each sheet's blocks,
 including nested controls; retained notes do not allocate unnecessary blocks.
 Design edits now retain unread shapes and stacking order; opaque-frame rotation
@@ -19,8 +19,9 @@ package/SDK states pass. Batch-3 file 04 now exercises that correction as well.
 The Word writer now also retains section properties: four focused fixtures / 24 states add no
 package/SDK errors, including margin edits, history and drafts. Its preceding full run and final
 formatting correction remain versioned evidence; a refresh must include the section change.
-**The plan is not signed off:** the approved plan's full-corpus LibreOffice gate remains beyond the
-completed sample checks, and Excel/PowerPoint Office acceptance is pending.
+**The plan is not signed off:** the full LibreOffice run is complete on the versioned saved artifacts,
+but its failures/count differences need review; the Word corrections need refreshed corpus evidence.
+Excel/PowerPoint Office acceptance is pending.
 
 - Quire and whole-package preservation: Office batches 1–2 accepted, including the corrected
   comments and all four namespace follow-up copies.
@@ -205,7 +206,7 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
 - Every current file in Office batches 3 and 4 passes package/SDK and LibreOffice with expected counts.
   Previous-writer differences are reviewed: 19 files have identical member contents, with explained
   XML changes in the other 11 and no binary changes. The batches contain 15 files each; Office acceptance is
-  pending, not inferred from those checks. Full-corpus LibreOffice rendering has not been completed.
+  pending, not inferred from those checks.
 - The first full LibreOffice attempt finished with a harness defect: four workers retained dead UNO
   connections, affecting 23,232 states. Those counts are not app failures. The renderer now retires
   failed workers and retries connection loss once, retaining the first attempt. Four audit-tool tests
@@ -217,6 +218,16 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   files still have their preceding page-count differences; those need separate investigation.
   Reports are under `quire-sections-2026-10-09/`. The 149-test suite and final 10-test property pass
   (including the new namespace-alias case) pass; all four pages load without console errors.
+- Recovered full LibreOffice evidence: **30,919 states**, **28,957 OK, 1,054 failed, 908 excluded**.
+  Unedited saved renders complete for Quire 2,869/2,880, Ledger 930/935 and Lectern 836/837.
+  Readable unedited pairs have 14 Word, 45 Excel and zero PowerPoint page-count differences.
+  Saved renders, original failures and page-count mismatches are distinct in `recovered/review-summary.json`.
+  There is no dead-worker cascade; 3,376 successful PDFs were reused with verified hashes.
+- Word recovery findings: missing table grids and conflicting default styles now have save notices,
+  kept through actual draft recovery and recomputed when a recovered table is deleted/undone.
+  Four cases / 77 browser assertions and 26 package/SDK states pass (18 byte-identical comparisons
+  reused, eight fresh). The initial test omitted a required draft display name; that failed harness
+  attempt is retained. `tdf149089` is isolated to numbering regeneration and still needs a fix.
 
 Current Ledger/Lectern reports and rebuilt Office batches: `~/corpora/results/review-final-56de065/`.
 The preceding Word full run is in `~/corpora/results/final-suite-2026-10-09/`; its final correction and combined report are in
@@ -224,8 +235,9 @@ The preceding Word full run is in `~/corpora/results/final-suite-2026-10-09/`; i
 correction overlays, hashes and older progress notes stay with those reports. The review fixes and
 their focused measurements are in `~/corpora/results/review-fixes-2026-10-09/`. Root-comment editing
 and updated batch-3 file 04 are measured in `~/corpora/results/thread-root-edit-2026-10-09/`.
-Next: complete the outstanding LibreOffice corpus check using the saved artifacts, obtain actual
-Excel/PowerPoint acceptance of batches 3–4, and address reported defects before signoff.
+Next: fix the identified Word numbering loss, review other render failures/count differences, refresh
+the affected Word corpus and render artifacts, and obtain actual Excel/PowerPoint acceptance of
+batches 3–4 before signoff. The section correction also needs a Word acceptance sample.
 
 ## Review of 6d24c43..275406e (2026-10-08)
 Followed well: bounded Office batches with previous-writer comparison, checker rules for the WordArt

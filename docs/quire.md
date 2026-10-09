@@ -172,6 +172,7 @@ malformed input, unreferenced stories and unsupported markup remain exceptions.
 | Kept, with remaining losses | Revisions, fields, pictures and tables | 1,385/1,427 insertions/deletions, 1,085/1,103 formatting revisions, 2,590/2,711 fields, 1,239/1,242 pictures and 1,605/1,606 tables |
 | Converted when edited | Unsupported contents inside an opaque frame; typed/complex controls | Edited or ungrouped converted content uses the model representation; incompatible typed-control edits unbind and report the conversion |
 | Normalized, with a notice | Invalid paragraph/run formatting that edits can duplicate | Six regression files / 36 emitted states pass; 74-file candidate scan checked, with 34 saves changing formatting; conflicting or unknown source properties remain intact |
+| Recovered, with a notice | Missing/incomplete table grids and conflicting default styles | The writer reports reconstructed column widths and normalized defaults; removing a recovered table clears its save notice, and undo/drafts restore it. These recoveries can change pagination |
 | Mostly converted, with a notice | Smart tags and inline custom-XML markup | 18/519 original wrappers remain; their text is represented as ordinary content |
 | Kept; Office accepted | Per-property drawing edits, row/cell alternatives and watermarks | 62 focused checks and 48 save/edit/history/draft states pass; full corpus completed; 14 original batch-2 files pass Office and the comment repair has a confirmed correction |
 
@@ -196,7 +197,18 @@ The final formatting correction and combined validation report are in
 `~/corpora/results/quire-property-repair-2026-10-09/`; the original failures remain archived.
 Section preservation is measured in `~/corpora/results/quire-sections-2026-10-09/`; the older full-run
 numbers above do not yet include it. It fixes dropped gutter/chapter/grid settings, not all layout
-differences: the sampled nested-table, duplicate-default-style and `tdf149089` files still change page counts.
+differences. The nested-table source omits two required grids; restoring that invalid omission in a
+diagnostic copy restores its old page count. The duplicate-default-style source has ambiguous defaults.
+Both recoveries now have save notices. The `tdf149089` pagination difference is isolated to numbering
+regeneration and remains unresolved. The expanded four-file check covers 77 browser assertions and
+26 package/SDK states, including actual draft recovery and deletion/undo of a recovered table.
+
+The completed LibreOffice pass on the preceding saved artifacts renders **2,869/2,880 unedited saves**;
+**14** readable pairs change page count. It accounts for all **19,028** states: **17,986 OK, 443 failed,
+599 excluded**. Those failures distinguish missing outputs, unrenderable originals, saved-file conversion
+errors/timeouts and pagination differences. This is render evidence, not a lossless-save percentage;
+the section/notice changes still need the updated full Word run. Raw reports and the corrected worker
+recovery are in `~/corpora/results/lo-final-2026-10-09/`.
 The Office checklist is `~/Downloads/lossless-check/office-batch-2/CHECKLIST.md`; file 12 records its
 original repair and links the accepted corrected save. Both samples in
 `~/Downloads/lossless-check/office-batch-2-comment-fix/` pass Word, package/SDK checks and LibreOffice,

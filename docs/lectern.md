@@ -91,6 +91,12 @@ Office review batches are documented in [testing.md](testing.md).
 
 ## What a save keeps, converts and drops
 
+The full LibreOffice pass on the versioned `56de065` artifacts renders **836/837 unedited saves**,
+with **zero** page-count differences among pairs that render. Across **5,302** attempted states,
+**4,939** pass the paired render/count check, **71** fail and **292** are excluded. Failures include
+missing outputs, unrenderable originals and LibreOffice crashes; they remain recorded separately
+from package/SDK results. PowerPoint acceptance is still pending. Reports: `~/corpora/results/lo-final-2026-10-09/`.
+
 Lectern regenerates slides and keeps package dependencies and unsupported properties beside the model.
 Save and drafts retain all six OOXML variants and encryption. The Compatibility Checker reports
 conversions from the prepared output before a user download; drafts retain those notices silently.
