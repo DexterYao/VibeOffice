@@ -48,6 +48,12 @@ test('OLE spid resolves in its related VML preview rather than slide shape IDs',
   assert.equal(run('check', await pkg('ole-vml', parts('_x0000_s1030'))).status, 'ok');
   assert.ok(run('check', await pkg('ole-missing-vml', parts('_x0000_s1031'))).issues.some(i => i.code === 'unresolved-vml-preview'));
 });
+test('PowerPoint graphic frames cannot carry DrawingML rotation or flips', async () => {
+  const frame = attrs => slide(`<p:graphicFrame><p:xfrm${attrs}><a:off x="0" y="0"/><a:ext cx="1" cy="1"/></p:xfrm></p:graphicFrame>`);
+  assert.equal(run('check', await pkg('plain-frame', { 'slide.xml': frame('') })).status, 'ok');
+  const bad = run('check', await pkg('rotated-frame', { 'slide.xml': frame(' rot="60000" flipH="0" flipV="1"') }));
+  assert(bad.issues.some(i => i.code === 'graphic-frame-orientation'));
+});
 test('VML drawing parts name each shape once and each embedded object has its own preview', async () => {
   const parts = (ids, spids) => ({ 'slide.xml': slide(spids.map(id => `<p:oleObj spid="${id}"/>`).join('')),
     '_rels/slide.xml.rels': rels(rel('vml', 'vml.vml', 'vmlDrawing')),
@@ -64,6 +70,17 @@ test('each spreadsheet VML drawing has its own shape id block', async () => {
   assert.equal(run('check', await pkg('vml-blocks', { '[Content_Types].xml': types, 'xl/drawings/a.vml': vml(1, 1025), 'xl/drawings/b.vml': vml(2, 2049) })).status, 'ok');
   assert.ok(run('check', await pkg('vml-id-across-sheets', { '[Content_Types].xml': types, 'xl/drawings/a.vml': vml('1,2', 2049), 'xl/drawings/b.vml': vml(3, 2049) })).issues.some(i => i.code === 'duplicate-vml-id'));
   assert.ok(run('check', await pkg('vml-block-clash', { '[Content_Types].xml': types, 'xl/drawings/a.vml': vml(1, 1025), 'xl/drawings/b.vml': vml(1, 1025) })).issues.some(i => i.code === 'duplicate-vml-block'));
+});
+test('ActiveX names are VBA identifiers and match their VML preview, unlike form-control captions', async () => {
+  const parts = (name, id, type = 'control') => ({
+    'xl/worksheets/sheet1.xml': `<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="${R}"><controls><control name="${name}" shapeId="1025" r:id="ctrl"/></controls></worksheet>`,
+    'xl/worksheets/_rels/sheet1.xml.rels': rels(rel('ctrl', '../activeX/activeX1.xml', type) + rel('vml', '../drawings/vml.xml', 'vmlDrawing')),
+    'xl/activeX/activeX1.xml': '<control/>',
+    'xl/drawings/vml.xml': `<xml xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office"><v:shape id="${id}" o:spid="_x0000_s1025"/></xml>` });
+  assert.equal(run('check', await pkg('activex-good', parts('cmdOK1', 'cmdOK1'))).status, 'ok');
+  const codes = run('check', await pkg('activex-bad', parts('cmdOK 1', '1'))).issues.map(i => i.code);
+  assert(codes.includes('activex-control-name')); assert(codes.includes('activex-vml-name'));
+  assert.equal(run('check', await pkg('form-control-name', parts('Button 1', '_x0000_s1025', 'ctrlProp'))).status, 'ok');
 });
 test('SmartArt drawing caches may repeat shape id 0, as PowerPoint writes them', async () => {
   const DSP = 'http://schemas.microsoft.com/office/drawing/2008/diagram';

@@ -875,6 +875,7 @@
           obj = `<xdr:pic><xdr:nvPicPr><xdr:cNvPr id="${id}" name="${nameAttr}"${d.descr ? ` descr="${esc(d.descr)}"` : ''}/><xdr:cNvPicPr><a:picLocks noChangeAspect="1"/></xdr:cNvPicPr></xdr:nvPicPr>` +
             `<xdr:blipFill><a:blip xmlns:r="${NS_R}"${blipRefs}/>${crop}<a:stretch><a:fillRect/></a:stretch></xdr:blipFill>` +
             `<xdr:spPr><a:xfrm${d.rot ? ` rot="${Math.round(d.rot * 60000)}"` : ''}><a:off x="0" y="0"/><a:ext cx="${emu(sz.w)}" cy="${emu(sz.h)}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom>${d.lineXml || ''}</xdr:spPr></xdr:pic>`;
+          obj = L.sheetObjects.picture(d, obj, objects, drels.owner);
         } else if (d.kind === 'chart') {
           let rid;
           if (d.chart?.dirty && (d.part || d.xml)) pack.writer.loss({ id: 'chart-edit:' + (d.part || d.id), what: 'Editing this chart replaces its original chart-specific formatting and extensions.', where: sh.name, action: 'conversion' });

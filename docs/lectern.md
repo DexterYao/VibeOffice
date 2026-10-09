@@ -197,6 +197,8 @@ states pass package/SDK checks and cover geometry, theme changes, styles, indepe
 last-slide deletion, new layouts, interleaved unread shapes, stacking order, undo/redo and actual drafts.
 The corrected design-style case is included. Three earlier edited samples and the unread-decoration
 regression open in LibreOffice with expected slide counts.
+Master/layout decoration edits remain pending in Office; the accepted batch-4 design samples did
+not exercise those later corrections.
 All 15 batch-4 samples passed PowerPoint. Reports:
 `~/corpora/results/lectern-preservation-2026-10-09/designs-*` and
 `~/corpora/results/review-fixes-2026-10-09/designs*`.
@@ -249,7 +251,8 @@ All 15 batch-4 samples passed PowerPoint. Reports:
 |---|---|
 | Text outside an opaque object | Keep its original frame and dependent parts |
 | Move or resize its preview | Update the outer frame; retain each member's orientation, internal 3-D coordinates, data and effects |
-| Rotate or flip a preserved preview | Rotation and flip controls are disabled, including for groups containing preserved frames; the existing orientation remains |
+| Rotate or flip a preserved preview or chart | Rotation and flip controls are disabled, including for groups containing these objects; the existing orientation remains |
+| Ungroup a rotated group containing a graphic frame | Reposition the frame without adding rotation or flips; retain its original payload |
 | Copy or paste the object | Independent dependent parts and remapped identities; import preview renditions, diagram cache links and OLE/VML preview identities |
 | Change converted content or ungroup SmartArt | Save the edited group/picture and record the conversion; animations of its parts are removed with their own notice |
 | Delete the object | Remove its original frame; do not restore it from package parts |
@@ -263,6 +266,15 @@ including a schema-authored fallback with two displayed members. The two OLE ide
 and the missing-cache correction were rerun separately; the original measurements remain recorded.
 Three orientation regressions add nine passing save/undo/redo package/SDK comparisons: disabled
 preview rotation/flip and moved wrappers whose members have different rotations and flips.
+The stronger single-preview fixture checks different Choice/Fallback orientations and fails on the
+old frame code. Together with chart/OLE ungrouping, it adds 14 passing package/SDK comparisons.
+Single-frame placeholders now retain both flips; `p:xfrm` never receives rotation/flip attributes.
+Modern comment extensions retain their original sibling slots, including when a slide needs a new
+creation ID; both added comment cases pass package/SDK checks. All five selected PowerPoint saves
+open in LibreOffice with unchanged slide counts. A scan finds seven illegal frame transforms in
+five preceding full-run saves and none in readable originals; the writer correction prevents them.
+These changes await the next full refresh and Office acceptance. Evidence:
+`~/corpora/results/lossless-evening-review-2026-10-09/`.
 Of 959 diagram, embedding, ink and model dependency parts, 928 are byte-identical, ten are Strict
 conversions, three remove missing optional cache references, and 18 are unreferenced orphan parts
 in one damaged source. Five edited samples open in LibreOffice with expected slide counts.

@@ -144,14 +144,30 @@ formats or all content removes the retained style. All 74 Ledger tests, 19 comma
 comparisons and six browser draft/recovery comparisons pass. These two corrections await Excel
 acceptance and the next full refresh; their evidence is in `~/corpora/results/ledger-layout-final-2026-10-09/`.
 The remaining three count differences are `tdf118668` (invalid source sheet visibility),
-`Photo Formats - CGM-O12-XL-Pictures` (picture formatting under investigation), and
+`Photo Formats - CGM-O12-XL-Pictures` (unresolved reflow despite retained picture formatting), and
 `clusterfuzz-testcase-minimized-POIXSSFFuzzer-5937385319563264` (a damaged source ZIP member).
 
 Worksheet-format preservation retains authored automatic row heights and unread attributes;
 changing a default width or height replaces only that property. Cell edits, sheet copies, history
 and drafts keep the retained settings. Literal `true`/`false` view flags retain reading direction.
-Pre-release worksheet-size markup converts to current settings with a notice; unreadable originals
-remain failed validator comparisons. The automatic-height sample passed Excel in Office batch 5.
+Pre-release worksheet-size markup converts to current settings with a notice. The 2005/8 vocabulary
+uses twip row heights and zero-based columns with widths in 1/256-character units; the reader now
+converts these and keeps the original automatic default height. The 2006/2 vocabulary retains its
+current-format units. Seven focused worksheet-property tests pass; ten pre-release saved states
+remain failed SDK comparisons because their originals cannot be read. Both saves open in
+LibreOffice; the readable original keeps its one page, while the unreadable original has no comparable
+count. The pre-release conversion remains pending in Excel. The automatic-height sample passed
+Excel in Office batch 5.
+
+Ordinary pictures now retain image effects, recolouring, geometry, fills, borders, styles and
+extensions. Cell edits leave these properties intact; moving/resizing changes geometry, crop/border
+and alternative-text edits replace only their property, and copied pictures remap identities.
+Deleting a picture removes its retained properties. Replacing its image removes image-specific
+extensions/effects with a notice. Two real-file regressions and 14 package/SDK states pass through
+edits, copies, undo/redo and recovery. The picture-format workbook opens in LibreOffice but retains
+its separate 19→17-page layout difference. Invalid source sheet visibility, which accounts for another
+remaining count difference, now has an explicit conversion notice. These corrections await a full
+refresh and Office acceptance; evidence is in `~/corpora/results/lossless-evening-review-2026-10-09/`.
 
 Page setup now retains its original absence, per-property values and printer-setting relationships.
 Cell edits no longer introduce a portrait orientation into a sheet that omitted page setup. Seven
@@ -330,14 +346,17 @@ Reports: `~/corpora/results/review-fixes-2026-10-09/guid-threads/` and
 |---|---|
 | Leave the object untouched | Keep its worksheet XML, both compatibility branches, preview and dependent parts; VML-only objects remain retained without an editing UI |
 | Move/resize or insert/delete rows and columns | Update linked worksheet, drawing and VML anchors; fixed-size objects move without shrinking |
-| Copy an object or sheet | Remap worksheet/drawing/VML identities together, including controls nested in groups; copy mutable control/OLE payload parts independently. Copied controls use the worksheet's numeric name sequence |
+| Copy an object or sheet | Remap worksheet/drawing/VML identities together, including nested controls and sheets containing earlier copies; copy mutable payload parts independently. Copied ActiveX names are valid VBA identifiers and match their VML shape IDs; form-control captions retain their spacing |
 | Paste into another workbook | Transfer preview and payload dependencies; IDs remain valid in the destination |
 | Delete the displayed object | Remove all its representations and unreachable dependencies; undo restores them |
 | Edit converted drawing content | Convert only that object to its displayed drawing, with a compatibility notice |
 | Add, edit or remove a note | Merge note VML while keeping non-comment shapes and their dependencies |
 | Undo/redo or recover a draft | Retain object ownership, payloads, current anchors and pending notices |
 
-Fifteen focused cases produce **38 passing package/SDK states**, plus **two passing browser draft states**
+Sixteen focused tests produce **63 passing package/SDK states**, including ActiveX copies with and
+without a numeric suffix, copies of copies, copied sheets and recovery. Both selected copied-control
+saves open in LibreOffice with unchanged counts; these new ActiveX corrections await Office review.
+The earlier sweep also has **two passing browser draft states**
 after cross-workbook paste and undo/redo. Two edited samples open in LibreOffice with unchanged
 one-page counts. Core checks pass and all four pages load without console errors (existing
 font requests remain). The 40-workbook feature sweep keeps **396 dependent parts byte-identical**;

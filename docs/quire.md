@@ -199,6 +199,13 @@ A fresh LibreOffice check of the exact accepted files also passes; hashes and re
 `~/corpora/results/office-accepted-2026-10-09/`.
 The pinned inventory finds numbering parts in 810 inputs. The writer keeps their source level counts,
 including absent defaults, rather than serializing all nine levels used internally for layout.
+Independent list copies now also receive fresh eight-digit `nsid` identities. Two command fixtures
+pass 44 assertions and 23 package/SDK comparisons, including repeated imports, undo/redo and drafts.
+Multi-column index insertion keeps the original section start before the index and makes the index
+and remainder continuous; two fixtures pass 18 assertions and 14 package/SDK comparisons through
+undo/redo and draft recovery. All four selected saves open in LibreOffice with unchanged counts.
+These corrections await the next full refresh and Office acceptance. Focused evidence:
+`~/corpora/results/lossless-evening-review-2026-10-09/`.
 The render review also found seven misplaced breaks in `tdf108714`, which the reader previously
 skipped. Recovering them in valid paragraphs/runs retains all four pages on save and text edit,
 with a Compatibility Checker notice. The pinned scan finds one affected readable input and

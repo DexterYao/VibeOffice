@@ -6,8 +6,9 @@ and the habits, based on the progress review of commits b06d938..ffc6814.
 ## Status
 
 **The core preservation features and reviewed fixes are implemented. Full corpus measurements
-are complete, and Office batches 1–6 are accepted. The final fidelity audit found further Excel
-corrections; work continues on those and the documented exceptions.**
+are complete for the preceding writers, and Office batches 1–6 are accepted. The evening review
+corrections are implemented and pass focused checks; their full refresh and Office acceptance are
+pending. Documented fidelity exceptions remain.**
 
 The pinned corpus contains **4,697 files** (2,902 Word, 951 Excel, 844 PowerPoint), exercised in
 **14,091 driver attempts / 30,919 package/SDK states**, with no added validator diagnostics.
@@ -29,15 +30,18 @@ known source defects and unresolved reflow are listed in
 
 The exact 36 batch-3–5 files pass a fresh LibreOffice check; the five batch-6 files also pass with
 expected counts. All 41 handoff hashes are recorded, and the files remain unchanged. No Office
-sample is pending. The final notice-only Word correction changes no document content or layout;
+sample from those six batches is pending. The later pre-release Excel conversion and PowerPoint
+master/layout decoration edits were not included; their Office acceptance remains pending, alongside
+the evening review corrections. The final notice-only Word correction changes no document content or layout;
 14 saved package states match the frozen output except generated metadata timestamps.
 
 The subsequent Excel layout correction retains signed drawing coordinates and blank cells with
 source style identities. Both affected samples regain their original LibreOffice counts (two and
 four pages); 74 unit tests, 19 command and six browser draft/recovery package/SDK comparisons pass.
 These new corrections await Office acceptance and the next full refresh. The three remaining Excel
-count differences involve invalid source visibility, ordinary picture formatting (a preservation
-gap being fixed), and a damaged source ZIP member. The focused evidence is
+count differences involve invalid source visibility, a picture-format workbook's unresolved reflow,
+and a damaged source ZIP member. Ordinary picture properties now survive; that workbook still has
+19 original pages versus 17 saved pages. Invalid visibility is explicitly reported at save. The focused evidence is
 `~/corpora/results/ledger-layout-final-2026-10-09/`; the preceding full artifacts remain frozen.
 
 Current consolidated evidence: `~/corpora/results/lossless-final-2026-10-09/`. The remaining fidelity
@@ -241,8 +245,9 @@ becomes a `package.py` rule with a test, per AGENTS.md "Office acceptance".
   identity and Compatibility Checker checks retain their prior passing evidence; unchanged suites
   are not repeated solely to generate another total.
 
-All full measurements and Office checks are complete. Remaining content and layout exceptions are
-listed explicitly in the app docs and final report; unresolved reflow still needs fidelity work.
+The preceding full measurements and six Office batches are complete. Subsequent corrections still
+need a full refresh and another Office batch. Remaining content and layout exceptions are listed
+explicitly in the app docs and final report; unresolved reflow still needs fidelity work.
 Original failures, hashes, correction overlays and earlier measurements remain with the versioned
 report directories. Avoid repeating unchanged full runs.
 
@@ -334,3 +339,72 @@ Review items, now implemented:
 
 Leave SmartArt to the parallel SmartArt work: it replaces the "edited preview → plain group" path
 in `frames.js` and the diagram parts' read/write. Don't change those.
+
+## Review of 1a33733..b8a0af5 (2026-10-09, evening)
+The work is careful and the plan is honest. Batches 3–4 were rebuilt after the fixes, and their
+differences are explained. Fix these before sign-off, each with a test that fails on the current
+code and a `package.py` rule where Office would repair the file:
+
+**Implementation status:** items 1–9 are implemented; item 10's Office-pending labels and Excel
+`3cb0cd2` / 189-signature provenance are corrected. All **181 unit tests** pass. The focused review
+has **158 package/SDK comparisons: 148 OK and ten failed because the pre-release originals cannot
+be read by the SDK**, with no added package issues. LibreOffice opens all **14 selected saves**;
+12 comparisons match counts, one original cannot render, and the picture-format workbook retains
+its existing 19→17-page difference. Word list copies have fresh nsids; index insertion keeps the
+preceding section start; PowerPoint keeps frame orientation and extension order; ActiveX copies
+keep valid names and linked VML identities, including a copied sheet containing copied controls.
+The single-member orientation regression fails against the previous frame code. The narrowed
+identity pre-scan benchmark falls from 502 ms / 365 MB heap growth to 16 ms / 0.04 MB on an 8 MB
+synthetic sheet; these are pre-scan figures, not whole-save timings. A corpus rule scan finds seven
+invalid graphic-frame transforms in five older PowerPoint saves and none in readable originals;
+the geometry fix prevents adding those attributes. Full refreshed results and Office acceptance
+remain pending. Evidence and failed attempts: `~/corpora/results/lossless-evening-review-2026-10-09/`.
+
+1. **Word: copied list definitions reuse `w:nsid`** (new in `7c25bd7`).
+   - Cause: `D.addNum` (`dmodel.js:274`) duplicates a kept `abstractNum`, but `nsid` is not a
+     copied identity in `opc.js` `identity()`. Both definitions are written with the same nsid.
+   - Reached by Customize then Restart/New list, the Bullets toggle (`A.lastList`) and
+     Compare/Insert File (`mergeNumbering`).
+   - Fix: give copies a fresh nsid. Add an Office sample with two definitions that came from one
+     source.
+2. **PowerPoint: rotation still reaches graphic frames.**
+   - `M.canRotate` allows charts, and the chart writer puts `rot` and flips on `p:xfrm`
+     (`pptx-write.js:89`, `357`).
+   - Ungrouping a rotated group that contains a preserved frame adds `g.rot` with no `canRotate`
+     guard (`app.js:994`).
+   - Disable rotation for charts too (PowerPoint has none for them). Keep frames unrotated when
+     ungrouping, or convert them with a notice. Correct the docs/lectern.md row.
+3. **Excel: the pre-release (2005/8 schema) conversion is partial** (`3a93371`). Reproduce with
+   `openxml-sdk__9f7806671fc8__ProjectStatusReport_TP10094814.xltx`.
+   - Row `ht` is in twips but is written as points (375 → 20× too tall; 657 is over 409.5).
+   - `defaultRowHeight="300"` becomes 12.75.
+   - Zero-based `<col min="0" defaultWidth=…>` columns are dropped.
+   - The notice says the sizes "were converted".
+   - Convert rows and columns too, or report exactly what is dropped. Add an Office sample, or
+     list it as pending.
+4. **Shared pre-scan parses ordinary text** (`opc.js:924`). `\b(?:ins|del|moveFrom|moveTo)\b`
+   matches the words in sheets, slides and sharedStrings (Spanish or Italian text), so they are
+   fully parsed on every save for nothing. Match only `w:`-prefixed tags, or Word parts only.
+   Recheck the large-sheet benchmark.
+
+Smaller:
+5. **Lectern orientation test.** It passes on the code before `0bcaec5`: `L.unionBounds` has no
+   `rot`, so the multi-member path never wrote orientation. Add a fixture with one model member over
+   an AlternateContent Choice/Fallback whose shapes differ in rot and flips; that case was the real
+   bug.
+6. **Lectern flips.** Moving a single-shape preserved frame resets an existing flip to 0:
+   `F.placeholder` (`frames.js:33`) reads `rot` but not `flipH`/`flipV`.
+7. **Lectern extension order.** Slide `p:extLst` is reordered on every save with modern comments.
+   `properties.js:240` deletes, then appends, `commentRel`/`creationId`; blank them in place
+   instead. Also test the path that creates a new `p14:creationId` (the fixture always has one).
+8. **Ledger ActiveX copies.** Copied ActiveX controls get numeric VML `v:shape id` values and names
+   like `cmdOK 1`. Office uses the control name as the VML id, and a space is not a valid VBA
+   identifier. Follow Office (`objects.js:105`).
+9. **Quire index with columns.** Inserting an index with columns moves the section's page break: the
+   new section is `continuous` and the original start type moves after the index
+   (`fields.js:656`).
+10. **Plan hygiene.**
+    - List the pre-release Excel conversion and the master/layout decoration edits as Office-pending.
+      Neither is in a batch.
+    - Update the Excel figures under "Current execution" (`ledger-final-3716a3b`/187 vs
+      `3cb0cd2`/189 in docs/ledger.md).

@@ -311,7 +311,7 @@
     if (t && t[sz]) return t[sz];
     return Math.round(sz * 1.275 * 4) / 4;
   };
-  M.defaultRowPt = (sh) => (sh.defRowH != null ? sh.defRowH : M.fontRowPt(sh.wb.defaultFont));
+  M.defaultRowPt = (sh) => sh.defRowH ?? (sh.extra.formatKeep?.legacyNamespace ? sh.fileDefRowH : null) ?? M.fontRowPt(sh.wb.defaultFont);
   M.rowPt = function (sh, r) {
     const row = sh.rows[r];
     if (row) { if (row.hidden) return 0; if (row.ht != null && (row.customHeight || row.auto == null)) return row.ht; if (row.auto != null) return row.auto; }

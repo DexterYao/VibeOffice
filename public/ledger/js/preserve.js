@@ -204,6 +204,9 @@
       convert: base => base === 'xl/theme/theme1.xml' ? L.xlsxWrite.themeXml(wb) : null,
       merge: (base, source, data, writer) => P.merge(wb, base, source, data, writer) });
     output.bind('xl/workbook.xml', pkg?.main, 'merged');
+    for (const sh of wb.sheets) if (sh.extra.invalidVisibility) output.writer.loss({
+      id: 'sheet-visibility:' + sh.id, where: sh.name, action: 'conversion',
+      what: 'An invalid worksheet visibility setting (' + sh.extra.invalidVisibility + ') was replaced with ' + sh.state + '. This can change which sheets are printed.' });
     for (const [base, type, mode, root] of P.parts) {
       const rel = pkg?.rels(root ? '' : pkg.main).find(r => K.relationshipType(r.type) === type && !r.external);
       output.bind(base, rel?.part, base === 'xl/theme/theme1.xml' && !same(wb.themeXml, wb.extra.keepValues?.themeXml) ? 'regenerated' : mode);

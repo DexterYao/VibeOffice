@@ -44,6 +44,7 @@ test('worksheet dimension edits keep sibling attributes and undo restores exact 
   const sh = wb.sheets[0], original = attributes(format(wb.pkg)), descent = '{' + K.KNOWN_NS.x14ac + '}dyDescent';
   assert.equal(original[descent], '0.2');
   assert.deepEqual(attributes(format((await save(wb, 'save')).pkg)), original);
+  assert(wb.losses.some(e => e.id === 'sheet-visibility:' + sh.id && e.what.includes('(show)')));
   O.sheetProp(wb, sh, 'defColW', 20, 'Default column width');
   assert.deepEqual(attributes(format((await save(wb, 'column-width')).pkg)), { ...original, defaultColWidth: '20' });
   wb.undo.undo(); assert.deepEqual(attributes(format((await save(wb, 'column-width-undo')).pkg)), original);
@@ -74,6 +75,24 @@ test('pre-release worksheet sizes convert to the current schema with a notice th
     wb.undo.undo();
     assert.deepEqual(attributes(format((await save(wb, 'legacy-undo')).pkg)), attributes(format(initial.pkg)));
   }
+});
+test('the 2005 preview converts twip heights and zero-based fixed-point column widths', async t => {
+  const wb = await open(t, 'early'); if (!wb) return;
+  const sh = wb.sheets[0];
+  assert.equal(sh.rows[4].ht, 18.75); assert.equal(sh.rows[5].ht, 32.85);
+  assert.equal(sh.fileDefRowH, 15);
+  assert.equal(L.model.defaultRowPt(sh), 15);
+  assert.equal(sh.cols[0]?.w, 10.625); assert.equal(sh.cols[6]?.w, 13.375);
+  const saved = await save(wb, 'legacy-units'), root = saved.pkg.xml(sh.extra.ooxmlPart);
+  assert.equal(child(root, 'sheetFormatPr').getAttribute('defaultRowHeight'), '15');
+  assert.equal(child(root, 'sheetFormatPr').getAttribute('customHeight'), null);
+  const reread = await L.xlsxRead.read(saved.bytes);
+  assert.equal(reread.sheets[0].rows[4].ht, 18.75);
+  assert.equal(reread.sheets[0].rows[5].ht, 32.85);
+  assert.equal(reread.sheets[0].cols[0].w, 10.625);
+  O.sheetProp(wb, sh, 'defRowH', 24, 'Default row height');
+  assert.equal(format((await save(wb, 'legacy-units-height')).pkg).getAttribute('defaultRowHeight'), '24');
+  wb.undo.undo(); assert.equal(format((await save(wb, 'legacy-units-undo')).pkg).getAttribute('defaultRowHeight'), '15');
 });
 test('missing worksheet format stays absent and alternatives keep unread siblings', () => {
   const wb = new L.model.Workbook(), sh = wb.addSheet('Sheet1');
