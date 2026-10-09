@@ -272,7 +272,8 @@ Remaining, in order:
    - (Fixed.) Pivots and threads use the writer's sheet-to-part map.
    - (Fixed.) Pivot source-kind tests generate missing fixtures from the pinned corpus, with no dated path.
    - (Fixed.) docs/ledger.md uses the current per-feature test counts.
-   - `namespace-size.mjs` fails on the deliberate local `Ignorable` kept beside `PreserveAttributes`.
+   - (Fixed.) `namespace-size.mjs` counts deliberate scoped `Ignorable` separately. The three MC
+     directive cases pass without treating their necessary local declaration as a failure.
    - The former `designs.mjs` `style` failure is fixed: paragraph preservation now writes an edited
      default run property while retaining its unknown siblings.
    - Converting one SmartArt adds five generic "no remaining reference" notices beside the specific one.

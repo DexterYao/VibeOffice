@@ -171,7 +171,9 @@ failed comparisons rather than silently excluding them.
 
 `node tools/ooxml/namespace-size.mjs ORIGINALS SAVED OUTPUT [LIMIT=400]` isolates namespace compaction
 on existing Word saves. It reports original/before/after main-part sizes and compacts writer-owned
-parts while keeping opaque dependency bytes. It is a serialization benchmark, not an app round trip;
+parts while keeping opaque dependency bytes. Descendant `Ignorable` declarations required by local
+`PreserveAttributes`, `PreserveElements` or `ProcessContent` are counted as `scopedIgnorable`;
+only `unexpectedIgnorable` declarations fail the measurement. It is a serialization benchmark, not an app round trip;
 use fresh browser saves, package/SDK comparisons and Office samples for integration checks. Run
 `conventions.py` on its output and every full corpus run, recording newly introduced signatures.
 `tools/quire/test/comment-office-copies.py BATCH PREVIOUS_BATCH OUTPUT` recreates the bounded first
